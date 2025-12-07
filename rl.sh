@@ -1,6 +1,11 @@
 #!/bin/bash
 
 export NCCL_IB_DISABLE=1        # 完全禁用 IB/RoCE
+export WANDB_API_KEY=fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b
+
+PROCESS_NUM=4
+# Path to the SFT-trained model (should match the output_dir from sft.sh)
+MODEL_PATH=output_dir/sft_Industrial_and_Scientific_qwen1.5b_bs1024/hf_checkpoints/Qwen2.5-1.5B-Instruct/final_checkpoint
 
 for category in "Industrial_and_Scientific"; do
     train_file=$(ls -f ./data/Amazon/train/${category}*.csv)
@@ -9,9 +14,9 @@ for category in "Industrial_and_Scientific"; do
 
     HF_ENDPOINT=https://hf-mirror.com accelerate launch \
                                     --config_file ./config/zero2_opt.yaml \
-                                    --num_processes 8 --main_process_port 29503 \
+                                    --num_processes ${PROCESS_NUM} --main_process_port 29503 \
                                     rl.py \
-                        --model_path path_to_model \
+                        --model_path ${MODEL_PATH} \
                         --train_batch_size 64 \
                         --eval_batch_size 128 \
                         --num_train_epochs 2 \
@@ -34,8 +39,9 @@ for category in "Industrial_and_Scientific"; do
                         --add_gt False \
                         --beta 1e-3 \
                         --dapo False \
-                        --output_dir output_dir \
-                        --wandb_run_name wandb_name \
+                        --output_dir output_dir/rl_${category}_qwen1.5b_bs1024 \
+                        --wandb_project MiniOneRec \
+                        --wandb_run_name rl_${category}_qwen1.5b_bs1024 \
                         --sid_index_path ./data/Amazon/index/Industrial_and_Scientific.index.json \
                         --item_meta_path ./data/Amazon/index/Industrial_and_Scientific.item.json
 done

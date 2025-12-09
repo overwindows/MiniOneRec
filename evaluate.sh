@@ -3,8 +3,9 @@
 for category in "Industrial_and_Scientific"
 do
     # your model path
-    exp_name="xxx"
+    # exp_name="output_dir/sft_Industrial_and_Scientific_qwen1.5b_bs1024/hf_checkpoints/Qwen2.5-1.5B-Instruct/final_checkpoint"
 
+    exp_name="output_dir/rl_Industrial_and_Scientific_qwen1.5b_bs1024/final_checkpoint"
     exp_name_clean=$(basename "$exp_name")
     echo "Processing category: $category with model: $exp_name_clean (STANDARD MODE)"
     
@@ -33,7 +34,7 @@ do
         continue
     fi
     
-    cudalist="0 1 2 3 4 5 6 7"  
+    cudalist="0 1 2 3"  
     echo "Starting parallel evaluation (STANDARD MODE)..."
     for i in ${cudalist}
     do

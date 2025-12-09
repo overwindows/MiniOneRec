@@ -5,7 +5,7 @@ export WANDB_API_KEY=fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b
 
 PROCESS_NUM=4
 # Path to the SFT-trained model (should match the output_dir from sft.sh)
-MODEL_PATH=output_dir/sft_Industrial_and_Scientific_qwen1.5b_bs1024/hf_checkpoints/Qwen2.5-1.5B-Instruct/final_checkpoint
+MODEL_PATH=output_dir/sft_Industrial_and_Scientific_qwen3-4b-instruct-2507_bs1024/final_checkpoint
 
 for category in "Industrial_and_Scientific"; do
     train_file=$(ls -f ./data/Amazon/train/${category}*.csv)
@@ -39,9 +39,9 @@ for category in "Industrial_and_Scientific"; do
                         --add_gt False \
                         --beta 1e-3 \
                         --dapo False \
-                        --output_dir output_dir/rl_${category}_qwen1.5b_bs1024 \
+                        --output_dir output_dir/rl_${category}_qwen3-4b-instruct-2507_bs1024 \
                         --wandb_project MiniOneRec \
-                        --wandb_run_name rl_${category}_qwen1.5b_bs1024 \
+                        --wandb_run_name rl_${category}_qwen3-4b-instruct-2507_bs1024 \
                         --sid_index_path ./data/Amazon/index/Industrial_and_Scientific.index.json \
                         --item_meta_path ./data/Amazon/index/Industrial_and_Scientific.item.json
 done

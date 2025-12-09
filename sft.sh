@@ -7,8 +7,6 @@ PROCESS_NUM=4
 # MODEL_PATH=/nvmedata/hf_checkpoints/Qwen2.5-1.5B-Instruct
 MODEL_PATH=/nvmedata/hf_checkpoints/Qwen3-4B-Instruct-2507
 
-EXP_NAME=sft_${category}_qwen3-4b-instruct-2507_bs1024
-
 # Office_Products, Industrial_and_Scientific
 for category in "Industrial_and_Scientific"; do
     train_file=$(ls -f ./data/Amazon/train/${category}*11.csv)
@@ -24,9 +22,9 @@ for category in "Industrial_and_Scientific"; do
             --micro_batch_size 16 \
             --train_file ${train_file} \
             --eval_file ${eval_file} \
-            --output_dir output_dir/${EXP_NAME} \
+            --output_dir output_dir/sft_${category}_qwen3-4b-instruct-2507_bs1024 \
             --wandb_project MiniOneRec \
-            --wandb_run_name ${EXP_NAME} \
+            --wandb_run_name sft_${category}_qwen3-4b-instruct-2507_bs1024 \
             --category ${category} \
             --train_from_scratch False \
             --seed 42 \

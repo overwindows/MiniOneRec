@@ -15,6 +15,8 @@ import math
 import json
 from sklearn.metrics import ndcg_score
 
+# os.environ['WANDB_MODE'] = 'disabled'
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)

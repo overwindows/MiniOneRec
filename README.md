@@ -66,8 +66,10 @@ Scaling Generative Recommendation**
 | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `sft.sh`                  | Shell script to start the Supervised Fine-Tuning (SFT) stage                                           |
 | `sft.py`                  | Python implementation of the SFT training loop                                                            |
+| `sft_gpr.py`              | GPR-inspired SFT with Value-Aware Fine-Tuning (VAFT): implements weighted loss based on simulated item value                            |
 | `rl.sh`                   | Shell script to start the Reinforcement Learning (RL) stage                             |
 | `rl.py`                   | Python implementation of the RL training loop                                              |
+| `rl_gpr.py`               | GPR-inspired RL with Hierarchy Enhanced Policy Optimization (HEPO)                                                 |
 | `minionerec_trainer.py`   | MiniOneRec trainer — GRPO-based trainer specialized for generative recommendation                              |
 | `configs/`                | YAML configuration files                                            |
 | `evaluate.sh`     | One-click offline Top-K evaluation script                                                        |
@@ -75,12 +77,15 @@ Scaling Generative Recommendation**
 | `LogitProcessor.py`                | Logit processor for constrained decoding (Python implementation)                                         |
 | `data.py`                | Data pipeline for SFT and RL training                          |
 | `convert_dataset.py`                | Converts an RQ-trained dataset to the SFT-then-RL format                                            |
+| `convert_dataset_gpr.py`           | GPR-inspired dataset converter: injects simulated heterogeneous tokens (U/E/I/O) to emulate unified input representation                                         |
 | `data/amazon18_data_process.sh`                |    Shell script to filter and preprocess Amazon18 data into an RQ-ready format                                      |
 | `data/amazon18_data_process.py`                |   Python implementation of the Amazon18 data preprocessing pipeline                                        |
+| `data/amazon18_data_process_gpr.py`            |   GPR-inspired Amazon18 preprocessing: extracts heterogeneous features for unified input representation                         |
 | `data/amazon23_data_process.sh`                |    Shell script to filter and preprocess Amazon23 data into an RQ-ready format                                      |
 | `data/amazon23_data_process.py`                |   Python implementation of the Amazon23 data preprocessing pipeline                                        |
 | `rq/text2emb/amazon_text2emb.sh`                |   Shell script to generate item embeddings (title + description) via emb_model for the Amazon dataset                                   |
 | `rq/text2emb/amazon_text2emb.py`                |   Python implementation of the above embedding generation                                         |
+| `rq/text2emb/amazon_text2emb_gpr.py`           |   GPR-inspired text-to-embedding                                 |
 | `rq/generate_indices.py`                |   Generates the SID file after training an RQ-VAE model                                       |
 | `rq/rqvae.sh`                |   Shell script to train RQ-VAE on Amazon item embeddings                        |
 | `rq/rqvae.py`                |   Python implementation of RQ-VAE training                                            |

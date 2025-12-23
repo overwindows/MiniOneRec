@@ -1,0 +1,46 @@
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+display_name: minionerec_train_with_llm_eval
+
+inputs:
+  shared_checkpoints:
+    type: uri_folder
+  eval_results:
+    type: uri_folder
+
+jobs:
+  train:
+    type: command
+    code: ..
+    command: >-
+      OUTPUT_ROOT=${{outputs.checkpoints}} bash rl.sh
+    inputs:
+      shared_checkpoints: ${{parent.inputs.shared_checkpoints}}
+    outputs:
+      checkpoints:
+        type: uri_folder
+        path: ${{parent.inputs.shared_checkpoints}}
+        mode: rw_mount
+    environment: azureml:Ubuntu2204-ACL@latest
+    compute: azureml:YOUR_TRAIN_COMPUTE
+
+  llm_eval:
+    type: command
+    code: ..
+    command: >-
+      python aml/llm_eval_poll.py
+      --checkpoints_dir ${{inputs.shared_checkpoints}}
+      --output_dir ${{outputs.eval_results}}
+      --tasks mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval
+      --poll_interval 600
+    inputs:
+      shared_checkpoints:
+        path: ${{parent.inputs.shared_checkpoints}}
+        mode: ro_mount
+    outputs:
+      eval_results:
+        type: uri_folder
+        path: ${{parent.inputs.eval_results}}
+        mode: rw_mount
+    environment: azureml:Ubuntu2204-ACL@latest
+    compute: azureml:YOUR_EVAL_COMPUTE

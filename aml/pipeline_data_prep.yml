@@ -1,0 +1,61 @@
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+display_name: minionerec_data_prep
+
+inputs:
+  dataset_version:
+    type: string
+    default: amazon18
+  dataset_name:
+    type: string
+    default: Industrial_and_Scientific
+  user_k:
+    type: integer
+    default: 5
+  item_k:
+    type: integer
+    default: 5
+  st_year:
+    type: integer
+    default: 1996
+  st_month:
+    type: integer
+    default: 10
+  ed_year:
+    type: integer
+    default: 2018
+  ed_month:
+    type: integer
+    default: 11
+  metadata_file:
+    type: uri_file
+    optional: true
+  reviews_file:
+    type: uri_file
+    optional: true
+
+jobs:
+  data_prep:
+    type: command
+    code: ..
+    command: >-
+      DATASET_VERSION=${{inputs.dataset_version}}
+      DATASET_NAME=${{inputs.dataset_name}}
+      USER_K=${{inputs.user_k}}
+      ITEM_K=${{inputs.item_k}}
+      ST_YEAR=${{inputs.st_year}}
+      ST_MONTH=${{inputs.st_month}}
+      ED_YEAR=${{inputs.ed_year}}
+      ED_MONTH=${{inputs.ed_month}}
+      METADATA_FILE=${{inputs.metadata_file}}
+      REVIEWS_FILE=${{inputs.reviews_file}}
+      OUTPUT_PATH=${{outputs.prepared_data}}
+      bash aml/data_prep.sh
+    inputs:
+      metadata_file: ${{parent.inputs.metadata_file}}
+      reviews_file: ${{parent.inputs.reviews_file}}
+    outputs:
+      prepared_data:
+        type: uri_folder
+    environment: azureml:Ubuntu2204-ACL@latest
+    compute: azureml:YOUR_DATA_PREP_COMPUTE

@@ -60,6 +60,33 @@ Scaling Generative Recommendation**
 
 ---
 
+## 🧪 LLM Capability Evaluation (Optional)
+
+If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), this repo includes a lightweight wrapper around [lm-eval-harness](https://github.com/EleutherAI/lm-eval-harness).
+
+### Install optional eval deps
+```bash
+pip install -r requirements-eval.txt
+```
+
+### Run a single checkpoint/model
+```bash
+python llm_eval.py \
+  --model_path /path/to/model_or_checkpoint \
+  --tasks mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval
+```
+
+### Run all checkpoints in an output dir
+```bash
+bash eval_llm.sh /path/to/output_dir \
+  mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval \
+  llm_eval
+```
+
+You can swap in other lm-eval tasks such as `bbh`, `truthfulqa`, `gpqa`, or `agieval` depending on coverage and budget.
+
+---
+
 ## 🗂️ Repository Overview
 
 | File / Directory          | Description                                                                                                   |

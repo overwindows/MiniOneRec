@@ -3,7 +3,7 @@
 export NCCL_IB_DISABLE=1        # 完全禁用 IB/RoCE
 export WANDB_API_KEY=fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b
 
-PROCESS_NUM=4
+PROCESS_NUM=8
 # Path to the SFT-trained model (should match the output_dir from sft.sh)
 MODEL_PATH=output_dir/sft_Industrial_and_Scientific_qwen3-4b-instruct-2507_bs1024/final_checkpoint
 

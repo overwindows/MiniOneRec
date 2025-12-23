@@ -110,6 +110,7 @@ regex==2025.9.18
 requests==2.32.3
 safetensors==0.6.2
 scikit-build==0.18.0
+scikit-learn
 scipy==1.14.0
 sentry-sdk==2.42.0
 setuptools-git-versioning==2.0.0

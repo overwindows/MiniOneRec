@@ -66,6 +66,10 @@ Scaling Generative Recommendation**
 | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `sft.sh`                  | Shell script to start the Supervised Fine-Tuning (SFT) stage                                           |
 | `sft.py`                  | Python implementation of the SFT training loop                                                            |
+| `sft_ds.sh`               | Shell script for memory-optimized SFT with DeepSpeed launcher (for 8B+ models)                           |
+| `sft_ds.py`               | Python implementation of SFT with DeepSpeed, Flash Attention 2, and gradient checkpointing               |
+| `ds_config_zero3.json`    | DeepSpeed ZeRO-3 configuration with CPU offloading                                                       |
+| `hostfile.example`        | Example hostfile for multi-node DeepSpeed training                                                       |
 | `rl.sh`                   | Shell script to start the Reinforcement Learning (RL) stage                             |
 | `rl.py`                   | Python implementation of the RL training loop                                              |
 | `minionerec_trainer.py`   | MiniOneRec trainer — GRPO-based trainer specialized for generative recommendation                              |
@@ -113,10 +117,21 @@ conda activate MiniOneRec
 pip install -r requirements.txt
 ```
 
+For 8B+ models, also install Flash Attention 2:
+```bash
+pip install flash-attn --no-build-isolation
+```
+
 ### 3. SFT
 
+For models ≤ 4B parameters:
 ```bash
 bash sft.sh
+```
+
+For models ≥ 8B parameters (memory-optimized with DeepSpeed):
+```bash
+bash sft_ds.sh
 ```
 
 ### 4. Recommendation-Oriented RL
@@ -239,13 +254,150 @@ python convert_dataset.py \
 
 ### 4. SFT
 
-```
+#### 4.1 Standard SFT (for models ≤ 4B parameters)
+
+```bash
 bash sft.sh \
      --base_model your_model_path \
      --output_dir your_ourput_dir \
      --sid_index_path your_.index.json_path \
      --item_meta_path your_.item.json_path
 ```
+
+#### 4.2 Memory-Optimized SFT with DeepSpeed (for models ≥ 8B parameters)
+
+For large models that cause OOM errors, use the DeepSpeed-optimized training script with the DeepSpeed launcher.
+
+**Single Node (8 GPUs):**
+```bash
+bash sft_ds.sh
+```
+The script will automatically create a default hostfile for single-node training.
+
+**Multi-Node Training:**
+
+1. Create a hostfile (e.g., `hostfile`) with your node configuration:
+```bash
+# For 2 nodes with 8 GPUs each:
+node-0 slots=8
+node-1 slots=8
+```
+
+2. Run the training script:
+```bash
+HOSTFILE=./hostfile bash sft_ds.sh
+```
+
+Or use IP addresses:
+```bash
+# hostfile content:
+192.168.1.10 slots=8
+192.168.1.11 slots=8
+```
+
+**Example hostfile configurations:**
+
+See [hostfile.example](hostfile.example) for more examples.
+
+**Requirements for Multi-Node:**
+- Passwordless SSH set up between all nodes
+- Same codebase and data accessible from all nodes
+- Run from the master node (first node in hostfile)
+
+**Alternative: Manual Multi-Node Training (2 nodes, 8 GPUs each):**
+
+On Master Node (rank 0):
+```bash
+export MASTER_ADDR=<master_node_ip>
+export MASTER_PORT=29500
+
+torchrun \
+    --nproc_per_node 8 \
+    --nnodes 2 \
+    --node_rank 0 \
+    --master_addr ${MASTER_ADDR} \
+    --master_port ${MASTER_PORT} \
+    sft_ds.py \
+    --base_model Qwen/Qwen3-8B \
+    --batch_size 16 \
+    --micro_batch_size 1 \
+    --train_file ./data/Amazon/train/Industrial_and_Scientific_11.csv \
+    --eval_file ./data/Amazon/valid/Industrial_and_Scientific_11.csv \
+    --output_dir output_dir/sft_Industrial_and_Scientific_qwen3-8b \
+    --wandb_project MiniOneRec \
+    --wandb_run_name sft_Industrial_and_Scientific_qwen3-8b \
+    --category Industrial_and_Scientific \
+    --seed 42 \
+    --sid_index_path ./data/Amazon/index/Industrial_and_Scientific.index.json \
+    --item_meta_path ./data/Amazon/index/Industrial_and_Scientific.item.json \
+    --deepspeed_config ds_config_zero3.json
+```
+
+On Worker Node (rank 1):
+```bash
+export MASTER_ADDR=<master_node_ip>
+export MASTER_PORT=29500
+
+torchrun \
+    --nproc_per_node 8 \
+    --nnodes 2 \
+    --node_rank 1 \
+    --master_addr ${MASTER_ADDR} \
+    --master_port ${MASTER_PORT} \
+    sft_ds.py \
+    [same arguments as master node...]
+```
+
+**Alternative: Using torchrun (not recommended, use DeepSpeed launcher instead)**
+
+If you prefer torchrun over DeepSpeed launcher, you can manually run on each node:
+
+On Master Node (rank 0):
+```bash
+export MASTER_ADDR=<master_node_ip>
+export MASTER_PORT=29500
+
+torchrun \
+    --nproc_per_node 8 \
+    --nnodes 2 \
+    --node_rank 0 \
+    --master_addr ${MASTER_ADDR} \
+    --master_port ${MASTER_PORT} \
+    sft_ds.py \
+    [same training arguments as above...]
+```
+
+On Worker Nodes (rank 1, 2, ...):
+```bash
+export MASTER_ADDR=<master_node_ip>
+export MASTER_PORT=29500
+
+torchrun \
+    --nproc_per_node 8 \
+    --nnodes 2 \
+    --node_rank 1 \
+    --master_addr ${MASTER_ADDR} \
+    --master_port ${MASTER_PORT} \
+    sft_ds.py \
+    [same training arguments as above...]
+```
+
+**Memory Optimization Features:**
+- ✅ Flash Attention 2 for efficient attention computation
+- ✅ Gradient checkpointing to reduce memory usage
+- ✅ DeepSpeed ZeRO-3 with CPU offloading for optimizer and parameters
+- ✅ Optimized batch sizes (`micro_batch_size=1` for 8B models)
+
+**Installing Flash Attention 2:**
+```bash
+pip install flash-attn --no-build-isolation
+```
+
+**Troubleshooting OOM:**
+If you still encounter OOM errors:
+1. Reduce `batch_size` to 8
+2. Reduce `cutoff_len` to 256 or 384
+3. Enable NVMe offload in DeepSpeed config (for very large models)
 
 ### 5. Recommendation-Oriented RL
 > (Optional) For production-scale datasets, considering the cost of reinforcement learning and diminishing marginal returns, you can perform the RL stage using only a relatively small subset on the order of tens of thousands of samples.

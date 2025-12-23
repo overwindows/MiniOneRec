@@ -3,3 +3,4 @@ output_dir/
 wandb/
 temp/
 results/
+.ipynb_checkpoints/

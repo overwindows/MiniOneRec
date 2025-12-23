@@ -87,18 +87,49 @@ You can swap in other lm-eval tasks such as `bbh`, `truthfulqa`, `gpqa`, or `agi
 
 ---
 
+## ☁️ AML Pipeline: Train + Concurrent LLM Eval
+
+If you want evaluation to run while training continues, use a shared datastore folder and run eval as a separate pipeline job that polls for new checkpoints.
+
+### Files
+- `aml/pipeline_eval.yml`: pipeline template with a training job and an eval job.
+- `aml/llm_eval_poll.py`: polling runner that evaluates each new `checkpoint-*` once.
+
+### How it works
+1. The training job mounts `shared_checkpoints` with write access and saves checkpoints into that path.
+2. The eval job mounts the same path read-only and polls for new checkpoints, running `llm_eval.py` when they appear.
+   The included `rl.sh` honors `OUTPUT_ROOT`, which `aml/pipeline_eval.yml` sets to the shared checkpoint path.
+3. Make sure the eval environment includes `lm-eval` (see `requirements-eval.txt`).
+
+### Usage (AML v2 CLI)
+Edit `aml/pipeline_eval.yml` to set your compute targets and shared datastore paths, then run:
+```bash
+az ml job create -f aml/pipeline_eval.yml \
+  --set inputs.shared_checkpoints=azureml://datastores/workspaceblobstore/paths/minionerec/checkpoints/ \
+  --set inputs.eval_results=azureml://datastores/workspaceblobstore/paths/minionerec/eval_results/
+```
+
+If you already have a custom training command, replace the `train` job command in `aml/pipeline_eval.yml`. The eval job will work as long as checkpoints are written to the shared path.
+
+---
+
 ## 🗂️ Repository Overview
 
 | File / Directory          | Description                                                                                                   |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `sft.sh`                  | Shell script to start the Supervised Fine-Tuning (SFT) stage                                           |
 | `sft.py`                  | Python implementation of the SFT training loop                                                            |
+<<<<<<< HEAD
 | `sft_ds.sh`               | Shell script for memory-optimized SFT with DeepSpeed launcher (for 8B+ models)                           |
 | `sft_ds.py`               | Python implementation of SFT with DeepSpeed, Flash Attention 2, and gradient checkpointing               |
 | `ds_config_zero3.json`    | DeepSpeed ZeRO-3 configuration with CPU offloading                                                       |
 | `hostfile.example`        | Example hostfile for multi-node DeepSpeed training                                                       |
+=======
+| `sft_gpr.py`              | GPR-inspired SFT with Value-Aware Fine-Tuning (VAFT): implements weighted loss based on simulated item value                            |
+>>>>>>> 2cbd292f65227ac5890f75350abbb1edb02ecaae
 | `rl.sh`                   | Shell script to start the Reinforcement Learning (RL) stage                             |
 | `rl.py`                   | Python implementation of the RL training loop                                              |
+| `rl_gpr.py`               | GPR-inspired RL with Hierarchy Enhanced Policy Optimization (HEPO)                                                 |
 | `minionerec_trainer.py`   | MiniOneRec trainer — GRPO-based trainer specialized for generative recommendation                              |
 | `configs/`                | YAML configuration files                                            |
 | `evaluate.sh`     | One-click offline Top-K evaluation script                                                        |
@@ -106,12 +137,15 @@ You can swap in other lm-eval tasks such as `bbh`, `truthfulqa`, `gpqa`, or `agi
 | `LogitProcessor.py`                | Logit processor for constrained decoding (Python implementation)                                         |
 | `data.py`                | Data pipeline for SFT and RL training                          |
 | `convert_dataset.py`                | Converts an RQ-trained dataset to the SFT-then-RL format                                            |
+| `convert_dataset_gpr.py`           | GPR-inspired dataset converter: injects simulated heterogeneous tokens (U/E/I/O) to emulate unified input representation                                         |
 | `data/amazon18_data_process.sh`                |    Shell script to filter and preprocess Amazon18 data into an RQ-ready format                                      |
 | `data/amazon18_data_process.py`                |   Python implementation of the Amazon18 data preprocessing pipeline                                        |
+| `data/amazon18_data_process_gpr.py`            |   GPR-inspired Amazon18 preprocessing: extracts heterogeneous features for unified input representation                         |
 | `data/amazon23_data_process.sh`                |    Shell script to filter and preprocess Amazon23 data into an RQ-ready format                                      |
 | `data/amazon23_data_process.py`                |   Python implementation of the Amazon23 data preprocessing pipeline                                        |
 | `rq/text2emb/amazon_text2emb.sh`                |   Shell script to generate item embeddings (title + description) via emb_model for the Amazon dataset                                   |
 | `rq/text2emb/amazon_text2emb.py`                |   Python implementation of the above embedding generation                                         |
+| `rq/text2emb/amazon_text2emb_gpr.py`           |   GPR-inspired text-to-embedding                                 |
 | `rq/generate_indices.py`                |   Generates the SID file after training an RQ-VAE model                                       |
 | `rq/rqvae.sh`                |   Shell script to train RQ-VAE on Amazon item embeddings                        |
 | `rq/rqvae.py`                |   Python implementation of RQ-VAE training                                            |

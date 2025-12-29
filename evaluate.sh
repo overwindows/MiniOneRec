@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 # Industrial_and_Scientific
 # Office_Products
 for category in "Industrial_and_Scientific"
@@ -100,4 +98,3 @@ do
 done
 
 echo "All categories processed!"
->>>>>>> f21a8e795898c16ca76d6d31ed84c150ce2f0976

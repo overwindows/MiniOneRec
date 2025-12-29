@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(pkill:*)",
+      "Bash(cat:*)",
+      "Bash(HOSTFILE=hostfile_node0_only bash:*)",
+      "Bash(tee:*)",
+      "Bash(if [ -f training.log ])",
+      "Bash(then tail -n 100 training.log)",
+      "Bash(else echo \"Log file not created yet\")",
+      "Bash(fi)",
+      "Bash(then wc -l training.log)",
+      "Bash(else echo \"Log file doesn''t exist yet\")",
+      "Bash(HOSTFILE=hostfile_node0_only timeout 120 bash:*)",
+      "Bash(export HOSTFILE=hostfile_node0_only)",
+      "Bash(timeout 120 bash:*)",
+      "Bash(timeout 90 bash:*)",
+      "Bash(xargs:*)",
+      "Bash(bash:*)",
+      "Bash(kill:*)",
+      "Bash(ssh:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}

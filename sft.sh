@@ -1,10 +1,10 @@
 #!/bin/bash
 
 export NCCL_IB_DISABLE=1        # 完全禁用 IB/RoCE
-export WANDB_API_KEY=fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b
+export WANDB_API_KEY="${WANDB_API_KEY:-}"
 
 PROCESS_NUM=4
-MODEL_PATH=/nvmedata/hf_checkpoints/Qwen2.5-1.5B-Instruct
+MODEL_PATH=Qwen/Qwen3-1.7B
 # MODEL_PATH=/nvmedata/hf_checkpoints/Qwen3-4B-Instruct-2507
 # MODEL_PATH=Qwen/Qwen3-4B-Instruct-2507
 

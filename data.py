@@ -162,6 +162,573 @@ class SFTData(Dataset):
         return self.inputs[idx]
 
 
+class InstructionJSONLDataset(Dataset):
+    def __init__(self, jsonl_path, tokenizer, max_len=2048, sample=-1, seed=0):
+        random.seed(seed)
+        self.tokenizer = Tokenizer(tokenizer)
+        self.max_len = max_len
+        self.data = []
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    self.data.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+        if sample > 0:
+            self.data = random.sample(self.data, min(sample, len(self.data)))
+        self.get_inputs()
+
+    def __len__(self):
+        return len(self.data)
+
+    def generate_prompt(self, data_point):
+        instruction = data_point.get("instruction", "")
+        input_text = data_point.get("input", "")
+        if input_text:
+            return f"""### Instruction:
+{instruction}
+
+### Input:
+{input_text}
+
+### Response:\n"""
+        return f"""### Instruction:
+{instruction}
+
+### Response:\n"""
+
+    def pre(self, idx):
+        data_point = self.data[idx]
+        output_text = data_point.get("output", "")
+        prompt = self.generate_prompt(data_point)
+
+        tokens = self.tokenizer.encode(prompt, bos=True, eos=False)
+        attention_mask = [1] * len(tokens)
+
+        golden_tokens = self.tokenizer.encode(output_text, bos=False, eos=True)
+        input_prompt_len = len(tokens)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+        labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
+
+        return {
+            "input_ids": tokens[-self.max_len:],
+            "attention_mask": attention_mask[-self.max_len:],
+            "labels": labels[-self.max_len:],
+        }
+
+    def get_inputs(self):
+        inputs = []
+        for i in tqdm(range(len(self.data))):
+            inputs.append(self.pre(i))
+        self.inputs = inputs
+
+    def __getitem__(self, idx):
+        return self.inputs[idx]
+
+
+class ItemTokenSFTDataset(Dataset):
+    def __init__(
+        self,
+        train_file,
+        tokenizer,
+        item_emb_path,
+        item_token="<item>",
+        max_len=2048,
+        sample=-1,
+        seed=0,
+        category="",
+        inject_target=False,
+    ):
+        self.data = pd.read_csv(train_file)
+        random.seed(seed)
+
+        if sample > 0:
+            self.data = self.data.sample(sample, random_state=seed)
+        self.tokenizer = Tokenizer(tokenizer)
+        self.max_len = max_len
+        self.category = category
+        self.item_token = item_token
+        self.inject_target = inject_target
+        self.item_embs = np.load(item_emb_path)
+        self.item_token_id = tokenizer.convert_tokens_to_ids(item_token)
+        if self.item_token_id == tokenizer.unk_token_id:
+            raise ValueError(f"Item token {item_token} is not in tokenizer vocab.")
+
+        self.instructs = [
+            f"Given a list of {category} the user recetenly enjoy, please write a new {category} that the user may bought",
+            f"Considering the {category} that has recently captured the user's interest, kindly create a compilation of other {category} that the user might have played prior to this.",
+            f"Based on the user's current gaming preference, please draft a list of potential {category} they may have experienced beforehand.",
+            f"Reflecting on the {category} the user has taken pleasure in recently, we request that you formulate a list of {category} that may have preceded the user's current enjoyment.",
+            f"In light of the recent gaming enjoyment expressed by the user, please assemble a list of {category} that could potentially include past titles the user has engaged with.",
+            f"Taking into account the {category} that has lately provided enjoyment to the user, please put together an inventory of {category} the user might have explored previously.",
+            f"Given the user's newfound enjoyment of a particular {category}, would you kindly generate a roster of other {category} that might resonate with their past gaming experiences?",
+            f"In response to the user's recent fondness for a specific {category}, we seek your assistance in listing possible {category} the user may have delighted in earlier.",
+            f"With respect to the {category} currently enjoyed by the user, please compile a suggestive list of {category} they may have played in the past.",
+            f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
+            f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
+        ]
+        self.get_inputs()
+
+    def __len__(self):
+        return len(self.data)
+
+    def _history_placeholders(self, history_ids):
+        placeholders = []
+        for _ in history_ids:
+            placeholders.append(self.item_token)
+        return ", ".join(placeholders)
+
+    def generate_prompt(self, data_point):
+        return f"""### User Input: 
+{data_point["input"]}
+
+### Response:\n"""
+
+    def get_history(self, row):
+        history_ids = eval(row["history_item_id"])
+        history_str = self._history_placeholders(history_ids)
+        target_item_id = int(row["item_id"])
+        return {
+            "input": f"The user has played the following {self.category}s before: {history_str}",
+            "history_ids": history_ids,
+            "target_item_id": target_item_id,
+        }
+
+    def pre(self, idx):
+        instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
+
+### Instruction:
+{self.instructs[random.randint(0, len(self.instructs)-1)]}\n 
+"""
+        tokens = self.tokenizer.encode(instruction, bos=True, eos=False)
+
+        history = self.get_history(self.data.iloc[idx])
+        history_ids = history["history_ids"]
+        target_item_id = history["target_item_id"]
+
+        prompt = self.generate_prompt(history)
+        tokens = tokens + self.tokenizer.encode(prompt, bos=False, eos=False)
+        input_prompt_len = len(tokens)
+
+        golden_tokens = self.tokenizer.encode(self.item_token, bos=False, eos=True)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+
+        labels = [-100] * input_prompt_len + golden_tokens
+
+        item_positions = [i for i, t in enumerate(tokens) if t == self.item_token_id]
+        expected_items = len(history_ids) + 1
+        if len(item_positions) != expected_items:
+            raise ValueError(
+                f"Expected {expected_items} item tokens, found {len(item_positions)} for row {idx}."
+            )
+
+        item_ids = list(history_ids) + [target_item_id]
+        item_embeds = [self.item_embs[item_id] for item_id in item_ids]
+
+        target_pos = item_positions[-1]
+        target_embed = self.item_embs[target_item_id]
+
+        inject_positions = item_positions[:-1]
+        inject_embeds = item_embeds[:-1]
+        if self.inject_target:
+            inject_positions = item_positions
+            inject_embeds = item_embeds
+
+        start = max(0, len(tokens) - self.max_len)
+        tokens = tokens[start:]
+        attention_mask = attention_mask[start:]
+        labels = labels[start:]
+
+        def _shift_positions(positions, embeds):
+            shifted_positions = []
+            shifted_embeds = []
+            for pos, emb in zip(positions, embeds):
+                if pos >= start:
+                    shifted_positions.append(pos - start)
+                    shifted_embeds.append(emb)
+            return shifted_positions, shifted_embeds
+
+        inject_positions, inject_embeds = _shift_positions(inject_positions, inject_embeds)
+        target_positions, target_embeds = _shift_positions([target_pos], [target_embed])
+
+        return {
+            "input_ids": tokens,
+            "attention_mask": attention_mask,
+            "labels": labels,
+            "inject_positions": inject_positions,
+            "inject_embeds": inject_embeds,
+            "target_positions": target_positions,
+            "target_embeds": target_embeds,
+        }
+
+    def get_inputs(self):
+        inputs = []
+        for i in tqdm(range(len(self.data))):
+            inputs.append(self.pre(i))
+        self.inputs = inputs
+
+    def __getitem__(self, idx):
+        return self.inputs[idx]
+
+
+class TextMetaSFTDataset(Dataset):
+    def __init__(
+        self,
+        train_file,
+        tokenizer,
+        item_meta_path,
+        max_len=2048,
+        sample=-1,
+        seed=0,
+        category="",
+    ):
+        self.data = pd.read_csv(train_file)
+        random.seed(seed)
+
+        if sample > 0:
+            self.data = self.data.sample(sample, random_state=seed)
+        self.tokenizer = Tokenizer(tokenizer)
+        self.max_len = max_len
+        self.category = category
+
+        with open(item_meta_path, "r") as f:
+            self.item_meta = json.load(f)
+
+        self.instructs = [
+            f"Given a list of {category} the user recetenly enjoy, please write a new {category} that the user may bought",
+            f"Considering the {category} that has recently captured the user's interest, kindly create a compilation of other {category} that the user might have played prior to this.",
+            f"Based on the user's current gaming preference, please draft a list of potential {category} they may have experienced beforehand.",
+            f"Reflecting on the {category} the user has taken pleasure in recently, we request that you formulate a list of {category} that may have preceded the user's current enjoyment.",
+            f"In light of the recent gaming enjoyment expressed by the user, please assemble a list of {category} that could potentially include past titles the user has engaged with.",
+            f"Taking into account the {category} that has lately provided enjoyment to the user, please put together an inventory of {category} the user might have explored previously.",
+            f"Given the user's newfound enjoyment of a particular {category}, would you kindly generate a roster of other {category} that might resonate with their past gaming experiences?",
+            f"In response to the user's recent fondness for a specific {category}, we seek your assistance in listing possible {category} the user may have delighted in earlier.",
+            f"With respect to the {category} currently enjoyed by the user, please compile a suggestive list of {category} they may have played in the past.",
+            f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
+            f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
+        ]
+        self.get_inputs()
+
+    def __len__(self):
+        return len(self.data)
+
+    def _format_item(self, item_id):
+        meta = self.item_meta.get(str(item_id), {})
+        title = meta.get("title", "")
+        brand = meta.get("brand", "")
+        description = meta.get("description", "")
+        parts = []
+        if title:
+            parts.append(f"Title: {title}")
+        if brand:
+            parts.append(f"Brand: {brand}")
+        if description:
+            parts.append(f"Description: {description}")
+        return " | ".join(parts)
+
+    def generate_prompt(self, data_point):
+        return f"""### User Input: 
+{data_point["input"]}
+
+### Response:\n{data_point["output"]}"""
+
+    def get_history(self, row):
+        history_ids = eval(row["history_item_id"])
+        history = []
+        for item_id in history_ids:
+            history.append(self._format_item(item_id))
+        history_str = ",\t".join([f"\"{h}\"" for h in history])
+        target_item = str(row["item_title"])
+        target_item = f"\"{target_item}\"\n"
+        target_item_id = row["item_id"]
+        last_history_item_id = history_ids[-1]
+        return {
+            "input": f"The user has played the following {self.category}s before: {history_str}",
+            "output": target_item,
+            "dedup": target_item_id == last_history_item_id,
+        }
+
+    def pre(self, idx):
+        instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
+
+### Instruction:
+{self.instructs[random.randint(0, len(self.instructs)-1)]}\n 
+"""
+        tokens = self.tokenizer.encode(instruction, bos=True, eos=False)
+
+        history = self.get_history(self.data.iloc[idx])
+        target_item = history["output"]
+        history["output"] = ""
+
+        prompt = self.generate_prompt(history)
+        tokens = tokens + self.tokenizer.encode(prompt, bos=False, eos=False)
+
+        attention_mask = [1] * len(tokens)
+        golden_tokens = self.tokenizer.encode(target_item, bos=False, eos=True)
+        input_prompt_len = len(tokens)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+        labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
+
+        return {
+            "input_ids": tokens[-self.max_len:],
+            "attention_mask": attention_mask[-self.max_len:],
+            "labels": labels[-self.max_len:],
+        }
+
+    def get_inputs(self):
+        inputs = []
+        for i in tqdm(range(len(self.data))):
+            inputs.append(self.pre(i))
+        self.inputs = inputs
+
+    def __getitem__(self, idx):
+        return self.inputs[idx]
+
+
+class MINDTextSFTDataset(Dataset):
+    def __init__(
+        self,
+        behaviors_path,
+        news_path,
+        tokenizer,
+        max_len=2048,
+        sample=-1,
+        seed=0,
+        max_history=50,
+        use_abstract=False,
+    ):
+        random.seed(seed)
+        self.tokenizer = Tokenizer(tokenizer)
+        self.max_len = max_len
+        self.max_history = max_history
+        self.use_abstract = use_abstract
+
+        self.news = {}
+        with open(news_path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split("\t")
+                if len(parts) < 4:
+                    continue
+                news_id = parts[0]
+                title = parts[3]
+                abstract = parts[4] if len(parts) > 4 else ""
+                if use_abstract and abstract:
+                    self.news[news_id] = f"{title} {abstract}"
+                else:
+                    self.news[news_id] = title
+
+        self.data = []
+        with open(behaviors_path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split("\t")
+                if len(parts) < 5:
+                    continue
+                history = parts[3].split()
+                impressions = parts[4].split()
+                positives = []
+                for imp in impressions:
+                    if "-" not in imp:
+                        continue
+                    nid, label = imp.rsplit("-", 1)
+                    if label == "1":
+                        positives.append(nid)
+                if not positives:
+                    continue
+                history = history[-self.max_history :]
+                for pos in positives:
+                    self.data.append(
+                        {
+                            "history": history,
+                            "target": pos,
+                        }
+                    )
+
+        if sample > 0:
+            self.data = random.sample(self.data, min(sample, len(self.data)))
+        self.get_inputs()
+
+    def __len__(self):
+        return len(self.data)
+
+    def _history_titles(self, history_ids):
+        titles = [self.news.get(nid, "") for nid in history_ids]
+        titles = [t for t in titles if t]
+        return ", ".join([f"\"{t}\"" for t in titles])
+
+    def generate_prompt(self, history_text):
+        return f"""### User Input: 
+The user has read the following news before: {history_text}
+
+### Response:\n"""
+
+    def pre(self, idx):
+        row = self.data[idx]
+        history_text = self._history_titles(row["history"])
+        target_title = self.news.get(row["target"], "")
+        target_title = f"\"{target_title}\"\n"
+
+        prompt = self.generate_prompt(history_text)
+        tokens = self.tokenizer.encode(prompt, bos=True, eos=False)
+        attention_mask = [1] * len(tokens)
+
+        golden_tokens = self.tokenizer.encode(target_title, bos=False, eos=True)
+        input_prompt_len = len(tokens)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+        labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
+
+        return {
+            "input_ids": tokens[-self.max_len:],
+            "attention_mask": attention_mask[-self.max_len:],
+            "labels": labels[-self.max_len:],
+        }
+
+    def get_inputs(self):
+        inputs = []
+        for i in tqdm(range(len(self.data))):
+            inputs.append(self.pre(i))
+        self.inputs = inputs
+
+    def __getitem__(self, idx):
+        return self.inputs[idx]
+
+
+class EvalMINDTextDataset(Dataset):
+    def __init__(
+        self,
+        behaviors_path,
+        news_path,
+        tokenizer,
+        max_len=2048,
+        sample=-1,
+        seed=0,
+        max_history=50,
+        use_abstract=False,
+        test=False,
+    ):
+        random.seed(seed)
+        self.tokenizer = Tokenizer(tokenizer)
+        self.max_len = max_len
+        self.max_history = max_history
+        self.use_abstract = use_abstract
+        self.test = test
+
+        self.news = {}
+        with open(news_path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split("\t")
+                if len(parts) < 4:
+                    continue
+                news_id = parts[0]
+                title = parts[3]
+                abstract = parts[4] if len(parts) > 4 else ""
+                if use_abstract and abstract:
+                    self.news[news_id] = f"{title} {abstract}"
+                else:
+                    self.news[news_id] = title
+
+        self.data = []
+        with open(behaviors_path, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split("\t")
+                if len(parts) < 5:
+                    continue
+                history = parts[3].split()
+                impressions = parts[4].split()
+                positives = []
+                for imp in impressions:
+                    if "-" not in imp:
+                        continue
+                    nid, label = imp.rsplit("-", 1)
+                    if label == "1":
+                        positives.append(nid)
+                if not positives:
+                    continue
+                history = history[-self.max_history :]
+                for pos in positives:
+                    self.data.append(
+                        {
+                            "history": history,
+                            "target": pos,
+                        }
+                    )
+
+        if sample > 0:
+            self.data = random.sample(self.data, min(sample, len(self.data)))
+        self.get_inputs()
+
+    def __len__(self):
+        return len(self.data)
+
+    def _history_titles(self, history_ids):
+        titles = [self.news.get(nid, "") for nid in history_ids]
+        titles = [t for t in titles if t]
+        return ", ".join([f"\"{t}\"" for t in titles])
+
+    def generate_prompt(self, history_text):
+        return f"""### User Input: 
+The user has read the following news before: {history_text}
+
+### Response:\n"""
+
+    def get_history(self, row):
+        history_text = self._history_titles(row["history"])
+        target_title = self.news.get(row["target"], "")
+        target_title = f"\"{target_title}\""
+        return {
+            "input": f"The user has read the following news before: {history_text}",
+            "output": target_title + "\n",
+        }
+
+    def pre(self, idx):
+        row = self.data[idx]
+        history_text = self._history_titles(row["history"])
+        prompt = self.generate_prompt(history_text)
+        tokens = self.tokenizer.encode(prompt, bos=True, eos=False)
+        attention_mask = [1] * len(tokens)
+
+        if self.test:
+            return {
+                "input_ids": tokens,
+                "attention_mask": attention_mask,
+            }
+
+        target_title = self.news.get(row["target"], "")
+        target_title = f"\"{target_title}\"\n"
+        golden_tokens = self.tokenizer.encode(target_title, bos=False, eos=True)
+        input_prompt_len = len(tokens)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+        labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
+
+        return {
+            "input_ids": tokens[-self.max_len:],
+            "attention_mask": attention_mask[-self.max_len:],
+            "labels": labels[-self.max_len:],
+        }
+
+    def get_inputs(self):
+        inputs = []
+        for i in tqdm(range(len(self.data))):
+            inputs.append(self.pre(i))
+        self.inputs = inputs
+
+    def get_all(self):
+        temp = []
+        for i in range(len(self.data)):
+            temp.append(self.get_history(self.data[i]))
+        return temp
+
+    def __getitem__(self, idx):
+        return self.inputs[idx]
+
+
 class D3Dataset(Dataset):
     def __init__(self, train_file, max_len=2048, sample=-1, seed=0, category="", dedup=False):
         self.data = pd.read_csv(train_file)
@@ -365,6 +932,123 @@ class EvalD3Dataset(Dataset):
         for i in tqdm(range(len(self.data))):
             inputs.append(self.pre(i))
 
+        self.inputs = inputs
+
+    def get_all(self):
+        temp = []
+        for i in range(len(self.data)):
+            temp.append(self.get_history(self.data.iloc[i]))
+        return temp
+
+
+class EvalTextMetaDataset(Dataset):
+    def __init__(self, train_file, tokenizer, item_meta_path, max_len=2048, sample=-1, test=False, seed=0, category=""):
+        self.data = pd.read_csv(train_file)
+        random.seed(seed)
+
+        if sample > 0:
+            self.data = self.data.sample(sample, random_state=seed)
+        self.tokenizer = Tokenizer(tokenizer)
+        self.test = test
+        self.max_len = max_len
+        self.category = category
+
+        with open(item_meta_path, "r") as f:
+            self.item_meta = json.load(f)
+
+        self.instructs = [
+            f"Given a list of {category} the user recetenly enjoy, please write a new {category} that the user may bought",
+            f"Considering the {category} that has recently captured the user's interest, kindly create a compilation of other {category} that the user might have played prior to this.",
+            f"Based on the user's current gaming preference, please draft a list of potential {category} they may have experienced beforehand.",
+            f"Reflecting on the {category} the user has taken pleasure in recently, we request that you formulate a list of {category} that may have preceded the user's current enjoyment.",
+            f"In light of the recent gaming enjoyment expressed by the user, please assemble a list of {category} that could potentially include past titles the user has engaged with.",
+            f"Taking into account the {category} that has lately provided enjoyment to the user, please put together an inventory of {category} the user might have explored previously.",
+            f"Given the user's newfound enjoyment of a particular {category}, would you kindly generate a roster of other {category} that might resonate with their past gaming experiences?",
+            f"In response to the user's recent fondness for a specific {category}, we seek your assistance in listing possible {category} the user may have delighted in earlier.",
+            f"With respect to the {category} currently enjoyed by the user, please compile a suggestive list of {category} they may have played in the past.",
+            f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
+            f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
+        ]
+        self.get_inputs()
+
+    def __len__(self):
+        return len(self.data)
+
+    def _format_item(self, item_id):
+        meta = self.item_meta.get(str(item_id), {})
+        title = meta.get("title", "")
+        brand = meta.get("brand", "")
+        description = meta.get("description", "")
+        parts = []
+        if title:
+            parts.append(f"Title: {title}")
+        if brand:
+            parts.append(f"Brand: {brand}")
+        if description:
+            parts.append(f"Description: {description}")
+        return " | ".join(parts)
+
+    def generate_prompt(self, data_point):
+        return f"""### User Input: 
+{data_point["input"]}
+
+### Response:\n{data_point["output"]}"""
+
+    def get_history(self, row):
+        history_ids = eval(row["history_item_id"])
+        history = []
+        for item_id in history_ids:
+            history.append(self._format_item(item_id))
+        history_str = ",\t".join([f"\"{h}\"" for h in history])
+        target_item = str(row["item_title"])
+        target_item = f"\"{target_item}\""
+        target_item_id = row["item_id"]
+        last_history_item_id = history_ids[-1]
+        return {
+            "input": f"The user has palyed the following {self.category}s before: {history_str}",
+            "output": target_item + "\n",
+            "dedup": target_item_id == last_history_item_id,
+        }
+
+    def pre(self, idx):
+        instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
+
+### Instruction:
+{self.instructs[random.randint(0, len(self.instructs)-1)]}\n
+"""
+        tokens = self.tokenizer.encode(instruction, bos=True, eos=False)
+
+        history = self.get_history(self.data.iloc[idx])
+        history["output"] = ""
+
+        prompt = self.generate_prompt(history)
+        tokens = tokens + self.tokenizer.encode(prompt, bos=False, eos=False)
+
+        attention_mask = [1] * len(tokens)
+
+        if self.test:
+            return {
+                "input_ids": tokens,
+                "attention_mask": attention_mask,
+            }
+
+        target_item = self.get_history(self.data.iloc[idx])["output"]
+        golden_tokens = self.tokenizer.encode(target_item, bos=False, eos=True)
+        input_prompt_len = len(tokens)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+        labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
+
+        return {
+            "input_ids": tokens[-self.max_len:],
+            "attention_mask": attention_mask[-self.max_len:],
+            "labels": labels[-self.max_len:],
+        }
+
+    def get_inputs(self):
+        inputs = []
+        for i in tqdm(range(len(self.data))):
+            inputs.append(self.pre(i))
         self.inputs = inputs
 
     def get_all(self):

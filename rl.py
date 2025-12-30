@@ -209,13 +209,16 @@ def train(
         targets = [history2target[elm] for elm in history]
         target_ids = [item2id[elm.strip("\"\n")] for elm in targets]
         completions = [elm.strip("\"\n") for elm in completions]
+        fallback_id = 0
         for i, completion in enumerate(completions):
             if completion not in item2id:
                 print("==============================")
                 print(prompts[i])
                 print(f"Invalid item: {completion}")
                 print("==============================")
-        completion_ids = [item2id[elm] for elm in completions]
+        completion_ids = [
+            item2id[elm] if elm in item2id else fallback_id for elm in completions
+        ]
         rewards = torch.cosine_similarity(
             item_ada_embd[target_ids], item_ada_embd[completion_ids], dim=-1)
         print(rewards)

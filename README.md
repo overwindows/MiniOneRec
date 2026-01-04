@@ -64,6 +64,12 @@ Scaling Generative Recommendation**
 
 If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), this repo includes a lightweight wrapper around [lm-eval-harness](https://github.com/EleutherAI/lm-eval-harness).
 
+### Evaluation Results
+
+| Model | MMLU | HellaSwag | ARC-Challenge | Winogrande | GSM8K | IFEval |
+|-------|------|-----------|---------------|------------|-------|--------|
+| Qwen3-4B-Instruct-2507 | 70.65% | 69.06% | 58.45% | 68.03% | 71.27% | 57.67% |
+
 ### Install optional eval deps
 ```bash
 pip install -r requirements-eval.txt

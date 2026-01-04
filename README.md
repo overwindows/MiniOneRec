@@ -213,6 +213,91 @@ bash evaluate.sh
 
 ---
 
+## 🧩 General Instruction Data Mixing (Optional)
+
+To preserve general instruction-following ability during SFT, you can mix a small slice of general instruction data (e.g., 5–10%) into each epoch.
+
+### Download UltraChat-200k
+```bash
+python download_ultrachat.py --output data/general/ultrachat_200k.jsonl
+```
+
+This exports a JSONL file with `instruction`, `input`, `output` fields. You can then sample from it when preparing SFT batches.
+
+### Suggested mixing ratio
+- Start with **5–10%** UltraChat, **90–95%** recommendation data.
+- Keep the same eval pipeline so HR/NDCG remains comparable.
+
+### Mix into `sft_text.py`
+```bash
+python sft_text.py \
+  --base_model Qwen/Qwen3-4B-Instruct-2507 \
+  --train_file data/Amazon/train/Industrial_and_Scientific_5_2016-10-2018-11.csv \
+  --eval_file data/Amazon/valid/Industrial_and_Scientific_5_2016-10-2018-11.csv \
+  --category Industrial_and_Scientific \
+  --item_meta_path data/Amazon/index/Industrial_and_Scientific.item.json \
+  --general_jsonl data/general/ultrachat_200k.jsonl \
+  --general_ratio 0.05 \
+  --output_dir output_dir/sft_text_mixed_Industrial_and_Scientific
+```
+
+---
+
+## 📰 MIND Dataset (Optional)
+
+The MIND dataset contains `news.tsv` and `behaviors.tsv`. This repo includes dataset helpers to build text-only SFT examples from MIND.
+
+Classes:
+- `MINDTextSFTDataset` (training)
+- `EvalMINDTextDataset` (evaluation)
+
+Basic usage example:
+```python
+from transformers import AutoTokenizer
+from data import MINDTextSFTDataset
+
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-4B-Instruct-2507")
+dataset = MINDTextSFTDataset(
+    behaviors_path="path/to/behaviors.tsv",
+    news_path="path/to/news.tsv",
+    tokenizer=tokenizer,
+    max_history=50,
+    use_abstract=False,
+)
+```
+
+### MIND leaderboard-style evaluation
+This script scores each impression and reports AUC, MRR, nDCG@5, nDCG@10 (same metrics used on the MIND leaderboard).
+
+```bash
+bash evaluate_mind.sh /path/to/your_model /path/to/MIND dev
+```
+
+---
+
+## 🔀 Mixed SFT (Amazon + MIND + General)
+
+You can mix Amazon, MIND, and general instruction data in one SFT run using `sft_text_mixed.py`. Ratios are normalized automatically.
+
+```bash
+python sft_text_mixed.py \
+  --base_model Qwen/Qwen3-4B-Instruct-2507 \
+  --output_dir output_dir/sft_text_mixed \
+  --amazon_train_file data/Amazon/train/Industrial_and_Scientific_5_2016-10-2018-11.csv \
+  --amazon_eval_file data/Amazon/valid/Industrial_and_Scientific_5_2016-10-2018-11.csv \
+  --amazon_category Industrial_and_Scientific \
+  --amazon_item_meta_path data/Amazon/index/Industrial_and_Scientific.item.json \
+  --mind_behaviors_path path/to/MIND/behaviors.tsv \
+  --mind_news_path path/to/MIND/news.tsv \
+  --general_jsonl data/general/ultrachat_200k.jsonl \
+  --amazon_ratio 0.7 \
+  --mind_ratio 0.2 \
+  --general_ratio 0.1 \
+  --eval_source amazon
+```
+
+---
+
 ## 📜 Full Pipeline Walk-through
 
 ### 0. Prerequisites

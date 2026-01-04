@@ -42,19 +42,10 @@ def run_evaluation_on_gpu(gpu_id, model_path, tasks, batch_size, dtype, num_fews
 
     print(f"[GPU {gpu_id}] Step 1/5: Setting CUDA_VISIBLE_DEVICES={gpu_id}")
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-    # Disable torch distributed to avoid port conflicts
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = str(9500 + gpu_id)  # Use different port per GPU
-    os.environ["RANK"] = str(gpu_id)
-    os.environ["LOCAL_RANK"] = "0"
-    os.environ["WORLD_SIZE"] = "1"  # Each process sees only 1 GPU
 
-    print(f"[GPU {gpu_id}] Step 2/5: Importing lm_eval library...")
     try:
         from lm_eval import evaluator
-        print(f"[GPU {gpu_id}] ✓ lm_eval imported successfully")
     except Exception as e:
-        print(f"[GPU {gpu_id}] ✗ Failed to import lm_eval: {e}")
         output_queue.put({"gpu_id": gpu_id, "error": str(e)})
         return
 
@@ -92,9 +83,7 @@ def run_evaluation_on_gpu(gpu_id, model_path, tasks, batch_size, dtype, num_fews
         output_queue.put({"gpu_id": gpu_id, "results": {}})
         return
 
-    print(f"[GPU {gpu_id}] Step 3/5: Tasks assigned: {gpu_tasks}")
-    print(f"[GPU {gpu_id}] Step 4/5: Loading model '{model_path}' (this may take several minutes)...")
-    load_start = time_module.time()
+    print(f"GPU {gpu_id}: Evaluating tasks {gpu_tasks}")
 
     try:
         results = evaluator.simple_evaluate(
@@ -107,8 +96,7 @@ def run_evaluation_on_gpu(gpu_id, model_path, tasks, batch_size, dtype, num_fews
             limit=limit,
         )
         elapsed = time_module.time() - start_time
-        load_time = time_module.time() - load_start
-        print(f"[GPU {gpu_id}] Step 5/5: ✓ Evaluation completed in {elapsed:.1f}s (model load: {load_time:.1f}s)")
+        print(f"[GPU {gpu_id}] Step 5/5: ✓ Evaluation completed in {elapsed:.1f}s")
         output_queue.put({"gpu_id": gpu_id, "results": results})
     except Exception as e:
         elapsed = time_module.time() - start_time

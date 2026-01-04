@@ -41,6 +41,11 @@ build_cmd() {
   echo "${cmd}"
 }
 
+# Set HuggingFace cache to local storage (avoid FUSE)
+export HF_HOME=/home/aiscuser/.cache/huggingface
+export HF_DATASETS_CACHE=/home/aiscuser/.cache/huggingface/datasets
+export TRANSFORMERS_CACHE=/home/aiscuser/.cache/huggingface/transformers
+
 echo "========================================="
 echo "GPU Configuration:"
 echo "  Available GPUs: ${NUM_AVAILABLE_GPUS}"
@@ -50,6 +55,9 @@ else
   echo "  Using: ${NUM_GPUS} GPUs (Data Parallel)"
   echo "  Speedup: ~${NUM_GPUS}x faster"
 fi
+echo "Cache locations (avoiding FUSE):"
+echo "  HF_HOME: ${HF_HOME}"
+echo "  HF_DATASETS_CACHE: ${HF_DATASETS_CACHE}"
 echo "========================================="
 echo ""
 

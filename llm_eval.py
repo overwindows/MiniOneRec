@@ -5,6 +5,18 @@ import sys
 import time
 import logging
 import numpy as np
+
+# Set environment variables BEFORE importing torch to prevent distributed initialization
+# These must be set before any torch imports
+if "RANK" not in os.environ:
+    os.environ["RANK"] = "0"
+    os.environ["WORLD_SIZE"] = "1"
+    os.environ["LOCAL_RANK"] = "0"
+    os.environ["MASTER_ADDR"] = "localhost"
+    # Use a random port to avoid conflicts
+    import random
+    os.environ["MASTER_PORT"] = str(random.randint(20000, 65000))
+
 import torch
 
 
@@ -70,6 +82,19 @@ def main():
     parser.add_argument("--max_length", type=int, default=None, help="Optional max length.")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging.")
     args = parser.parse_args()
+
+    # Disable torch distributed for single GPU to avoid port conflicts
+    if not args.use_accelerate:
+        # Use GPU 0 by default unless CUDA_VISIBLE_DEVICES is already set
+        if "CUDA_VISIBLE_DEVICES" not in os.environ:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        # Prevent accelerate from trying to use distributed mode
+        os.environ["ACCELERATE_USE_FSDP"] = "false"
+        os.environ["ACCELERATE_USE_DEEPSPEED"] = "false"
+        # Disable torch distributed initialization
+        os.environ["RANK"] = "0"
+        os.environ["WORLD_SIZE"] = "1"
+        os.environ["LOCAL_RANK"] = "0"
 
     # Setup logging
     log_level = logging.INFO if args.verbose else logging.WARNING

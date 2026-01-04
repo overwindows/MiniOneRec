@@ -1,0 +1,25 @@
+# DeepSpeed Hostfile Example
+# Format: hostname_or_ip slots=num_gpus
+#
+# Single node (8 GPUs):
+localhost slots=8
+
+# Multi-node example (2 nodes, 8 GPUs each):
+# node-0 slots=8
+# node-1 slots=8
+#
+# OR using IP addresses:
+# 192.168.1.10 slots=8
+# 192.168.1.11 slots=8
+#
+# Multi-node example (4 nodes, 8 GPUs each):
+# node-0 slots=8
+# node-1 slots=8
+# node-2 slots=8
+# node-3 slots=8
+#
+# Notes:
+# - The first node listed is typically the master node
+# - Ensure passwordless SSH is set up between all nodes
+# - All nodes should have access to the same codebase and data
+# - Run the script from the master node (first node in hostfile)

@@ -4,4 +4,5 @@ wandb/
 temp/
 results/
 .ipynb_checkpoints/
-.claude/settings.local.json
+.claude/*
+llm_eval/

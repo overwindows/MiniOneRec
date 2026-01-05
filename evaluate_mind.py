@@ -50,36 +50,56 @@ def score_candidates(
     prompt_ids: List[int],
     candidates: List[str],
     device,
+    batch_size: int = 4,
 ) -> List[float]:
+    """Score candidates in batches to avoid OOM on large vocabularies."""
     cand_ids = [tokenizer.encode(c, add_special_tokens=False) + [tokenizer.eos_token_id] for c in candidates]
     input_ids = [prompt_ids + ids for ids in cand_ids]
-    max_len = max(len(seq) for seq in input_ids)
 
-    padded = []
-    attention = []
-    labels = []
-    for seq in input_ids:
-        pad_len = max_len - len(seq)
-        padded.append([tokenizer.pad_token_id] * pad_len + seq)
-        attention.append([0] * pad_len + [1] * len(seq))
-        label = [-100] * (pad_len + len(prompt_ids)) + seq[len(prompt_ids) :]
-        labels.append(label)
+    all_scores = []
 
-    input_ids_t = torch.tensor(padded, dtype=torch.long, device=device)
-    attention_t = torch.tensor(attention, dtype=torch.long, device=device)
-    labels_t = torch.tensor(labels, dtype=torch.long, device=device)
+    # Process candidates in batches
+    for batch_start in range(0, len(input_ids), batch_size):
+        batch_input_ids = input_ids[batch_start:batch_start + batch_size]
+        max_len = max(len(seq) for seq in batch_input_ids)
 
-    with torch.no_grad():
-        outputs = model(input_ids=input_ids_t, attention_mask=attention_t)
-        logits = outputs.logits[:, :-1, :]
-        target = labels_t[:, 1:]
-        mask = target != -100
-        log_probs = torch.log_softmax(logits, dim=-1)
-        token_logp = torch.gather(log_probs, -1, target.unsqueeze(-1)).squeeze(-1)
-        token_logp = token_logp * mask
-        scores = token_logp.sum(dim=-1)
+        padded = []
+        attention = []
+        labels = []
+        for seq in batch_input_ids:
+            pad_len = max_len - len(seq)
+            padded.append([tokenizer.pad_token_id] * pad_len + seq)
+            attention.append([0] * pad_len + [1] * len(seq))
+            label = [-100] * (pad_len + len(prompt_ids)) + seq[len(prompt_ids) :]
+            labels.append(label)
 
-    return scores.detach().cpu().tolist()
+        input_ids_t = torch.tensor(padded, dtype=torch.long, device=device)
+        attention_t = torch.tensor(attention, dtype=torch.long, device=device)
+        labels_t = torch.tensor(labels, dtype=torch.long, device=device)
+
+        with torch.no_grad():
+            outputs = model(input_ids=input_ids_t, attention_mask=attention_t)
+            logits = outputs.logits[:, :-1, :]
+            target = labels_t[:, 1:]
+            mask = target != -100
+
+            # Compute log_softmax and gather in one go to reduce memory
+            vocab_size = logits.size(-1)
+            target_clamped = torch.clamp(target, 0, vocab_size - 1)
+
+            # Use cross-entropy computation directly to avoid storing full log_probs
+            log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+            token_logp = torch.gather(log_probs, -1, target_clamped.unsqueeze(-1)).squeeze(-1)
+            token_logp = token_logp * mask
+            scores = token_logp.sum(dim=-1)
+
+            all_scores.extend(scores.detach().cpu().tolist())
+
+            # Clear CUDA cache after each batch
+            del logits, log_probs, token_logp, outputs
+            torch.cuda.empty_cache()
+
+    return all_scores
 
 
 def _rankdata(scores: List[float]) -> List[float]:
@@ -134,7 +154,9 @@ def main():
     parser.add_argument("--use_abstract", action="store_true")
     parser.add_argument("--max_history", type=int, default=50)
     parser.add_argument("--max_impressions", type=int, default=0)
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for scoring candidates (reduce if OOM)")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard (ImpressionID and ranked news IDs)")
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -156,6 +178,7 @@ def main():
     mrrs = []
     ndcg5 = []
     ndcg10 = []
+    predictions = []  # For MIND leaderboard format
 
     count = 0
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
@@ -163,10 +186,12 @@ def main():
             parts = line.strip().split("\t")
             if len(parts) < 5:
                 continue
+            impression_id = parts[0]  # ImpressionID for leaderboard submission
             history = parts[3].split()[-args.max_history :]
             impressions = parts[4].split()
             labels = []
             candidates = []
+            candidate_ids = []  # Store news IDs for prediction output
             for imp in impressions:
                 if "-" not in imp:
                     continue
@@ -174,6 +199,7 @@ def main():
                 if nid not in news:
                     continue
                 candidates.append(news[nid])
+                candidate_ids.append(nid)
                 labels.append(int(label))
 
             if not candidates or sum(labels) == 0:
@@ -183,12 +209,19 @@ def main():
             prompt = build_prompt(history_titles)
             prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
 
-            scores = score_candidates(model, tokenizer, prompt_ids, candidates, device)
+            scores = score_candidates(model, tokenizer, prompt_ids, candidates, device, args.batch_size)
 
+            # Compute metrics
             aucs.append(auc_score(labels, scores))
             mrrs.append(mrr_score(labels, scores))
             ndcg5.append(ndcg_score(labels, scores, 5))
             ndcg10.append(ndcg_score(labels, scores, 10))
+
+            # Generate ranked predictions (news IDs sorted by score, descending)
+            if args.output_file:
+                ranked_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+                ranked_news_ids = [candidate_ids[i] for i in ranked_indices]
+                predictions.append((impression_id, ranked_news_ids))
 
             count += 1
             if args.max_impressions and count >= args.max_impressions:
@@ -203,6 +236,15 @@ def main():
     print(f"MRR:  {_avg(mrrs):.4f}")
     print(f"nDCG@5:  {_avg(ndcg5):.4f}")
     print(f"nDCG@10: {_avg(ndcg10):.4f}")
+
+    # Write predictions to file for MIND leaderboard submission
+    if args.output_file and predictions:
+        print(f"\nWriting predictions to: {args.output_file}")
+        with open(args.output_file, "w", encoding="utf-8") as f:
+            for impression_id, ranked_news_ids in predictions:
+                # MIND leaderboard format: ImpressionID [ranked news IDs separated by space]
+                f.write(f"{impression_id} {' '.join(ranked_news_ids)}\n")
+        print(f"✓ Wrote {len(predictions)} predictions")
 
 
 if __name__ == "__main__":

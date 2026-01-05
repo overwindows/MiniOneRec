@@ -231,7 +231,16 @@ def main():
     )
 
     logging.info(f"Model arguments: {model_args}")
-    logging.info("Loading model and starting evaluation... (this may take a while)")
+    logging.info("=" * 60)
+    logging.info("Starting evaluation process...")
+    logging.info("=" * 60)
+    logging.info("Step 1/3: Resolving tasks (this may take 30-60 minutes for MMLU)...")
+    logging.info("Step 2/3: Loading model into memory...")
+    logging.info("Step 3/3: Running evaluation on all tasks...")
+    logging.info("")
+    logging.info("NOTE: Task resolution is SLOW for MMLU (expands 57 subtasks)")
+    logging.info("      You will see model loading progress after task resolution completes")
+    logging.info("")
 
     start_time = time.time()
     results = evaluator.simple_evaluate(

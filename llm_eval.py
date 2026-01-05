@@ -19,6 +19,66 @@ if "RANK" not in os.environ:
 
 import torch
 
+"""
+DECOUPLED DATASET DOWNLOAD AND EVALUATION
+==========================================
+
+This module supports a decoupled workflow to avoid FUSE conflicts:
+
+PROBLEM:
+--------
+When datasets are downloaded during evaluation, multiple GPU processes may
+attempt concurrent file access through FUSE, causing:
+  - Filesystem errors and conflicts
+  - Unpredictable performance degradation
+  - Slow network I/O interfering with GPU computation
+
+SOLUTION:
+---------
+Use pre-downloaded datasets in offline mode:
+
+  Stage 1 (Pre-download, run once):
+    python download_eval_datasets.py \\
+        --tasks "mmlu,hellaswag,arc_challenge" \\
+        --cache_dir ./eval_cache \\
+        --verbose
+
+  Stage 2 (Evaluation with offline mode):
+    python llm_eval.py \\
+        --model_path Qwen/Qwen3-1.7B \\
+        --tasks "mmlu,hellaswag,arc_challenge" \\
+        --cache_dir ./eval_cache \\
+        --offline_mode \\
+        --batch_size 32
+
+PARAMETERS:
+-----------
+  --cache_dir: Path to pre-downloaded datasets (sets HF_DATASETS_CACHE)
+  --offline_mode: Enable offline mode (requires pre-downloaded datasets)
+                  Sets: HF_DATASETS_OFFLINE=1, TRANSFORMERS_OFFLINE=1
+
+ENVIRONMENT VARIABLES:
+----------------------
+  HF_DATASETS_CACHE: Directory containing cached datasets
+  HF_DATASETS_OFFLINE: Set to "1" to prevent new downloads
+  TRANSFORMERS_OFFLINE: Set to "1" to prevent model downloads
+
+WORKFLOW:
+---------
+  1. Download phase (runs once):
+     - Uses lm_eval.tasks to identify required datasets
+     - Downloads via datasets.load_dataset() to HF_DATASETS_CACHE
+     - Takes 5-30 minutes depending on datasets
+
+  2. Evaluation phase (can run multiple times on same cache):
+     - Sets offline environment variables
+     - Uses cached datasets from HF_DATASETS_CACHE
+     - No network I/O, pure GPU computation
+     - Avoids FUSE conflicts entirely
+
+This design separates concerns: data preparation vs. model evaluation.
+"""
+
 
 def _build_model_args(model_path, tokenizer_path, dtype, trust_remote_code, max_length, use_accelerate=False, num_gpus=None):
     args = [f"pretrained={model_path}"]
@@ -80,6 +140,17 @@ def main():
     parser.add_argument("--limit", type=float, default=None, help="Optional eval limit (0.0-1.0 for fraction, or N for first N examples).")
     parser.add_argument("--trust_remote_code", action="store_true", help="Enable trust_remote_code.")
     parser.add_argument("--max_length", type=int, default=None, help="Optional max length.")
+    parser.add_argument("--cache_dir", default=None, help="HF datasets cache directory (for pre-downloaded datasets).")
+    parser.add_argument(
+        "--offline_mode",
+        action="store_true",
+        help="Force offline mode (default unless --online_mode is set).",
+    )
+    parser.add_argument(
+        "--online_mode",
+        action="store_true",
+        help="Allow dataset/model downloads during evaluation (not recommended with FUSE).",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging.")
     args = parser.parse_args()
 
@@ -96,6 +167,26 @@ def main():
         os.environ["WORLD_SIZE"] = "1"
         os.environ["LOCAL_RANK"] = "0"
 
+    if args.offline_mode and args.online_mode:
+        raise SystemExit("Choose only one of --offline_mode or --online_mode.")
+
+    # Configure dataset cache directory if provided
+    if args.cache_dir:
+        os.environ["HF_DATASETS_CACHE"] = args.cache_dir
+        logging.info(f"Using datasets cache directory: {args.cache_dir}")
+
+    # Default to offline mode unless explicitly overridden
+    offline = args.offline_mode or not args.online_mode
+    if offline:
+        if args.cache_dir and not os.path.isdir(args.cache_dir):
+            raise SystemExit(
+                f"Cache directory not found: {args.cache_dir}. "
+                "Run download_eval_datasets.py first to pre-download datasets."
+            )
+        os.environ["HF_DATASETS_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        logging.info("Running in offline mode (requires pre-downloaded datasets)")
+    
     # Setup logging
     log_level = logging.INFO if args.verbose else logging.WARNING
     logging.basicConfig(

@@ -68,6 +68,7 @@ If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), t
 
 | Model | MMLU | HellaSwag | ARC-Challenge | Winogrande | GSM8K | IFEval |
 |-------|------|-----------|---------------|------------|-------|--------|
+| Qwen3-8B | 73.01% | 74.97% | 56.40% | 67.80% | 60.27% | 24.95% |
 | Qwen3-4B-Instruct-2507 | 70.65% | 69.06% | 58.45% | 68.03% | 71.27% | 57.67% |
 | Qwen3-1.7B | 55.48% | 60.40% | 42.83% | 60.93% | 42.00% | 16.64% |
 | Qwen3-1.7B-SFT(Amazon) | 26.11% | 45.77% | 32.94% | 53.67% | 0.00% | 10.54% |

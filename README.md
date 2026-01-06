@@ -71,6 +71,7 @@ If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), t
 | Qwen3-4B-Instruct-2507 | 70.65% | 69.06% | 58.45% | 68.03% | 71.27% | 57.67% |
 | Qwen3-1.7B | 55.48% | 60.40% | 42.83% | 60.93% | 42.00% | 16.64% |
 | Qwen3-1.7B-SFT(Amazon) | 26.11% | 45.77% | 32.94% | 53.67% | 0.00% | 10.54% |
+| Qwen3-1.7B-RL(Amazon)  | 25.65% | 47.66% | 34.47% | 53.04% | 0.53% | 10.91% |
 
 ### Install optional eval deps
 ```bash

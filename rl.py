@@ -141,9 +141,10 @@ def train(
     print("train_dataset: ", train_dataset)
     print("eval_dataset: ", eval_dataset)
 
-    llm_model = AutoModelForCausalLM.from_pretrained(
-        model_path, torch_dtype=torch.bfloat16, device_map="auto")
-    device = llm_model.device
+    if torch.cuda.is_available():
+        device = torch.device("cuda", torch.cuda.current_device())
+    else:
+        device = torch.device("cpu")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
     len_seq = 10
@@ -158,7 +159,7 @@ def train(
     if reward_type == "semantic":
         with open(ada_path, "rb") as f:
             item_ada_embd = pickle.load(f)
-        item_ada_embd = torch.tensor(item_ada_embd).to(llm_model.device)
+        item_ada_embd = torch.tensor(item_ada_embd).to(device)
 
     print("Load item_ada_embd successfully.")
 

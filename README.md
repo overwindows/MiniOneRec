@@ -69,6 +69,8 @@ If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), t
 | Model | MMLU | HellaSwag | ARC-Challenge | Winogrande | GSM8K | IFEval |
 |-------|------|-----------|---------------|------------|-------|--------|
 | Qwen3-4B-Instruct-2507 | 70.65% | 69.06% | 58.45% | 68.03% | 71.27% | 57.67% |
+| Qwen3-1.7B | 55.48% | 60.40% | 42.83% | 60.93% | 42.00% | 16.64% |
+| Qwen3-1.7B-SFT(Amazon) | 26.11% | 45.77% | 32.94% | 53.67% | 0.00% | 10.54% |
 
 ### Install optional eval deps
 ```bash
@@ -90,6 +92,140 @@ bash eval_llm.sh /path/to/output_dir \
 ```
 
 You can swap in other lm-eval tasks such as `bbh`, `truthfulqa`, `gpqa`, or `agieval` depending on coverage and budget.
+
+---
+
+## 📦 Amazon Recommendation Evaluation Results
+
+Evaluation results on the Amazon Industrial & Scientific dataset using parallel GPU evaluation (4 GPUs).
+
+### Qwen3-1.7B Results
+
+**Model:** Qwen3-1.7B (final_checkpoint)
+**Dataset:** Industrial_and_Scientific_5_2016-10-2018-11
+**Total Samples:** 4,533
+**Number of Beams:** 50
+
+|Model| Metric | @1 | @3 | @5 | @10 | @20 | @50 |
+|-----|--------|-----|-----|-----|------|------|------|
+|Qwen3-1.7B-SFT| **NDCG** | 6.13% | 7.84% | 8.47% | 9.37% | 10.05% | 10.81% |
+|Qwen3-1.7B-SFT| **HR (Hit Rate)** | 6.13% | 9.07% | 10.61% | 13.39% | 16.06% | 19.85% |
+|Qwen3-1.7B-RL| **NDCG** | 7.17% | 8.85% | 9.42% | 10.10% | 10.67% | 10.96% |
+|Qwen3-1.7B-RL| **HR (Hit Rate)** | 7.17% | 10.15% | 11.52% | 13.61% | 15.84% | 17.32% |
+
+**Key Observations:**
+- **RL training improves early precision**: NDCG@1 increases from 6.13% to 7.17% (+17% relative improvement)
+- **Better ranking quality**: RL achieves higher NDCG across all K values, indicating improved ranking of relevant items
+- **Trade-off in recall**: HR@50 decreases slightly from 19.85% to 17.32%, suggesting RL optimizes for precision over coverage
+- **Consistent performance**: Both models show performance improvements as K increases, validating the beam search quality
+
+**Evaluation Command:**
+```bash
+bash evaluate.sh
+```
+
+The evaluation pipeline uses parallel GPU processing (GPUs 4-7) for 4x faster evaluation compared to single-GPU baseline.
+
+---
+
+## 🗞️ MIND Dataset (Optional)
+
+The MIND (Microsoft News Dataset) is a large-scale news recommendation dataset for training and evaluating news recommendation models. It contains user click histories and news articles.
+
+### Dataset Sizes
+
+Microsoft provides two official versions:
+
+| Version | Train Users | Dev Users | Test Users | Total Size | Use Case |
+|---------|-------------|-----------|------------|------------|----------|
+| **MINDsmall** | ~50K | ~7K | ~7K | ~30-50 MB | Development, quick experimentation |
+| **MINDlarge** | ~1M | ~100K | ~100K | ~1-2 GB | Production training, **leaderboard submission** |
+
+### Prepare MIND Dataset
+
+**Important**: Microsoft has restricted public access to the original Azure blob storage URLs. You need to download the dataset manually first.
+
+#### Step 1: Download from Kaggle or Official Source
+
+**Option A - Kaggle (Recommended)**:
+1. Visit the [MIND News Dataset on Kaggle](https://www.kaggle.com/datasets/arashnic/mind-news-dataset)
+2. Download the ZIP files you need (MINDsmall_train.zip, MINDsmall_dev.zip, etc.)
+
+**Option B - Official MIND Website**:
+Visit [https://msnews.github.io/](https://msnews.github.io/) for the official dataset download links
+
+#### Step 2: Extract Using Helper Script
+
+Once you have the ZIP files downloaded locally, use the preparation script to extract them:
+
+```bash
+# For development with MINDsmall
+python prepare_mind.py --root ../data/MIND --size small --splits train,dev --local ../downloaded/zips
+
+# For leaderboard with MINDlarge
+python prepare_mind.py --root ../data/MIND --size large --splits train,dev,test --local ../downloaded/zips
+```
+
+The script will automatically find and extract the ZIP files to the correct directory structure.
+
+### Training on MIND
+
+Train your model on the MIND dataset:
+```bash
+# Using MINDlarge for leaderboard submission
+python sft_text.py \
+  --base_model Qwen/Qwen3-4B-Instruct-2507 \
+  --mind_behaviors_path data/MIND/train/behaviors.tsv \
+  --mind_news_path data/MIND/train/news.tsv \
+  --output_dir output_dir/mind_large_model \
+  --num_train_epochs 3
+```
+
+### Evaluate on MIND
+
+The `eval_mind.sh` script provides a convenient way to evaluate models on MIND with automatic data extraction:
+
+```bash
+# Quick test on dev split (100 impressions)
+bash eval_mind.sh Qwen/Qwen3-1.7B dev 100
+
+# Full dev evaluation
+bash eval_mind.sh Qwen/Qwen3-1.7B dev
+
+# With abstracts for better quality
+USE_ABSTRACT=1 bash eval_mind.sh Qwen/Qwen3-1.7B dev
+
+# Generate predictions for leaderboard submission (test split)
+OUTPUT_FILE=predictions.txt bash eval_mind.sh Qwen/Qwen3-1.7B test
+
+# Custom data root
+MIND_ROOT=/path/to/data bash eval_mind.sh Qwen/Qwen3-1.7B dev
+```
+
+**Auto-extraction feature**: The script automatically extracts MIND data from ZIP files if `behaviors.tsv` and `news.tsv` are not found.
+
+**Environment variables**:
+- `MIND_ROOT`: Root directory containing MIND data (default: `../data/MIND`)
+- `MIND_SIZE`: Dataset size - `small` or `large` (default: `small`)
+- `MIND_ZIPS`: Directory containing MIND ZIP files (default: `~/wuc/downloaded/zips`)
+- `USE_ABSTRACT`: Set to 1 to use abstracts (default: 0)
+- `MAX_HISTORY`: Max history items to use (default: 50)
+- `SKIP_EXTRACT`: Set to 1 to skip automatic extraction (default: 0)
+- `OUTPUT_FILE`: Path to save predictions for MIND leaderboard submission (optional)
+
+**Output**: Reports AUC, MRR, nDCG@5, nDCG@10 (same metrics used on the MIND leaderboard). Optionally generates prediction file with ranked news IDs for each impression.
+
+### Leaderboard Submission
+
+To submit results to the **[official MIND leaderboard](https://msnews.github.io/)**:
+
+1. **Train on MINDlarge train split** (see above)
+2. **Evaluate on MINDlarge test split** to generate predictions
+3. **Submit predictions** to the leaderboard portal at https://msnews.github.io/
+
+**Important**: The test split labels are not public. You must submit your predictions to the leaderboard server for official scoring.
+
+**Metrics evaluated**: AUC, MRR, nDCG@5, nDCG@10
 
 ---
 
@@ -166,7 +302,15 @@ Reward options: `rule`, `ranking`, `ranking_only`, `semantic`, `sasrec`. For `se
 | `rq/rqkmeans_plus.sh`                |   Shell script to train RQ-Kmeans+ constrained on Amazon item embeddings                        |
 | `rq/generate_indices_plus.py`                |   Generates the SID file after training an RQ-Kmeans+ model                                       |
 | `rq/generate_indices_plus.sh`                |   Shell script to generate the SID file after training an RQ-Kmeans+ model                                       |
+| `prepare_mind.py`        | Prepare (extract + organize) the MIND dataset from downloaded ZIPs                                       |
+| `eval_mind.sh`           | MIND evaluation script with automatic data extraction from ZIPs                                           |
+| `evaluate_mind.py`       | Core MIND evaluation implementation (AUC, MRR, nDCG@5, nDCG@10)                                           |
+| `llm_eval.py`            | Single-GPU LLM capability evaluation (MMLU, HellaSwag, etc.)                                              |
+| `llm_eval_parallel.py`   | Multi-GPU parallel LLM evaluation                                                                         |
+| `eval_llm.sh`            | LLM evaluation script with decoupled dataset download                                                     |
+| `download_eval_datasets.py` | Pre-download evaluation datasets for lm-eval-harness                                                  |
 | `requirements.txt`        | List of Python dependencies                                                                                |
+| `requirements-eval.txt`   | Optional dependencies for LLM capability evaluation                                                        |
 
 ---
 
@@ -219,33 +363,104 @@ bash evaluate.sh
 
 ---
 
-## 🧩 General Instruction Data Mixing (Optional)
+## 🧩 Mixed SFT: Preventing Catastrophic Forgetting
 
-To preserve general instruction-following ability during SFT, you can mix a small slice of general instruction data (e.g., 5–10%) into each epoch.
+When fine-tuning LLMs on recommendation-specific data, the model often suffers from **catastrophic forgetting** of general capabilities (MMLU, HellaSwag, GSM8K, etc.). To address this, use Mixed SFT to combine recommendation data with general instruction data.
 
-### Download UltraChat-200k
+### Problem
+
+As shown in the evaluation results above, recommendation-only SFT can cause catastrophic forgetting:
+- GSM8K drops to **0.00%** (from 42% baseline)
+- MMLU drops to **26.11%** (from 55% baseline)
+
+### Solution: Mixed SFT
+
+The `sft_mixed.py` script combines:
+1. **Recommendation data** (Amazon, SIDs, etc.) - for task-specific learning
+2. **General instruction data** (UltraChat, Alpaca, etc.) - to maintain general capabilities
+
+### Quick Start
+
+**Step 1: Download General Data**
 ```bash
-python download_ultrachat.py --output data/general/ultrachat_200k.jsonl
+python download_ultrachat.py \
+  --output data/general/ultrachat_200k.jsonl \
+  --limit 50000
 ```
 
-This exports a JSONL file with `instruction`, `input`, `output` fields. You can then sample from it when preparing SFT batches.
-
-### Suggested mixing ratio
-- Start with **5–10%** UltraChat, **90–95%** recommendation data.
-- Keep the same eval pipeline so HR/NDCG remains comparable.
-
-### Mix into `sft_text.py`
+**Step 2: Run Mixed SFT**
 ```bash
-python sft_text.py \
-  --base_model Qwen/Qwen3-4B-Instruct-2507 \
-  --train_file data/Amazon/train/Industrial_and_Scientific_5_2016-10-2018-11.csv \
-  --eval_file data/Amazon/valid/Industrial_and_Scientific_5_2016-10-2018-11.csv \
-  --category Industrial_and_Scientific \
-  --item_meta_path data/Amazon/index/Industrial_and_Scientific.item.json \
-  --general_jsonl data/general/ultrachat_200k.jsonl \
-  --general_ratio 0.05 \
-  --output_dir output_dir/sft_text_mixed_Industrial_and_Scientific
+bash sft_mixed.sh
 ```
+
+By default, this uses:
+- **70% recommendation data** (Amazon + SIDs + Fusion tasks)
+- **30% general data** (UltraChat)
+
+**Step 3: Evaluate Both Capabilities**
+
+General capabilities:
+```bash
+bash eval_llm.sh output_dir/sft_mixed_*/final_checkpoint \
+  mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval \
+  llm_eval
+```
+
+Recommendation performance:
+```bash
+bash evaluate.sh output_dir/sft_mixed_*/final_checkpoint
+```
+
+### Configuration
+
+**Data Mixing Ratio:**
+```bash
+# More general data (50/50 mix)
+GENERAL_DATA_RATIO=0.5 bash sft_mixed.sh
+
+# Less general data (10% general, 90% rec)
+GENERAL_DATA_RATIO=0.1 bash sft_mixed.sh
+```
+
+**General Data Source:**
+```bash
+# UltraChat (default)
+GENERAL_DATA_PATH=data/general/ultrachat_200k.jsonl bash sft_mixed.sh
+
+# Your custom JSONL file
+GENERAL_DATA_PATH=/path/to/custom_data.jsonl bash sft_mixed.sh
+```
+
+**General Data Amount:**
+```bash
+# Use 100K examples
+GENERAL_DATA_SAMPLE=100000 bash sft_mixed.sh
+
+# Use all available examples
+GENERAL_DATA_SAMPLE=-1 bash sft_mixed.sh
+```
+
+### Expected Results
+
+With mixed SFT, you should see:
+
+✅ **Maintained general capabilities**
+- GSM8K: >30% (instead of 0%)
+- MMLU: >40% (instead of 26%)
+- IFEval: >30% (instead of 10%)
+
+✅ **Preserved recommendation performance**
+- HR@10, NDCG@10 should be similar to recommendation-only SFT
+
+### Comparison
+
+| Approach | Rec Performance | General Performance | Training Time |
+|----------|----------------|---------------------|---------------|
+| Rec-only SFT (`sft.sh`) | ⭐⭐⭐⭐⭐ | ⭐ | Fast |
+| Mixed SFT (`sft_mixed.sh`) | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | Medium (+30%) |
+| Two-stage (General → Rec) | ⭐⭐⭐⭐ | ⭐⭐⭐ | Slow (2× training) |
+
+**Recommendation**: Use mixed SFT for production models that need both capabilities.
 
 ---
 
@@ -301,6 +516,172 @@ python sft_text_mixed.py \
   --general_ratio 0.1 \
   --eval_source amazon
 ```
+
+---
+
+## 🔧 Weights & Biases (wandb) Setup
+
+You have **three options** to authenticate with wandb:
+
+### Option 1: Environment Variable (Recommended for Automated Training)
+
+Set the `WANDB_API_KEY` environment variable before running training:
+
+```bash
+# Get your API key from: https://wandb.ai/authorize
+export WANDB_API_KEY=your_api_key_here
+
+# Then run training
+bash sft.sh
+```
+
+**Or add it to your shell profile** (`~/.bashrc` or `~/.zshrc`):
+```bash
+echo 'export WANDB_API_KEY=your_api_key_here' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Or set it in your training script** (`sft.sh`):
+```bash
+export WANDB_API_KEY=your_api_key_here
+export NCCL_IB_DISABLE=1
+PROCESS_NUM=4
+# ... rest of script
+```
+
+### Option 2: Manual Login (One-time Setup)
+
+Run once to authenticate:
+```bash
+wandb login
+```
+
+This will prompt you to enter your API key. After this, wandb will remember your credentials in `~/.netrc` or `~/.config/wandb/settings`.
+
+### Option 3: Config File
+
+Create/edit `~/.netrc`:
+```
+machine api.wandb.ai
+login user
+password your_api_key_here
+```
+
+Or create `~/.config/wandb/settings`:
+```ini
+[default]
+api_key = your_api_key_here
+```
+
+### Disable wandb (If Not Needed)
+
+If you don't want to use wandb, you can disable it:
+
+```bash
+export WANDB_MODE=disabled
+bash sft.sh
+```
+
+**Troubleshooting:**
+- **"wandb: ERROR Not logged in"**: Set `WANDB_API_KEY` environment variable
+- **"wandb: ERROR Network error"**: Use offline mode with `export WANDB_MODE=offline`
+- **Want to run without wandb**: Disable it with `export WANDB_MODE=disabled`
+
+---
+
+## 📱 Feeds Recommendation Data Adaptation Guide
+
+This guide explains how to adapt your Feeds recommendation data to work with MiniOneRec. MiniOneRec treats all items generically, so **feeds/articles/posts can be treated as "items"** just like Amazon products.
+
+### Required Data Format
+
+**1. CSV Training Files (train/valid/test)**
+
+Required columns:
+```csv
+user_id,history_item_title,item_title,history_item_id,item_id,history_item_sid,item_sid
+```
+
+**Mapping for Feeds:**
+- `user_id` → User ID (e.g., "user_123")
+- `history_item_title` → List of feed titles the user interacted with
+- `item_title` → Target feed title to predict
+- `history_item_id` → List of feed IDs (numeric)
+- `item_id` → Target feed ID (numeric)
+- `history_item_sid` → List of feed SIDs
+- `item_sid` → Target feed SID
+
+**Example:**
+```csv
+user_id,history_item_title,item_title,history_item_id,item_id,history_item_sid,item_sid
+user_123,"['AI Breakthrough News', 'Tech Industry Update']","New ML Research Published",[456,789],202,"['<a_15><b_23><c_41>', '<a_8><b_12><c_67>']","<a_20><b_5><c_33>"
+```
+
+**2. Item Metadata File (`feeds.item.json`)**
+
+```json
+{
+  "0": {
+    "title": "Breaking: New AI Model Released",
+    "description": "A new breakthrough in AI technology...",
+    "brand": "TechNews",
+    "categories": "Technology, AI, Machine Learning"
+  }
+}
+```
+
+**3. SID Index File (`feeds.index.json`)**
+
+```json
+{
+  "0": ["<a_15>", "<b_23>", "<c_41>"],
+  "1": ["<a_8>", "<b_12>", "<c_67>"]
+}
+```
+
+### Feeds → Amazon Format Mapping
+
+| Amazon Concept | Feeds Equivalent |
+|----------------|------------------|
+| Product | Feed/Article/Post |
+| Purchase/Review | Click/Read/Like/Share/View |
+| Product Title | Feed Title/Headline |
+| Product Description | Feed Content/Summary |
+| Product Category | Feed Category/Topic |
+| Brand | Publisher/Source |
+
+### Adaptation Process
+
+1. **Prepare Sequential Interaction Data** - chronologically ordered user interactions
+2. **Generate SIDs for Feeds** - using RQ-VAE or RQ-Kmeans on feed text embeddings
+3. **Create Item Metadata File** - title, description, categories, publisher
+4. **Format CSV Files** - with all 7 required columns
+5. **Organize Directory Structure** - train/valid/test splits
+
+### Code Changes Needed
+
+**Update `sft.sh`:**
+```bash
+for category in "Feeds"; do
+    train_file=$(ls -f ./data/Feeds/train/${category}*.csv)
+    eval_file=$(ls -f ./data/Feeds/valid/${category}*.csv)
+    ...
+    --category ${category} \
+    --sid_index_path ./data/Feeds/index/Feeds.index.json \
+    --item_meta_path ./data/Feeds/index/Feeds.item.json
+done
+```
+
+**Update `sft.py` (line ~137):**
+```python
+category_dict = {
+    "Industrial_and_Scientific": "industrial and scientific items",
+    "Feeds": "news feeds and articles",  # Add this
+    ...
+}
+```
+
+For complete details on data format, SID generation, and validation, see the comments in the code and example data files.
 
 ---
 

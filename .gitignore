@@ -6,4 +6,4 @@ results/
 .ipynb_checkpoints/
 .claude/*
 .fuse_hidden*
-llm_eval/
+llm_eval_results/

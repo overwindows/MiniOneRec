@@ -1,20 +1,37 @@
-# from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
-# import transformers
-# import torch
 import os
 import fire
 import math
 import json
 import pandas as pd
 import numpy as np
-    
 from tqdm import tqdm
-def gao(path, item_path):
-    if type(path) != list:
+
+def calculate_recommendation_metrics(path, item_path):
+    """
+    Calculate NDCG and Hit Rate (HR) metrics for recommendation results.
+
+    Args:
+        path: Single result JSON file path or list of paths
+        item_path: Path to item catalog file (.txt)
+
+    Returns:
+        None (prints metrics to stdout)
+    """
+    if not isinstance(path, list):
         path = [path]
+
+    # Validate input files exist
+    for p in path:
+        if not os.path.exists(p):
+            raise FileNotFoundError(f"Result file not found: {p}")
+
     if item_path.endswith(".txt"):
         item_path = item_path[:-4]
-    CC=0
+
+    if not os.path.exists(f"{item_path}.txt"):
+        raise FileNotFoundError(f"Item catalog file not found: {item_path}.txt")
+
+    unknown_items_count = 0
         
     
     f = open(f"{item_path}.txt", 'r')
@@ -58,11 +75,10 @@ def gao(path, item_path):
                 target_item = test_data[index]['output'].strip(" \n\"")
             minID = 1000000
             for i in range(len(sample)):
-                
                 if sample[i] not in item_dict:
-                    CC += 1
-                    print(sample[i])
-                    print(target_item)
+                    unknown_items_count += 1
+                    print(f"WARNING: Unknown item in predictions: '{sample[i]}' (target: '{target_item}')")
+
                 if sample[i] == target_item:
                     minID = i
                     break
@@ -73,12 +89,16 @@ def gao(path, item_path):
                 if minID < topk:
                     ALLNDCG[index] = ALLNDCG[index] + (1 / math.log(minID + 2))
                     ALLHR[index] = ALLHR[index] + 1
-        print(n_beam)
-        valid_topk = [k for k in topk_list if k <= n_beam]
-        print(valid_topk)
-        print(f"NDCG:\t{ALLNDCG / len(text) / (1.0 / math.log(2))}")
-        print(f"HR\t{ALLHR / len(text)}")
-        print(CC)
+        print(f"\n{'='*60}")
+        print(f"Results for: {p}")
+        print(f"{'='*60}")
+        print(f"Number of beams: {n_beam}")
+        print(f"Valid top-k values: {valid_topk}")
+        print(f"Total samples: {len(text)}")
+        print(f"Unknown items count: {unknown_items_count}")
+        print(f"\nNDCG@k: {ALLNDCG / len(text) / (1.0 / math.log(2))}")
+        print(f"HR@k:   {ALLHR / len(text)}")
+        print(f"{'='*60}\n")
 
-if __name__=='__main__':
-    fire.Fire(gao)
+if __name__ == '__main__':
+    fire.Fire(calculate_recommendation_metrics)

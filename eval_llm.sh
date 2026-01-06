@@ -44,7 +44,7 @@ set -euo pipefail
 
 MODEL_ROOT="${1:-}"
 TASKS="${2:-mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval}"
-OUTPUT_DIR="${3:-llm_eval}"
+OUTPUT_DIR="${3:-llm_eval_results}"
 LIMIT="${4:-}"  # Optional: limit evaluation (e.g., 0.1 for 10% or 100 for first 100 examples)
 
 if [[ -z "${MODEL_ROOT}" ]]; then

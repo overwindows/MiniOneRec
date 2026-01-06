@@ -5,7 +5,7 @@ do
     # your model path
     # exp_name="output_dir/sft_Industrial_and_Scientific_qwen3-1.7B_bs1024/final_checkpoint"
     # exp_name="output_dir/rl_Industrial_and_Scientific_qwen3-1.7B_bs1024"
-    exp_name="output_dir/sft_mixed_Industrial_and_Scientific_Qwen3-1.7B_bs1024"
+    exp_name="output_dir/rl_mixed_Industrial_and_Scientific_qwen3-1.7B_bs1024"
     # exp_name="output_dir/rl_Industrial_and_Scientific_qwen1.5b_bs1024/final_checkpoint"
 
     # exp_name="output_dir/sft_Industrial_and_Scientific_qwen3-4b-instruct-2507_bs1024/final_checkpoint"

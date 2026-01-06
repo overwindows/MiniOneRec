@@ -74,6 +74,7 @@ If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), t
 | Qwen3-1.7B-SFT (Amazon) | 26.11% | 45.77% | 32.94% | 53.67% | 0.00% | 10.54% |
 | Qwen3-1.7B-SFT-Mixed (Amazon+UltraChat) | 45.53% | 55.17% | 43.09% | 55.41% | 14.94% | 7.39% |
 | Qwen3-1.7B-RL (Amazon)  | 25.65% | 47.66% | 34.47% | 53.04% | 0.53% | 10.91% |
+| Qwen3-1.7B-RL-Mixed (Amazon+UltraChat) | 46.08% | 55.86% | 42.75% | 56.59% | 12.36% | 15.90% |
 
 **Note:** SFT/RL models show significant decrease in general capabilities due to domain specialization on Amazon recommendation data.
 
@@ -220,6 +221,8 @@ Evaluation results on the Amazon Industrial & Scientific dataset using parallel 
 |Qwen3-1.7B-SFT-Mixed| **HR (Hit Rate)** | 6.88% | 9.42% | 11.41% | 13.99% | 16.77% | 21.40% |
 |Qwen3-1.7B-RL| **NDCG** | 7.17% | 8.85% | 9.42% | 10.10% | 10.67% | 10.96% |
 |Qwen3-1.7B-RL| **HR (Hit Rate)** | 7.17% | 10.15% | 11.52% | 13.61% | 15.84% | 17.32% |
+|Qwen3-1.7B-RL-Mixed| **NDCG** | 7.52% | 8.89% | 9.23% | 9.61% | 9.88% | 10.11% |
+|Qwen3-1.7B-RL-Mixed| **HR (Hit Rate)** | 7.52% | 9.79% | 10.61% | 11.76% | 12.84% | 13.96% |
 
 **Key Observations:**
 - **RL training improves early precision**: NDCG@1 increases from 6.13% to 7.17% (+17% relative improvement)

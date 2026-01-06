@@ -4,22 +4,16 @@ import fire
 import torch
 import json
 import os
-from transformers import GenerationConfig,  AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM, LogitsProcessorList, TemperatureLogitsWarper
-from data import  EvalD3Dataset, EvalSidDataset
+from transformers import GenerationConfig, AutoTokenizer, AutoModelForCausalLM, LogitsProcessorList
+from data import EvalSidDataset
 from LogitProcessor import ConstrainedLogitsProcessor
-from accelerate import Accelerator
 import random
-import bitsandbytes as bnb
-
-
+import numpy as np
 
 if torch.cuda.is_available():
     device = "cuda"
 else:
     device = "cpu"
-P = 998244353
-MOD = int(1e9 + 9)
-import numpy as np
 
 def get_hash(x):
     x = [str(_) for _ in x]
@@ -51,9 +45,11 @@ def main(
 ):
     random.seed(seed)
     set_seed(seed)
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # IMPORTANT: Do not override CUDA_VISIBLE_DEVICES - let evaluate.sh control GPU assignment
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # REMOVED: This broke parallel GPU evaluation
     category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products", "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books"}
-    category = category_dict[category]
+    # Fallback to original category name if not in dictionary
+    category = category_dict.get(category, category)
     print(category)
 
     model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, device_map="auto")
@@ -138,8 +134,7 @@ def main(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
-    
-    # val_dataset = EvalD3Dataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
+
     val_dataset = EvalSidDataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
         
     encodings = [val_dataset[i] for i in range(len(val_dataset))]

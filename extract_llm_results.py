@@ -48,7 +48,7 @@ def extract_results(json_file):
 
 
 def main():
-    llm_eval_dir = Path("/home/aiscuser/wuc/MiniOneRec/llm_eval")
+    llm_eval_dir = Path("/home/aiscuser/wuc/MiniOneRec/llm_eval_results")
 
     if not llm_eval_dir.exists():
         print(f"Directory {llm_eval_dir} does not exist", file=sys.stderr)

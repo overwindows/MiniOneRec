@@ -71,29 +71,133 @@ If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), t
 | Qwen3-8B | 73.01% | 74.97% | 56.40% | 67.80% | 60.27% | 24.95% |
 | Qwen3-4B-Instruct-2507 | 70.65% | 69.06% | 58.45% | 68.03% | 71.27% | 57.67% |
 | Qwen3-1.7B | 55.48% | 60.40% | 42.83% | 60.93% | 42.00% | 16.64% |
-| Qwen3-1.7B-SFT(Amazon) | 26.11% | 45.77% | 32.94% | 53.67% | 0.00% | 10.54% |
-| Qwen3-1.7B-RL(Amazon)  | 25.65% | 47.66% | 34.47% | 53.04% | 0.53% | 10.91% |
+| Qwen3-1.7B-SFT (Amazon) | 26.11% | 45.77% | 32.94% | 53.67% | 0.00% | 10.54% |
+| Qwen3-1.7B-SFT-Mixed (Amazon+UltraChat) | 45.53% | 55.17% | 43.09% | 55.41% | 14.94% | 7.39% |
+| Qwen3-1.7B-RL (Amazon)  | 25.65% | 47.66% | 34.47% | 53.04% | 0.53% | 10.91% |
 
-### Install optional eval deps
+**Note:** SFT/RL models show significant decrease in general capabilities due to domain specialization on Amazon recommendation data.
+
+### Quick Start: Download Once, Evaluate Multiple Times (Recommended)
+
+**Step 1: Install evaluation dependencies**
 ```bash
 pip install -r requirements-eval.txt
 ```
 
-### Run a single checkpoint/model
+**Step 2: Pre-download datasets (once)**
 ```bash
-python llm_eval.py \
-  --model_path /path/to/model_or_checkpoint \
-  --tasks mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval
+python download_eval_datasets.py \
+  --tasks "mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval" \
+  --cache_dir ~/.cache/huggingface/datasets \
+  --verbose
 ```
 
-### Run all checkpoints in an output dir
+This downloads all datasets to `~/.cache/huggingface/datasets/` and takes 5-30 minutes.
+
+**Step 3: Run evaluation in OFFLINE MODE (no re-downloads)**
 ```bash
-bash eval_llm.sh /path/to/output_dir \
-  mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval \
-  llm_eval
+# Single GPU
+SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B
+
+# With higher batch size for more speed
+SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh Qwen/Qwen3-1.7B
+
+# Evaluate checkpoint
+SKIP_DOWNLOAD=1 ./eval_llm.sh output_dir/my_checkpoint/final_checkpoint
 ```
+
+### Common Workflows
+
+**Workflow 1: Single GPU (simplest)**
+```bash
+# Download once
+python download_eval_datasets.py --cache_dir ~/.cache/huggingface/datasets
+
+# Evaluate multiple times, offline mode
+SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B
+SKIP_DOWNLOAD=1 ./eval_llm.sh output_dir/my_checkpoint/final_checkpoint
+```
+
+**Workflow 2: Custom tasks and settings**
+```bash
+# Download only specific tasks
+python download_eval_datasets.py \
+  --tasks "mmlu,hellaswag" \
+  --cache_dir ~/.cache/huggingface/datasets
+
+# Evaluate with custom batch size
+SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag"
+
+# Evaluate only subset (e.g., first 10% of examples)
+SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag" llm_eval 0.1
+```
+
+### Offline vs Online Mode
+
+**Offline Mode (RECOMMENDED)**
+- **Use pre-downloaded datasets**: No network access needed during evaluation
+- **Avoids FUSE conflicts**: Multiple GPUs work independently on cached data
+- **Fast**: Pure GPU computation, no I/O bottlenecks
+- **Enabled by**: `SKIP_DOWNLOAD=1` environment variable
+
+**Online Mode (NOT RECOMMENDED for production)**
+- **Downloads on-the-fly**: Datasets downloaded during evaluation if not cached
+- **FUSE conflicts**: Multiple concurrent downloads may fail
+- **Slower**: Network I/O interferes with GPU computation
+- **Only use if**: Single GPU and datasets not pre-downloaded
+
+### Task Details
+
+**Default Tasks Evaluated:**
+| Task | Models | Notes |
+|------|--------|-------|
+| **MMLU** | 57 subtasks | Expands to individual categories (mmlu_anatomy, mmlu_abstract_algebra, etc.) |
+| **HellaSwag** | 1 task | Common sense reasoning |
+| **ARC-Challenge** | 1 task | Science QA |
+| **Winogrande** | 1 task | Coreference resolution |
+| **GSM8K** | 1 task | Math reasoning |
+| **IFEval** | 1 task | Instruction following |
+
+**Total: ~63 tasks evaluated** (1 + 57 MMLU subtasks + 5 other tasks)
+
+All evaluations use **0-shot prompting** (no examples shown to model).
 
 You can swap in other lm-eval tasks such as `bbh`, `truthfulqa`, `gpqa`, or `agieval` depending on coverage and budget.
+
+### Troubleshooting
+
+**Error: "Cache directory not found"**
+```bash
+# Solution: Pre-download first
+python download_eval_datasets.py --cache_dir ~/.cache/huggingface/datasets
+```
+
+**Slow evaluation**
+```bash
+# Increase batch size (if GPU memory allows)
+SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh <model>
+```
+
+**Out of GPU memory**
+```bash
+# Reduce batch size
+SKIP_DOWNLOAD=1 BATCH_SIZE=8 ./eval_llm.sh <model>
+```
+
+### Results Format
+
+Evaluation results are saved to `llm_eval_results/` as JSON files:
+```
+llm_eval_results/
+├── Qwen3-1.7B_20260106_120000.json
+├── final_checkpoint_20260106_121500.json
+└── ...
+```
+
+Extract results to markdown table:
+```bash
+python extract_llm_results.py
+```
 
 ---
 

@@ -93,6 +93,9 @@ export HF_HOME="${HOME}/.cache/huggingface"
 export HF_DATASETS_CACHE="${CACHE_DIR}"
 export TRANSFORMERS_CACHE="${HOME}/.cache/huggingface/transformers"
 
+# Set distributed training port to avoid conflicts (default 29500, fallback from 9500)
+export MASTER_PORT="${MASTER_PORT:-29500}"
+
 echo "========================================="
 echo "Evaluation Configuration:"
 echo "========================================="

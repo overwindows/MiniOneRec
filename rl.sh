@@ -29,7 +29,8 @@ fi
 OUTPUT_ROOT="${OUTPUT_ROOT:-output_dir}"
 # Path to the SFT-trained model (should match the output_dir from sft.sh)
 # MODEL_PATH="${MODEL_PATH:-output_dir/sft_Industrial_and_Scientific_qwen3-4b-instruct-2507_bs1024/final_checkpoint}"
-MODEL_PATH="${MODEL_PATH:-output_dir/sft_Industrial_and_Scientific_qwen3-1.7B_bs1024/final_checkpoint}"
+# MODEL_PATH="${MODEL_PATH:-output_dir/sft_Industrial_and_Scientific_qwen3-1.7B_bs1024/final_checkpoint}"
+MODEL_PATH="${MODEL_PATH:-output_dir/sft_mixed_Industrial_and_Scientific_Qwen3-1.7B_bs1024/final_checkpoint}"
 
 for category in "Industrial_and_Scientific"; do
     train_file=$(ls -f ./data/Amazon/train/${category}*.csv)
@@ -64,9 +65,9 @@ for category in "Industrial_and_Scientific"; do
                         --add_gt False \
                         --beta 1e-3 \
                         --dapo False \
-                        --output_dir ${OUTPUT_ROOT}/rl_${category}_qwen3-1.7B_bs1024 \
+                        --output_dir ${OUTPUT_ROOT}/rl_mixed_${category}_qwen3-1.7B_bs1024 \
                         --wandb_project MiniOneRec \
-                        --wandb_run_name rl_${category}_qwen3-1.7B_bs1024 \
+                        --wandb_run_name rl_mixed_${category}_qwen3-1.7B_bs1024 \
                         --sid_index_path ./data/Amazon/index/Industrial_and_Scientific.index.json \
                         --item_meta_path ./data/Amazon/index/Industrial_and_Scientific.item.json
 done

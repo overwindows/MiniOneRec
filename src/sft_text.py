@@ -1,4 +1,5 @@
 import os
+import sys
 import random
 import numpy as np
 import torch
@@ -7,6 +8,8 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, EarlyS
 from datasets import Dataset as HFDataset
 import fire
 
+# Add parent directory to path to import data module
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data import SFTData, TextMetaSFTDataset, InstructionJSONLDataset
 
 
@@ -37,15 +40,13 @@ def train(
     learning_rate: float = 3e-4,
     cutoff_len: int = 512,
     group_by_length: bool = False,
-    wandb_project: str = "",
-    wandb_run_name: str = "",
     resume_from_checkpoint: str = None,
     category: str = "",
     train_from_scratch: bool = False,
+    wandb_project: str = "",
+    wandb_run_name: str = "",
 ):
     set_seed(seed)
-    if wandb_project:
-        os.environ["WANDB_PROJECT"] = wandb_project
 
     category_dict = {
         "Industrial_and_Scientific": "industrial and scientific items",
@@ -151,7 +152,7 @@ def train(
     ).shuffle(seed=seed)
 
     training_args = transformers.TrainingArguments(
-        run_name=wandb_run_name,
+        run_name=wandb_run_name if wandb_run_name else None,
         per_device_train_batch_size=micro_batch_size,
         per_device_eval_batch_size=micro_batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
@@ -170,7 +171,7 @@ def train(
         load_best_model_at_end=True,
         ddp_find_unused_parameters=False if ddp else None,
         group_by_length=group_by_length,
-        report_to=None,
+        report_to=["wandb"] if wandb_project else [],
     )
 
     trainer = transformers.Trainer(

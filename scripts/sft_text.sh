@@ -1,10 +1,22 @@
 #!/bin/bash
 
 export NCCL_IB_DISABLE=1        # 完全禁用 IB/RoCE
-# export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
-export WANDB_MODE=offline      # Disable wandb to avoid authentication errors
+export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
 
-PROCESS_NUM=8
+export MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
+export GLOO_SOCKET_IFNAME=${GLOO_SOCKET_IFNAME:-lo}
+export NCCL_SOCKET_IFNAME=${NCCL_SOCKET_IFNAME:-lo}
+export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
+
+if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+    PROCESS_NUM=$(awk -F',' '{print NF}' <<< "${CUDA_VISIBLE_DEVICES}")
+else
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        PROCESS_NUM=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+    else
+        PROCESS_NUM=1
+    fi
+fi
 MODEL_PATH=Qwen/Qwen3-1.7B
 # MODEL_PATH=/nvmedata/hf_checkpoints/Qwen3-4B-Instruct-2507
 # MODEL_PATH=Qwen/Qwen3-4B-Instruct-2507
@@ -16,9 +28,9 @@ for category in "Industrial_and_Scientific"; do
     test_file=$(ls -f ./data/Amazon/test/${category}*11.csv)
     info_file=$(ls -f ./data/Amazon/info/${category}*.txt)
     echo ${train_file} ${eval_file} ${info_file} ${test_file}
-    
+
     torchrun --nproc_per_node ${PROCESS_NUM} \
-            sft_text.py \
+            src/sft_text.py \
             --base_model ${MODEL_PATH} \
             --batch_size 1024 \
             --micro_batch_size 16 \

@@ -175,17 +175,40 @@ def main():
         os.environ["HF_DATASETS_CACHE"] = args.cache_dir
         logging.info(f"Using datasets cache directory: {args.cache_dir}")
 
-    # Default to offline mode unless explicitly overridden
+    # Determine offline vs online mode
+    # Default: offline mode (use pre-downloaded datasets, no downloads during evaluation)
     offline = args.offline_mode or not args.online_mode
+    
     if offline:
-        if args.cache_dir and not os.path.isdir(args.cache_dir):
-            raise SystemExit(
-                f"Cache directory not found: {args.cache_dir}. "
-                "Run download_eval_datasets.py first to pre-download datasets."
-            )
+        # Offline mode: use pre-downloaded datasets
+        if args.cache_dir:
+            if not os.path.isdir(args.cache_dir):
+                raise SystemExit(
+                    f"Cache directory not found: {args.cache_dir}. \n"
+                    "Run download_eval_datasets.py first to pre-download datasets.\n\n"
+                    "Example:\n"
+                    f"  python download_eval_datasets.py --cache_dir {args.cache_dir} --tasks 'mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval'\n\n"
+                    "Then retry with SKIP_DOWNLOAD=1 to use offline mode."
+                )
+            logging.info(f"Offline mode: Using pre-downloaded datasets from {args.cache_dir}")
+        else:
+            logging.info("Offline mode: Using system HuggingFace cache")
+        
         os.environ["HF_DATASETS_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
-        logging.info("Running in offline mode (requires pre-downloaded datasets)")
+        logging.info("Environment: HF_DATASETS_OFFLINE=1, TRANSFORMERS_OFFLINE=1")
+    else:
+        # Online mode: allow downloads (not recommended with multi-GPU due to FUSE conflicts)
+        logging.warning("\n" + "="*60)
+        logging.warning("WARNING: Running in ONLINE mode (may download datasets)")
+        logging.warning("This can cause FUSE conflicts with multi-GPU setups.")
+        logging.warning("\nRecommended: Pre-download datasets first:")
+        logging.warning("  python download_eval_datasets.py --cache_dir <cache_dir> --tasks <tasks>")
+        logging.warning("Then run with: SKIP_DOWNLOAD=1 ./eval_llm.sh ...")
+        logging.warning("="*60 + "\n")
+        
+        os.environ["HF_DATASETS_OFFLINE"] = "0"
+        os.environ["TRANSFORMERS_OFFLINE"] = "0"
     
     # Setup logging
     log_level = logging.INFO if args.verbose else logging.WARNING

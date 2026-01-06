@@ -1,44 +1,46 @@
-#!/usr/bin/env bash
 # LLM Evaluation Script with Decoupled Dataset Download
 #
-# DECOUPLED WORKFLOW:
-# ===================
-# This script implements a two-stage evaluation workflow to avoid FUSE conflicts:
+# RECOMMENDED WORKFLOW (Download Once, Evaluate Multiple Times):
+# ==============================================================
 #
-#   Stage 1: Pre-download evaluation datasets (once per task set)
-#     - Download all required datasets to a local cache directory
-#     - Avoids concurrent FUSE access during evaluation
-#     - Dramatically faster than downloading during evaluation
+# Step 1: PRE-DOWNLOAD all datasets (run ONCE):
+#   python download_eval_datasets.py \
+#     --tasks "mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval" \
+#     --cache_dir ~/.cache/huggingface/datasets
 #
-#   Stage 2: Run evaluation with offline mode
-#     - Uses pre-downloaded datasets from cache
-#     - No network I/O during GPU computation
-#     - Multiple GPU processes work without FUSE conflicts
+# Step 2: RUN EVALUATION multiple times on PRE-DOWNLOADED datasets (OFFLINE MODE):
+#   SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B
+#   SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag"
+#
+# This approach AVOIDS:
+#   - FUSE conflicts from concurrent dataset downloads
+#   - Slow network I/O during GPU computation
+#   - Re-downloading same datasets repeatedly
 #
 # USAGE EXAMPLES:
 # ===============
 #
-# 1. Single GPU with pre-download:
+# 1. Full workflow (download + evaluate):
 #    ./eval_llm.sh Qwen/Qwen3-1.7B
 #
-# 2. Multi-GPU with pre-download:
-#    NUM_GPUS=4 ./eval_llm.sh Qwen/Qwen3-1.7B
+# 2. Evaluate only on pre-downloaded datasets (OFFLINE MODE):
+#    SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B
 #
-# 3. With custom tasks and limit:
-#    NUM_GPUS=4 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag" llm_eval 0.1
+# 3. With custom batch size (higher = faster but more memory):
+#    SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh Qwen/Qwen3-1.7B
 #
-# 4. With custom batch size (higher = faster but more memory):
-#    BATCH_SIZE=32 ./eval_llm.sh Qwen/Qwen3-1.7B
+# 4. With custom tasks:
+#    SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag"
 #
-# 5. Skip pre-download (datasets already cached):
-#    SKIP_DOWNLOAD=1 NUM_GPUS=4 ./eval_llm.sh Qwen/Qwen3-1.7B
+# 5. Evaluate only subset of examples:
+#    SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu" "" 0.1
 #
 # ENVIRONMENT VARIABLES:
 # ======================
-#   NUM_GPUS: Number of GPUs to use (default: 1)
-#   BATCH_SIZE: Batch size for evaluation (default: 16, or 'auto' for auto-detection)
-#   SKIP_DOWNLOAD: Set to 1 to skip pre-download step
+#   SKIP_DOWNLOAD: Set to 1 to skip pre-download (datasets must be already cached)
+#   BATCH_SIZE: Batch size for evaluation (default: 16, higher = faster but more memory)
 #   CACHE_DIR: Custom cache directory (default: ~/.cache/huggingface/datasets)
+#   MASTER_PORT: Port for distributed training (default: 29500)
 
 set -euo pipefail
 
@@ -51,39 +53,32 @@ if [[ -z "${MODEL_ROOT}" ]]; then
   echo "Usage: $0 <model_or_output_dir> [tasks] [output_dir] [limit]" >&2
   echo "" >&2
   echo "Examples:" >&2
-  echo "  $0 Qwen/Qwen3-4B-Instruct-2507                    # Single GPU evaluation" >&2
-  echo "  $0 Qwen/Qwen3-4B-Instruct-2507 mmlu llm_eval 0.1  # 10% of samples" >&2
+  echo "  $0 Qwen/Qwen3-4B-Instruct-2507                    # Evaluate model" >&2
+  echo "  $0 Qwen/Qwen3-4B-Instruct-2507 mmlu llm_eval 0.1  # Evaluate with 10% samples" >&2
   echo "" >&2
   echo "Environment variables:" >&2
-  echo "  NUM_GPUS=4 $0 ...            # Use multiple GPUs (default: 1)" >&2
   echo "  BATCH_SIZE=32 $0 ...         # Custom batch size (default: 16)" >&2
-  echo "  SKIP_DOWNLOAD=1 $0 ...       # Skip dataset pre-download" >&2
+  echo "  SKIP_DOWNLOAD=1 $0 ...       # Skip dataset pre-download (use cached)" >&2
   echo "  CACHE_DIR=/path $0 ...       # Custom cache directory" >&2
   exit 1
 fi
 
 # Detect number of GPUs
 NUM_AVAILABLE_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
-NUM_GPUS="${NUM_GPUS:-1}"  # Default to single GPU
 BATCH_SIZE="${BATCH_SIZE:-16}"  # Default to batch size 16 (much faster than auto=1)
 SKIP_DOWNLOAD="${SKIP_DOWNLOAD:-0}"  # Default to running pre-download
 CACHE_DIR="${CACHE_DIR:-${HOME}/.cache/huggingface/datasets}"
 
-# Build the Python command based on number of GPUs
+# Build the Python command
 build_cmd() {
   local model_path="$1"
-  if [[ "${NUM_GPUS}" -eq 1 ]]; then
-    # Single GPU mode - use llm_eval.py
-    local cmd="python llm_eval.py --model_path \"${model_path}\" --tasks \"${TASKS}\" --output_dir \"${OUTPUT_DIR}\" --cache_dir \"${CACHE_DIR}\" --batch_size ${BATCH_SIZE} --online_mode --verbose"
-    if [[ -n "${LIMIT}" ]]; then
-      cmd="${cmd} --limit ${LIMIT}"
-    fi
-  else
-    # Multi-GPU mode - use llm_eval_parallel.py
-    local cmd="python llm_eval_parallel.py --model_path \"${model_path}\" --tasks \"${TASKS}\" --output_dir \"${OUTPUT_DIR}\" --num_gpus ${NUM_GPUS} --cache_dir \"${CACHE_DIR}\" --batch_size ${BATCH_SIZE} --online_mode --verbose"
-    if [[ -n "${LIMIT}" ]]; then
-      cmd="${cmd} --limit ${LIMIT}"
-    fi
+  # Always use offline mode - evaluate only on pre-downloaded datasets
+  local mode_flag="--offline_mode"
+  
+  # Use llm_eval.py for all cases (single GPU)
+  local cmd="python llm_eval.py --model_path \"${model_path}\" --tasks \"${TASKS}\" --output_dir \"${OUTPUT_DIR}\" --cache_dir \"${CACHE_DIR}\" --batch_size ${BATCH_SIZE} ${mode_flag} --verbose"
+  if [[ -n "${LIMIT}" ]]; then
+    cmd="${cmd} --limit ${LIMIT}"
   fi
   echo "${cmd}"
 }
@@ -108,12 +103,6 @@ fi
 echo ""
 echo "GPU Configuration:"
 echo "  Available GPUs: ${NUM_AVAILABLE_GPUS}"
-if [[ "${NUM_GPUS}" -eq 1 ]]; then
-  echo "  Using: Single GPU mode"
-else
-  echo "  Using: ${NUM_GPUS} GPUs (Data Parallel)"
-  echo "  Speedup: ~${NUM_GPUS}x faster (theoretical)"
-fi
 echo "  Batch size: ${BATCH_SIZE}"
 echo ""
 echo "Dataset Caching (avoiding FUSE conflicts):"

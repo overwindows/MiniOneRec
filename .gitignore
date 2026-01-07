@@ -7,3 +7,4 @@ results/
 .claude/*
 .fuse_hidden*
 llm_eval_results/
+temp_text/

@@ -1083,10 +1083,13 @@ For text-based SFT models (trained with [sft_text.py](src/sft_text.py)), the eva
 
 #### Evaluation Pipeline
 
-The text-based evaluation consists of two stages:
+The text-based evaluation pipeline supports **parallel multi-GPU processing** with automatic data splitting and merging:
 
-1. **Generation** ([evaluate_text.py](src/evaluate_text.py)): Generate predictions using beam search
-2. **Metrics Calculation** ([calc_text_similarity.py](src/calc_text_similarity.py)): Compute NDCG and HR with similarity matching
+1. **Data Splitting**: Test data is automatically split across multiple GPUs
+2. **Parallel Generation** ([evaluate_text.py](src/evaluate_text.py)): Generate predictions using beam search on each GPU
+3. **Result Merging**: Combine predictions from all GPUs
+4. **Metrics Calculation** ([calc_text_similarity.py](src/calc_text_similarity.py)): Compute NDCG and HR with similarity matching
+
 
 #### Quick Start
 
@@ -1097,6 +1100,16 @@ bash scripts/evaluate_text.sh
 ```
 
 By default, this uses **similarity-based matching** with threshold `0.85`.
+
+**Configure GPUs for parallel evaluation:**
+```bash
+# Use specific GPUs (default: 0,1,2,3)
+CUDA_LIST="4,5,6,7" bash scripts/evaluate_text.sh
+
+# Single GPU
+CUDA_LIST="0" bash scripts/evaluate_text.sh
+```
+
 
 #### Customization Options
 

@@ -211,12 +211,14 @@ Evaluation results on the Amazon Industrial & Scientific dataset using parallel 
 **Model:** Qwen3-1.7B (final_checkpoint)
 **Dataset:** Industrial_and_Scientific_5_2016-10-2018-11
 **Total Samples:** 4,533
-**Number of Beams:** 50
+**Number of Beams:** 50 (SID-based), 20 (Text-based)
 
 |Model| Metric | @1 | @3 | @5 | @10 | @20 | @50 |
 |-----|--------|-----|-----|-----|------|------|------|
 |Qwen3-1.7B-SFT| **NDCG** | 6.13% | 7.84% | 8.47% | 9.37% | 10.05% | 10.81% |
 |Qwen3-1.7B-SFT| **HR (Hit Rate)** | 6.13% | 9.07% | 10.61% | 13.39% | 16.06% | 19.85% |
+|Qwen3-1.7B-SFT-Text| **NDCG** | 6.95% | 8.94% | 9.64% | 10.55% | 11.25% | - |
+|Qwen3-1.7B-SFT-Text| **HR (Hit Rate)** | 6.95% | 10.39% | 12.09% | 14.89% | 17.63% | - |
 |Qwen3-1.7B-SFT-Mixed| **NDCG** | 6.88% | 8.36% | 9.17% | 10.00% | 10.70% | 11.63% |
 |Qwen3-1.7B-SFT-Mixed| **HR (Hit Rate)** | 6.88% | 9.42% | 11.41% | 13.99% | 16.77% | 21.40% |
 |Qwen3-1.7B-RL| **NDCG** | 7.17% | 8.85% | 9.42% | 10.10% | 10.67% | 10.96% |
@@ -225,17 +227,24 @@ Evaluation results on the Amazon Industrial & Scientific dataset using parallel 
 |Qwen3-1.7B-RL-Mixed| **HR (Hit Rate)** | 7.52% | 9.79% | 10.61% | 11.76% | 12.84% | 13.96% |
 
 **Key Observations:**
+- **Text-based SFT outperforms SID-based SFT**: NDCG@10 improves from 9.37% to 10.55% (+12.6% relative improvement)
+- **Natural language is more effective**: Text-based approach achieves higher metrics across all K values, demonstrating the advantage of using item descriptions over structured IDs
+- **Evaluation methodology**: Text-based uses similarity-based catalog matching (find most similar item → compare ID), equivalent to SID's direct ID mapping
 - **RL training improves early precision**: NDCG@1 increases from 6.13% to 7.17% (+17% relative improvement)
 - **Better ranking quality**: RL achieves higher NDCG across all K values, indicating improved ranking of relevant items
 - **Trade-off in recall**: HR@50 decreases slightly from 19.85% to 17.32%, suggesting RL optimizes for precision over coverage
 - **Consistent performance**: Both models show performance improvements as K increases, validating the beam search quality
 
-**Evaluation Command:**
+**Evaluation Commands:**
 ```bash
+# SID-based evaluation (Structured ID tokens)
 bash scripts/evaluate.sh
+
+# Text-based evaluation (Natural language descriptions)
+CUDA_LIST="0,1,2,3,4,5,6" bash scripts/evaluate_text.sh
 ```
 
-The evaluation pipeline uses parallel GPU processing (GPUs 4-7) for 4x faster evaluation compared to single-GPU baseline.
+The evaluation pipeline uses parallel GPU processing for faster evaluation compared to single-GPU baseline.
 
 ---
 

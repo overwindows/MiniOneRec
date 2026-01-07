@@ -8,3 +8,4 @@ results/
 .fuse_hidden*
 llm_eval_results/
 temp_text/
+results_text/

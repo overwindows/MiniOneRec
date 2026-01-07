@@ -50,6 +50,18 @@ do
         continue
     fi
 
+    # Determine actual model path (check if final_checkpoint exists)
+    if [[ -d "$exp_name/final_checkpoint" ]]; then
+        model_path="$exp_name/final_checkpoint"
+        echo "Using model: $model_path (found final_checkpoint)"
+    elif [[ -d "$exp_name" ]]; then
+        model_path="$exp_name"
+        echo "Using model: $model_path (direct path)"
+    else
+        echo "ERROR: Model not found at $exp_name or $exp_name/final_checkpoint"
+        continue
+    fi
+
     cudalist=$(echo "$cuda_list" | tr ',' ' ')
     echo "Starting parallel evaluation (TEXT MODE)..."
     echo "GPUs: $cudalist"
@@ -67,7 +79,7 @@ do
 
             # Build the command with optional item_meta_path
             cmd="CUDA_VISIBLE_DEVICES=$i python -u src/evaluate_text.py \
-                --base_model \"$exp_name/final_checkpoint\" \
+                --base_model \"$model_path\" \
                 --category ${category} \
                 --test_data_path \"$temp_dir/${i}.csv\" \
                 --result_json_data \"$temp_dir/${i}.json\" \

@@ -98,13 +98,13 @@ This downloads all datasets to `~/.cache/huggingface/datasets/` and takes 5-30 m
 **Step 3: Run evaluation in OFFLINE MODE (no re-downloads)**
 ```bash
 # Single GPU
-SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B
+SKIP_DOWNLOAD=1 bash scripts/eval_llm.sh Qwen/Qwen3-1.7B
 
 # With higher batch size for more speed
-SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh Qwen/Qwen3-1.7B
+SKIP_DOWNLOAD=1 BATCH_SIZE=32 bash scripts/eval_llm.sh Qwen/Qwen3-1.7B
 
 # Evaluate checkpoint
-SKIP_DOWNLOAD=1 ./eval_llm.sh output_dir/my_checkpoint/final_checkpoint
+SKIP_DOWNLOAD=1 bash scripts/eval_llm.sh output_dir/my_checkpoint/final_checkpoint
 ```
 
 ### Common Workflows
@@ -115,8 +115,8 @@ SKIP_DOWNLOAD=1 ./eval_llm.sh output_dir/my_checkpoint/final_checkpoint
 python download_eval_datasets.py --cache_dir ~/.cache/huggingface/datasets
 
 # Evaluate multiple times, offline mode
-SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B
-SKIP_DOWNLOAD=1 ./eval_llm.sh output_dir/my_checkpoint/final_checkpoint
+SKIP_DOWNLOAD=1 bash scripts/eval_llm.sh Qwen/Qwen3-1.7B
+SKIP_DOWNLOAD=1 bash scripts/eval_llm.sh output_dir/my_checkpoint/final_checkpoint
 ```
 
 **Workflow 2: Custom tasks and settings**
@@ -127,10 +127,10 @@ python download_eval_datasets.py \
   --cache_dir ~/.cache/huggingface/datasets
 
 # Evaluate with custom batch size
-SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag"
+SKIP_DOWNLOAD=1 BATCH_SIZE=32 bash scripts/eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag"
 
 # Evaluate only subset (e.g., first 10% of examples)
-SKIP_DOWNLOAD=1 ./eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag" llm_eval 0.1
+SKIP_DOWNLOAD=1 bash scripts/eval_llm.sh Qwen/Qwen3-1.7B "mmlu,hellaswag" llm_eval 0.1
 ```
 
 ### Offline vs Online Mode
@@ -176,13 +176,13 @@ python download_eval_datasets.py --cache_dir ~/.cache/huggingface/datasets
 **Slow evaluation**
 ```bash
 # Increase batch size (if GPU memory allows)
-SKIP_DOWNLOAD=1 BATCH_SIZE=32 ./eval_llm.sh <model>
+SKIP_DOWNLOAD=1 BATCH_SIZE=32 bash scripts/eval_llm.sh <model>
 ```
 
 **Out of GPU memory**
 ```bash
 # Reduce batch size
-SKIP_DOWNLOAD=1 BATCH_SIZE=8 ./eval_llm.sh <model>
+SKIP_DOWNLOAD=1 BATCH_SIZE=8 bash scripts/eval_llm.sh <model>
 ```
 
 ### Results Format
@@ -232,7 +232,7 @@ Evaluation results on the Amazon Industrial & Scientific dataset using parallel 
 
 **Evaluation Command:**
 ```bash
-bash evaluate.sh
+bash scripts/evaluate.sh
 ```
 
 The evaluation pipeline uses parallel GPU processing (GPUs 4-7) for 4x faster evaluation compared to single-GPU baseline.
@@ -298,19 +298,19 @@ The `eval_mind.sh` script provides a convenient way to evaluate models on MIND w
 
 ```bash
 # Quick test on dev split (100 impressions)
-bash eval_mind.sh Qwen/Qwen3-1.7B dev 100
+bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev 100
 
 # Full dev evaluation
-bash eval_mind.sh Qwen/Qwen3-1.7B dev
+bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 
 # With abstracts for better quality
-USE_ABSTRACT=1 bash eval_mind.sh Qwen/Qwen3-1.7B dev
+USE_ABSTRACT=1 bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 
 # Generate predictions for leaderboard submission (test split)
-OUTPUT_FILE=predictions.txt bash eval_mind.sh Qwen/Qwen3-1.7B test
+OUTPUT_FILE=predictions.txt bash scripts/eval_mind.sh Qwen/Qwen3-1.7B test
 
 # Custom data root
-MIND_ROOT=/path/to/data bash eval_mind.sh Qwen/Qwen3-1.7B dev
+MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 ```
 
 **Auto-extraction feature**: The script automatically extracts MIND data from ZIP files if `behaviors.tsv` and `news.tsv` are not found.
@@ -325,6 +325,21 @@ MIND_ROOT=/path/to/data bash eval_mind.sh Qwen/Qwen3-1.7B dev
 - `OUTPUT_FILE`: Path to save predictions for MIND leaderboard submission (optional)
 
 **Output**: Reports AUC, MRR, nDCG@5, nDCG@10 (same metrics used on the MIND leaderboard). Optionally generates prediction file with ranked news IDs for each impression.
+
+#### Baseline Results
+
+**Model**: Qwen3-1.7B (zero-shot, no fine-tuning)  
+**Dataset**: MINDsmall dev split (73,152 impressions)  
+**Command**: `GPU_ID=2 bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev`
+
+| Metric | Score |
+|--------|-------|
+| AUC | 49.28% |
+| MRR | 23.46% |
+| nDCG@5 | 21.15% |
+| nDCG@10 | 27.61% |
+
+**Note**: These are baseline results without any fine-tuning on MIND data. For better performance, fine-tune the model on MIND training data using the training instructions above.
 
 ### Leaderboard Submission
 
@@ -452,24 +467,24 @@ pip install flash-attn --no-build-isolation
 
 For models ≤ 4B parameters:
 ```bash
-bash sft.sh
+bash scripts/sft.sh
 ```
 
 For models ≥ 8B parameters (memory-optimized with DeepSpeed):
 ```bash
-bash sft_ds.sh
+bash scripts/sft_ds.sh
 ```
 
 ### 4. Recommendation-Oriented RL
 
 ```bash
-bash rl.sh
+bash scripts/rl.sh
 ```
 
 ### 5. Run the evaluation bash
 
 ```bash
-bash evaluate.sh
+bash scripts/evaluate.sh
 ```
 
 ---
@@ -501,7 +516,7 @@ python download_ultrachat.py \
 
 **Step 2: Run Mixed SFT**
 ```bash
-bash sft_mixed.sh
+bash scripts/sft_mixed.sh
 ```
 
 By default, this uses:
@@ -512,14 +527,14 @@ By default, this uses:
 
 General capabilities:
 ```bash
-bash eval_llm.sh output_dir/sft_mixed_*/final_checkpoint \
+bash scripts/eval_llm.sh output_dir/sft_mixed_*/final_checkpoint \
   mmlu,hellaswag,arc_challenge,winogrande,gsm8k,ifeval \
   llm_eval
 ```
 
 Recommendation performance:
 ```bash
-bash evaluate.sh output_dir/sft_mixed_*/final_checkpoint
+bash scripts/evaluate.sh output_dir/sft_mixed_*/final_checkpoint
 ```
 
 ### Configuration
@@ -527,28 +542,28 @@ bash evaluate.sh output_dir/sft_mixed_*/final_checkpoint
 **Data Mixing Ratio:**
 ```bash
 # More general data (50/50 mix)
-GENERAL_DATA_RATIO=0.5 bash sft_mixed.sh
+GENERAL_DATA_RATIO=0.5 bash scripts/sft_mixed.sh
 
 # Less general data (10% general, 90% rec)
-GENERAL_DATA_RATIO=0.1 bash sft_mixed.sh
+GENERAL_DATA_RATIO=0.1 bash scripts/sft_mixed.sh
 ```
 
 **General Data Source:**
 ```bash
 # UltraChat (default)
-GENERAL_DATA_PATH=data/general/ultrachat_200k.jsonl bash sft_mixed.sh
+GENERAL_DATA_PATH=data/general/ultrachat_200k.jsonl bash scripts/sft_mixed.sh
 
 # Your custom JSONL file
-GENERAL_DATA_PATH=/path/to/custom_data.jsonl bash sft_mixed.sh
+GENERAL_DATA_PATH=/path/to/custom_data.jsonl bash scripts/sft_mixed.sh
 ```
 
 **General Data Amount:**
 ```bash
 # Use 100K examples
-GENERAL_DATA_SAMPLE=100000 bash sft_mixed.sh
+GENERAL_DATA_SAMPLE=100000 bash scripts/sft_mixed.sh
 
 # Use all available examples
-GENERAL_DATA_SAMPLE=-1 bash sft_mixed.sh
+GENERAL_DATA_SAMPLE=-1 bash scripts/sft_mixed.sh
 ```
 
 ### Expected Results
@@ -643,7 +658,7 @@ Set the `WANDB_API_KEY` environment variable before running training:
 export WANDB_API_KEY=your_api_key_here
 
 # Then run training
-bash sft.sh
+bash scripts/sft.sh
 ```
 
 **Or add it to your shell profile** (`~/.bashrc` or `~/.zshrc`):
@@ -690,7 +705,7 @@ If you don't want to use wandb, you can disable it:
 
 ```bash
 export WANDB_MODE=disabled
-bash sft.sh
+bash scripts/sft.sh
 ```
 
 **Troubleshooting:**
@@ -905,7 +920,7 @@ python convert_dataset.py \
 #### 4.1 Standard SFT (for models ≤ 4B parameters)
 
 ```bash
-bash sft.sh \
+bash scripts/sft.sh \
      --base_model your_model_path \
      --output_dir your_ourput_dir \
      --sid_index_path your_.index.json_path \
@@ -918,7 +933,7 @@ For large models that cause OOM errors, use the DeepSpeed-optimized training scr
 
 **Single Node (8 GPUs):**
 ```bash
-bash sft_ds.sh
+bash scripts/sft_ds.sh
 ```
 The script will automatically create a default hostfile for single-node training.
 
@@ -933,7 +948,7 @@ node-1 slots=8
 
 2. Run the training script:
 ```bash
-HOSTFILE=./hostfile bash sft_ds.sh
+HOSTFILE=./hostfile bash scripts/sft_ds.sh
 ```
 
 Or use IP addresses:
@@ -1050,7 +1065,7 @@ If you still encounter OOM errors:
 ### 5. Recommendation-Oriented RL
 > (Optional) For production-scale datasets, considering the cost of reinforcement learning and diminishing marginal returns, you can perform the RL stage using only a relatively small subset on the order of tens of thousands of samples.
 ```
-bash rl.sh \
+bash scripts/rl.sh \
      --model_path your_model_path \
      --output_dir output_dir \
 ```
@@ -1058,9 +1073,147 @@ bash rl.sh \
 ### 6. Offline Evaluation
 
 ```
-bash evaluate.sh \
-     --exp_name your_model_path 
+bash scripts/evaluate.sh \
+     --exp_name your_model_path
 ```
+
+### 7. Text-based SFT Evaluation with Similarity Matching
+
+For text-based SFT models (trained with [sft_text.py](src/sft_text.py)), the evaluation now supports **similarity-based matching** instead of exact string matching. This is more robust for recommendation tasks where predicted item names may have minor variations from ground truth.
+
+#### Evaluation Pipeline
+
+The text-based evaluation consists of two stages:
+
+1. **Generation** ([evaluate_text.py](src/evaluate_text.py)): Generate predictions using beam search
+2. **Metrics Calculation** ([calc_text_similarity.py](src/calc_text_similarity.py)): Compute NDCG and HR with similarity matching
+
+#### Quick Start
+
+Run the complete evaluation pipeline:
+
+```bash
+bash scripts/evaluate_text.sh
+```
+
+By default, this uses **similarity-based matching** with threshold `0.85`.
+
+#### Customization Options
+
+**Use exact matching (original behavior):**
+```bash
+USE_SIMILARITY=false bash scripts/evaluate_text.sh
+```
+
+**Adjust similarity threshold (0.0 to 1.0):**
+```bash
+# More lenient matching (threshold = 0.75)
+SIMILARITY_THRESHOLD=0.75 bash scripts/evaluate_text.sh
+
+# Stricter matching (threshold = 0.90)
+SIMILARITY_THRESHOLD=0.90 bash scripts/evaluate_text.sh
+```
+
+**Combine both options:**
+```bash
+USE_SIMILARITY=true SIMILARITY_THRESHOLD=0.80 bash scripts/evaluate_text.sh
+```
+
+#### Manual Evaluation (Advanced)
+
+**Step 1: Generate predictions**
+```bash
+python src/evaluate_text.py \
+    --base_model output_dir/sft_text_Industrial_and_Scientific/final_checkpoint \
+    --category Industrial_and_Scientific \
+    --test_data_path data/Amazon/test/Industrial_and_Scientific_5_2016-10-2018-11.csv \
+    --item_meta_path data/Amazon/index/Industrial_and_Scientific.item.json \
+    --result_json_data results_text/predictions.json \
+    --batch_size 4 \
+    --num_beams 20 \
+    --max_new_tokens 256
+```
+
+**Step 2: Calculate metrics with similarity matching**
+```bash
+python src/calc_text_similarity.py \
+    --path results_text/predictions.json \
+    --item_path data/Amazon/info/Industrial_and_Scientific.txt \
+    --similarity_threshold 0.85 \
+    --use_similarity true
+```
+
+#### Understanding Similarity Matching
+
+The similarity matching uses Python's `difflib.SequenceMatcher` to compute fuzzy string similarity:
+
+- **Exact match first**: Always tries exact string match (fastest)
+- **Fuzzy fallback**: If no exact match, checks similarity ratio
+- **Threshold**: Items with similarity ≥ threshold are considered matches
+- **Best rank**: If multiple fuzzy matches, uses the highest-ranked prediction
+
+**Example:**
+```
+Ground truth: "Black Ballpoint Pen"
+Predictions:
+  1. "Blue Pen"               → similarity: 0.50 (no match)
+  2. "Black Ballpoint Pens"   → similarity: 0.95 (MATCH! ✓)
+  3. "Black Ballpoint Pen"    → exact match (MATCH! ✓)
+```
+
+With threshold `0.85`, prediction #2 would be considered a hit at rank 2.
+
+#### Output Format
+
+The evaluation prints:
+
+1. **Match Statistics**:
+   - Exact matches: Perfect string matches
+   - Fuzzy matches: Similarity-based matches
+   - No matches: Failed to find target in predictions
+
+2. **Metrics Table**:
+   - NDCG@K: Position-aware ranking quality
+   - HR@K: Hit rate (binary hit/miss)
+   - K values: 1, 3, 5, 10, 20, 50
+
+**Example output:**
+```
+============================================================
+Evaluation Mode: SIMILARITY-BASED
+Similarity Threshold: 0.85
+============================================================
+
+Number of beams: 20
+Valid top-k values: [1, 3, 5, 10, 20]
+
+Match Statistics:
+  Exact matches: 850/1000 (85.00%)
+  Fuzzy matches: 120/1000 (12.00%)
+  No matches: 30/1000 (3.00%)
+
+Metrics:
+NDCG:	['0.3245', '0.4512', '0.4876', '0.5234', '0.5456']
+HR:	['0.3245', '0.6123', '0.7234', '0.8345', '0.9012']
+
+============================================================
+Metric     @1         @3         @5         @10        @20        @50
+============================================================
+NDCG       32.45%     45.12%     48.76%     52.34%     54.56%       N/A
+HR         32.45%     61.23%     72.34%     83.45%     90.12%       N/A
+============================================================
+```
+
+#### Comparison: Exact vs Similarity Matching
+
+| Approach | Precision | Robustness | Use Case |
+|----------|-----------|------------|----------|
+| **Exact Matching** | Strictest | Low | When item names are standardized |
+| **Similarity (0.90+)** | Very High | Medium | Minor variations (plurals, punctuation) |
+| **Similarity (0.85)** | High | High | Recommended default |
+| **Similarity (0.75-0.80)** | Medium | Very High | Noisy or abbreviated item names |
+
+**Recommendation**: Start with `0.85` threshold. If you see many "No matches" but visually similar predictions, lower to `0.80`. If you need stricter evaluation, raise to `0.90` or use exact matching.
 
 ---
 
@@ -1132,3 +1285,86 @@ If you find our code/paper/model helpful, please consider citing our papers 📝
 <div align="center">
 We welcome contributions from the community! 🤝
 </div>
+
+#### Troubleshooting
+
+**"No matches" percentage is high (>20%)**
+
+Solution: Lower similarity threshold
+```bash
+SIMILARITY_THRESHOLD=0.80 bash scripts/evaluate_text.sh
+```
+
+**Metrics seem too optimistic**
+
+Solution: Increase threshold or use exact matching
+```bash
+SIMILARITY_THRESHOLD=0.90 bash scripts/evaluate_text.sh
+# or
+USE_SIMILARITY=false bash scripts/evaluate_text.sh
+```
+
+**Need to compare both approaches**
+
+Solution: Run both and compare results
+```bash
+# Similarity-based
+bash scripts/evaluate_text.sh > results_similarity.txt
+
+# Exact matching
+USE_SIMILARITY=false bash scripts/evaluate_text.sh > results_exact.txt
+
+# Compare
+diff results_similarity.txt results_exact.txt
+```
+
+#### Advanced Usage
+
+**Multiple Thresholds Comparison:**
+```bash
+for threshold in 0.75 0.80 0.85 0.90 0.95; do
+    echo "=== Threshold: $threshold ==="
+    SIMILARITY_THRESHOLD=$threshold bash scripts/evaluate_text.sh
+done
+```
+
+**Batch Multiple Categories:**
+```bash
+for category in "Industrial_and_Scientific" "Office_Products" "Toys_and_Games"; do
+    echo "Processing: $category"
+    # Update category in scripts/evaluate_text.sh
+    bash scripts/evaluate_text.sh
+done
+```
+
+**Compare All Methods:**
+```bash
+bash scripts/compare_matching_methods.sh results_text/predictions.json data/Amazon/info/Industrial_and_Scientific.txt
+```
+
+#### Technical Details
+
+**String Normalization:**
+- Convert to lowercase
+- Strip leading/trailing whitespace
+
+**Similarity Calculation:**
+
+Uses Python's `difflib.SequenceMatcher` with Ratcliff/Obershelp algorithm:
+```python
+from difflib import SequenceMatcher
+
+def fuzzy_match(str1, str2, threshold=0.85):
+    s1 = str1.lower().strip()
+    s2 = str2.lower().strip()
+    ratio = SequenceMatcher(None, s1, s2).ratio()
+    return ratio >= threshold
+```
+
+Formula: `ratio = 2 * M / T`
+- `M` = number of matching characters
+- `T` = total number of characters in both strings
+
+
+---
+

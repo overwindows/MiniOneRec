@@ -1,16 +1,28 @@
+"""
+Train a model on MIND dataset using Supervised Fine-Tuning (SFT).
+
+This script is optimized for achieving SOTA results on MIND news recommendation.
+Follows the same architecture as sft_text.py for consistency.
+"""
+
 import os
 import sys
 import random
 import numpy as np
 import torch
 import transformers
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, EarlyStoppingCallback
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    EarlyStoppingCallback,
+)
 from datasets import Dataset as HFDataset
 import fire
 
 # Add parent directory to path to import data module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from data import SFTData, TextMetaSFTDataset, InstructionJSONLDataset
+from data import MINDTextSFTDataset
 
 
 def set_seed(seed):
@@ -26,38 +38,27 @@ def set_seed(seed):
 
 def train(
     base_model: str = "",
-    train_file: str = "",
-    eval_file: str = "",
+    train_behaviors_path: str = "",
+    train_news_path: str = "",
+    eval_behaviors_path: str = "",
+    eval_news_path: str = "",
     output_dir: str = "",
-    item_meta_path: str = "",
-    general_jsonl: str = "",
-    general_ratio: float = 0.0,
+    use_abstract: bool = False,
+    max_history: int = 50,
     sample: int = -1,
     seed: int = 42,
     batch_size: int = 128,
     micro_batch_size: int = 4,
-    num_epochs: int = 10,
+    num_epochs: int = 3,
     learning_rate: float = 3e-4,
-    cutoff_len: int = 512,
+    cutoff_len: int = 1024,
     group_by_length: bool = False,
     resume_from_checkpoint: str = None,
-    category: str = "",
     train_from_scratch: bool = False,
     wandb_project: str = "",
     wandb_run_name: str = "",
 ):
     set_seed(seed)
-
-    category_dict = {
-        "Industrial_and_Scientific": "industrial and scientific items",
-        "Office_Products": "office products",
-        "Toys_and_Games": "toys and games",
-        "Sports": "sports and outdoors",
-        "Books": "books",
-    }
-    if category not in category_dict:
-        raise ValueError(f"Unknown category {category}")
-    category_text = category_dict[category]
 
     if not base_model:
         raise ValueError("Please specify --base_model")
@@ -83,72 +84,40 @@ def train(
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
 
-    if item_meta_path:
-        train_data = TextMetaSFTDataset(
-            train_file=train_file,
-            tokenizer=tokenizer,
-            item_meta_path=item_meta_path,
-            max_len=cutoff_len,
-            sample=sample,
-            seed=seed,
-            category=category_text,
-        )
-        val_data = TextMetaSFTDataset(
-            train_file=eval_file,
-            tokenizer=tokenizer,
-            item_meta_path=item_meta_path,
-            max_len=cutoff_len,
-            sample=sample,
-            seed=seed,
-            category=category_text,
-        )
-    else:
-        train_data = SFTData(
-            train_file=train_file,
-            tokenizer=tokenizer,
-            max_len=cutoff_len,
-            sample=sample,
-            seed=seed,
-            category=category_text,
-        )
-        val_data = SFTData(
-            train_file=eval_file,
-            tokenizer=tokenizer,
-            max_len=cutoff_len,
-            sample=sample,
-            seed=seed,
-            category=category_text,
-        )
+    train_data = MINDTextSFTDataset(
+        behaviors_path=train_behaviors_path,
+        news_path=train_news_path,
+        tokenizer=tokenizer,
+        max_len=cutoff_len,
+        sample=sample,
+        seed=seed,
+        max_history=max_history,
+        use_abstract=use_abstract,
+    )
 
-    rec_samples = [train_data[i] for i in range(len(train_data))]
-    if general_jsonl and general_ratio > 0:
-        general_data = InstructionJSONLDataset(
-            jsonl_path=general_jsonl,
-            tokenizer=tokenizer,
-            max_len=cutoff_len,
-            sample=-1,
-            seed=seed,
-        )
-        general_samples = [general_data[i] for i in range(len(general_data))]
-        target_general = int(len(rec_samples) * general_ratio / (1.0 - general_ratio))
-        if general_samples:
-            rng = random.Random(seed)
-            mixed_general = [rng.choice(general_samples) for _ in range(target_general)]
-        else:
-            mixed_general = []
-        train_samples = rec_samples + mixed_general
-        rng = random.Random(seed)
-        rng.shuffle(train_samples)
-    else:
-        train_samples = rec_samples
+    val_data = MINDTextSFTDataset(
+        behaviors_path=eval_behaviors_path,
+        news_path=eval_news_path,
+        tokenizer=tokenizer,
+        max_len=cutoff_len,
+        sample=min(sample, 5000) if sample > 0 else 5000,
+        seed=seed,
+        max_history=max_history,
+        use_abstract=use_abstract,
+    )
+
+    train_samples = [train_data[i] for i in range(len(train_data))]
+    val_samples = [val_data[i] for i in range(len(val_data))]
 
     if not train_samples:
-        raise ValueError("No training samples available after mixing.")
+        raise ValueError("No training samples available.")
+
     hf_train_dataset = HFDataset.from_dict(
         {k: [v[k] for v in train_samples] for k in train_samples[0].keys()}
     ).shuffle(seed=seed)
+
     hf_val_dataset = HFDataset.from_dict(
-        {k: [v[k] for v in val_data] for k in val_data[0].keys()}
+        {k: [v[k] for v in val_samples] for k in val_samples[0].keys()}
     ).shuffle(seed=seed)
 
     training_args = transformers.TrainingArguments(

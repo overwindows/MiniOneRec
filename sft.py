@@ -138,7 +138,7 @@ def train(
     if not train_from_scratch:
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
     else:
         config = AutoConfig.from_pretrained(base_model)

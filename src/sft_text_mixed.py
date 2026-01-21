@@ -1,4 +1,6 @@
 import os
+import sys
+import json
 import random
 import numpy as np
 import torch
@@ -7,11 +9,15 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, EarlyS
 from datasets import Dataset as HFDataset
 import fire
 
+# Add parent directory to path to import data module
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from data import (
     SFTData,
     TextMetaSFTDataset,
     MINDTextSFTDataset,
     InstructionJSONLDataset,
+    Tokenizer,
 )
 
 
@@ -24,6 +30,19 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def _load_pretrained_model(base_model):
+    try:
+        return AutoModelForCausalLM.from_pretrained(
+            base_model,
+            dtype=torch.bfloat16,
+        )
+    except TypeError:
+        return AutoModelForCausalLM.from_pretrained(
+            base_model,
+            torch_dtype=torch.bfloat16,
+        )
 
 
 def _sample_with_replacement(rng, items, target):
@@ -50,6 +69,55 @@ def _build_train_samples(rng, datasets, ratios, base_size):
     return samples
 
 
+def _build_user_input_prompt(instruction, input_text):
+    instruction = instruction or ""
+    input_text = input_text or ""
+    if input_text:
+        user_input = f"{instruction}\n{input_text}".strip()
+    else:
+        user_input = instruction.strip()
+    return f"""### User Input:
+{user_input}
+
+### Response:\n"""
+
+
+def _load_general_user_input(jsonl_path, tokenizer, max_len, sample, seed):
+    rng = random.Random(seed)
+    tok = Tokenizer(tokenizer)
+    data = []
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    if sample > 0:
+        data = rng.sample(data, min(sample, len(data)))
+
+    inputs = []
+    for item in data:
+        prompt = _build_user_input_prompt(item.get("instruction", ""), item.get("input", ""))
+        output_text = item.get("output", "")
+        tokens = tok.encode(prompt, bos=True, eos=False)
+        golden_tokens = tok.encode(output_text, bos=False, eos=True)
+        input_prompt_len = len(tokens)
+        tokens = tokens + golden_tokens
+        attention_mask = [1] * len(tokens)
+        labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
+        inputs.append(
+            {
+                "input_ids": tokens[-max_len:],
+                "attention_mask": attention_mask[-max_len:],
+                "labels": labels[-max_len:],
+            }
+        )
+    return inputs
+
+
 def train(
     base_model: str = "",
     output_dir: str = "",
@@ -73,12 +141,14 @@ def train(
     # MIND
     mind_behaviors_path: str = "",
     mind_news_path: str = "",
-    mind_ratio: float = 0.2,
+    mind_ratio: float = 0.0,
     mind_max_history: int = 50,
     mind_use_abstract: bool = False,
     # General
     general_jsonl: str = "",
     general_ratio: float = 0.1,
+    general_sample: int = -1,
+    general_prompt_style: str = "instruction",
     # Eval selection
     eval_source: str = "amazon",
 ):
@@ -104,10 +174,7 @@ def train(
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
 
     if not train_from_scratch:
-        model = AutoModelForCausalLM.from_pretrained(
-            base_model,
-            torch_dtype=torch.bfloat16,
-        )
+        model = _load_pretrained_model(base_model)
     else:
         config = AutoConfig.from_pretrained(base_model)
         model = AutoModelForCausalLM.from_config(config)
@@ -158,17 +225,26 @@ def train(
             use_abstract=mind_use_abstract,
         )
         mind_samples = [mind_ds[i] for i in range(len(mind_ds))]
+    else:
+        mind_ratio = 0.0
 
     general_samples = []
     if general_jsonl:
-        general_ds = InstructionJSONLDataset(
-            jsonl_path=general_jsonl,
-            tokenizer=tokenizer,
-            max_len=cutoff_len,
-            sample=-1,
-            seed=seed,
-        )
-        general_samples = [general_ds[i] for i in range(len(general_ds))]
+        if general_prompt_style == "instruction":
+            general_ds = InstructionJSONLDataset(
+                jsonl_path=general_jsonl,
+                tokenizer=tokenizer,
+                max_len=cutoff_len,
+                sample=general_sample,
+                seed=seed,
+            )
+            general_samples = [general_ds[i] for i in range(len(general_ds))]
+        elif general_prompt_style == "user_input":
+            general_samples = _load_general_user_input(
+                general_jsonl, tokenizer, cutoff_len, general_sample, seed
+            )
+        else:
+            raise ValueError("general_prompt_style must be 'instruction' or 'user_input'")
 
     if not amazon_samples and not mind_samples and not general_samples:
         raise ValueError("No training data sources provided.")
@@ -264,6 +340,9 @@ def train(
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )
     model.config.use_cache = False
+
+    if int(os.environ.get("LOCAL_RANK", "0")) == 0:
+        print("Rank 0: starting Trainer.train()")
 
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)
     trainer.save_model(output_dir)

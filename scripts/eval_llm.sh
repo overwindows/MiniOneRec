@@ -139,8 +139,8 @@ echo "Datasets will be loaded from cache."
 echo "Model will be loaded from HuggingFace cache or downloaded if needed."
 echo ""
 
-if [[ -d "${MODEL_ROOT}" && -d "${MODEL_ROOT}/checkpoint-0" ]]; then
-  for ckpt in "${MODEL_ROOT}"/checkpoint-*; do
+if [[ -d "${MODEL_ROOT}" && -d "${MODEL_ROOT}/final_checkpoint" ]]; then
+  for ckpt in "${MODEL_ROOT}"/final_checkpoint; do
     if [[ -d "${ckpt}" ]]; then
       echo "Evaluating checkpoint: ${ckpt}"
       eval "$(build_cmd "${ckpt}")"

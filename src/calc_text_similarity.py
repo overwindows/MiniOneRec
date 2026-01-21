@@ -60,7 +60,7 @@ def find_best_matching_item(prediction, item_names):
     return best_match_idx, best_similarity
 
 
-def evaluate_text_predictions(path, item_path, similarity_threshold=0.85, use_similarity=True):
+def evaluate_text_predictions(path, item_path, use_similarity=True):
     """
     Evaluate text generation predictions using NDCG and HR metrics.
     Supports both exact matching and similarity-based catalog matching.
@@ -129,8 +129,7 @@ def evaluate_text_predictions(path, item_path, similarity_threshold=0.85, use_si
 
     print(f"\n{'='*60}")
     print(f"Evaluation Mode: {'SIMILARITY-BASED' if use_similarity else 'EXACT MATCH'}")
-    if use_similarity:
-        print(f"Similarity Threshold: {similarity_threshold:.2f}")
+    # No threshold is applied; evaluator always selects the most similar item.
     print(f"{'='*60}\n")
 
     # Process each prediction file

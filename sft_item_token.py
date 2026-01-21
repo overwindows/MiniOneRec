@@ -79,7 +79,7 @@ class ItemTokenModel(nn.Module):
         super().__init__()
         self.lm = AutoModelForCausalLM.from_pretrained(
             base_model,
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
         if freeze_llm:
             for param in self.lm.parameters():

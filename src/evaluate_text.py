@@ -72,7 +72,7 @@ def main(
         raise ValueError(f"Unknown category {category}")
 
     model = AutoModelForCausalLM.from_pretrained(
-        base_model, torch_dtype=torch.bfloat16, device_map="auto"
+        base_model, dtype=torch.bfloat16, device_map="auto"
     )
     model.eval()
     tokenizer = AutoTokenizer.from_pretrained(base_model)

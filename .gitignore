@@ -9,3 +9,5 @@ results/
 llm_eval_results/
 temp_text/
 results_text/
+temp_mind/
+outputs/*

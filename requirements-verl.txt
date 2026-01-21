@@ -1,1 +1,17 @@
+# VERL framework for RL training
 git+https://github.com/volcengine/verl.git
+
+# vLLM rollout backend (required for async rollout)
+vllm>=0.6.0
+
+# ZeroMQ for vLLM async communication
+pyzmq
+
+# Optional: SGLang rollout backend (alternative to vLLM)
+# sglang
+
+# Additional dependencies for VERL that may not be auto-installed
+ray[default]
+tensordict
+codetiming
+pylatexenc

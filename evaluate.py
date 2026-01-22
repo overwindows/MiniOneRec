@@ -52,7 +52,7 @@ def main(
     category = category_dict.get(category, category)
     print(category)
 
-    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16, device_map="auto")
     model.eval()
     with open(info_file, 'r') as f:
         info = f.readlines()

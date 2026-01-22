@@ -7,6 +7,8 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from tqdm import tqdm
+from sklearn.metrics import roc_auc_score
 
 
 def set_seed(seed: int) -> None:
@@ -102,38 +104,28 @@ def score_candidates(
     return all_scores
 
 
-def _rankdata(scores: List[float]) -> List[float]:
-    # Average rank for ties, 1-based ranks (higher score = better)
-    sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i])
-    ranks = [0.0] * len(scores)
-    i = 0
-    while i < len(sorted_idx):
-        j = i
-        while j + 1 < len(sorted_idx) and scores[sorted_idx[j]] == scores[sorted_idx[j + 1]]:
-            j += 1
-        avg_rank = (i + j + 2) / 2.0
-        for k in range(i, j + 1):
-            ranks[sorted_idx[k]] = avg_rank
-        i = j + 1
-    return ranks
-
-
 def auc_score(labels: List[int], scores: List[float]) -> float:
+    """
+    Compute AUC score using sklearn's roc_auc_score.
+    This matches the official MIND evaluation script.
+    """
     pos = sum(labels)
-    neg = len(labels) - pos
-    if pos == 0 or neg == 0:
+    if pos == 0 or pos == len(labels):
         return 0.5
-    ranks = _rankdata(scores)
-    pos_rank_sum = sum(r for r, l in zip(ranks, labels) if l == 1)
-    return (pos_rank_sum - pos * (pos + 1) / 2) / (pos * neg)
+    return roc_auc_score(labels, scores)
 
 
 def mrr_score(labels: List[int], scores: List[float]) -> float:
+    """
+    Compute MRR score (Mean Reciprocal Rank).
+    Matches official MIND evaluation: averages RR over all clicked items.
+    """
     sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+    rr_scores = []
     for rank, idx in enumerate(sorted_idx, start=1):
         if labels[idx] == 1:
-            return 1.0 / rank
-    return 0.0
+            rr_scores.append(1.0 / rank)
+    return float(np.mean(rr_scores)) if rr_scores else 0.0
 
 
 def ndcg_score(labels: List[int], scores: List[float], k: int) -> float:
@@ -163,16 +155,20 @@ def main():
 
     news = load_news(args.news_path, args.use_abstract)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path, fix_mistral_regex=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
 
     model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, torch_dtype=torch.bfloat16, device_map="auto"
+        args.model_path, dtype=torch.bfloat16, device_map="auto"
     )
     model.eval()
-    device = model.device
+    # Get device from first parameter (handles multi-GPU correctly)
+    device = next(model.parameters()).device
+
+    def _avg(xs):
+        return float(np.mean(xs)) if xs else 0.0
 
     aucs = []
     mrrs = []
@@ -180,11 +176,32 @@ def main():
     ndcg10 = []
     predictions = []  # For MIND leaderboard format
 
+    # Count total lines efficiently using wc -l (fast for large files)
+    # Skip counting if max_impressions is set (for quick tests)
+    import subprocess
+    total_lines = None
+    if not args.max_impressions:
+        try:
+            total_lines = int(subprocess.check_output(['wc', '-l', args.behaviors_path]).split()[0])
+        except:
+            pass
+
+    # Determine total impressions to process
+    if total_lines:
+        total_to_process = total_lines
+    elif args.max_impressions > 0:
+        total_to_process = args.max_impressions
+    else:
+        total_to_process = None  # No total, just show count
+
     count = 0
+    skipped_malformed = 0
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
+        pbar = tqdm(total=total_to_process, desc="Evaluating impressions", unit="impression")
         for line in f:
             parts = line.strip().split("\t")
             if len(parts) < 5:
+                skipped_malformed += 1
                 continue
             impression_id = parts[0]  # ImpressionID for leaderboard submission
             history = parts[3].split()[-args.max_history :]
@@ -192,17 +209,22 @@ def main():
             labels = []
             candidates = []
             candidate_ids = []  # Store news IDs for prediction output
+            missing_count = 0
             for imp in impressions:
                 if "-" not in imp:
                     continue
                 nid, label = imp.rsplit("-", 1)
+                # Use placeholder for missing news instead of skipping
                 if nid not in news:
-                    continue
-                candidates.append(news[nid])
+                    candidates.append("[MISSING_NEWS]")
+                    missing_count += 1
+                else:
+                    candidates.append(news[nid])
                 candidate_ids.append(nid)
                 labels.append(int(label))
 
-            if not candidates or sum(labels) == 0:
+            # Skip only if no candidates at all (should rarely happen)
+            if not candidates:
                 continue
 
             history_titles = [news.get(nid, "") for nid in history if nid in news]
@@ -211,31 +233,57 @@ def main():
 
             scores = score_candidates(model, tokenizer, prompt_ids, candidates, device, args.batch_size)
 
-            # Compute metrics
-            aucs.append(auc_score(labels, scores))
-            mrrs.append(mrr_score(labels, scores))
-            ndcg5.append(ndcg_score(labels, scores, 5))
-            ndcg10.append(ndcg_score(labels, scores, 10))
+            # NOTE: Length normalization removed - raw log probabilities work better for ranking
+            # The model already learns appropriate length distributions during training
+            # Length normalization was creating bias toward short, vague titles
+
+            # Compute metrics (only if we have positive labels for dev/train evaluation)
+            if sum(labels) > 0:
+                aucs.append(auc_score(labels, scores))
+                mrrs.append(mrr_score(labels, scores))
+                ndcg5.append(ndcg_score(labels, scores, 5))
+                ndcg10.append(ndcg_score(labels, scores, 10))
 
             # Generate ranked predictions (news IDs sorted by score, descending)
+            # This is needed for all impressions (including test set where labels are unknown)
             if args.output_file:
                 ranked_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
                 ranked_news_ids = [candidate_ids[i] for i in ranked_indices]
                 predictions.append((impression_id, ranked_news_ids))
 
             count += 1
+
+            # Update progress bar with current metrics
+            pbar.update(1)
+            pbar.set_postfix({
+                'AUC': f'{_avg(aucs):.4f}',
+                'MRR': f'{_avg(mrrs):.4f}',
+                'nDCG@5': f'{_avg(ndcg5):.4f}',
+                'nDCG@10': f'{_avg(ndcg10):.4f}'
+            })
+
+            # Print periodic status updates for parallel execution (every 100 impressions)
+            if count % 100 == 0:
+                import sys
+                print(f"\rProcessed {count} impressions | AUC: {_avg(aucs):.4f} | MRR: {_avg(mrrs):.4f}",
+                      file=sys.stderr, flush=True)
+
             if args.max_impressions and count >= args.max_impressions:
                 break
 
-    def _avg(xs):
-        return float(np.mean(xs)) if xs else 0.0
+        pbar.close()
 
-    print("MIND Evaluation")
-    print(f"Impressions: {count}")
-    print(f"AUC:  {_avg(aucs):.4f}")
-    print(f"MRR:  {_avg(mrrs):.4f}")
-    print(f"nDCG@5:  {_avg(ndcg5):.4f}")
-    print(f"nDCG@10: {_avg(ndcg10):.4f}")
+    print("\nMIND Evaluation")
+    print(f"Impressions processed: {count}")
+    if skipped_malformed > 0:
+        print(f"⚠️  Skipped malformed lines: {skipped_malformed}")
+    if aucs:  # Only print metrics if we have labels (dev/train set)
+        print(f"AUC:  {_avg(aucs):.4f}")
+        print(f"MRR:  {_avg(mrrs):.4f}")
+        print(f"nDCG@5:  {_avg(ndcg5):.4f}")
+        print(f"nDCG@10: {_avg(ndcg10):.4f}")
+    else:
+        print("No metrics computed (test set has no labels)")
 
     # Write predictions to file for MIND leaderboard submission
     if args.output_file and predictions:

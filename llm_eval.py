@@ -282,6 +282,8 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
     model_name = os.path.basename(os.path.abspath(args.model_path))
+    if args.model_path.endswith("final_checkpoint"):
+        model_name = os.path.basename(os.path.dirname(os.path.abspath(args.model_path)))
     out_path = os.path.join(args.output_dir, f"{model_name}_{stamp}.json")
 
     logging.info(f"Writing results to: {out_path}")

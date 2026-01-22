@@ -6,9 +6,10 @@ the most relevant news from a list of candidates, aligning training with evaluat
 
 Key differences from sft_mind.py:
 - Training sees ALL candidates (clicked + non-clicked)
-- Uses multiple-choice format: "A. Title1\nB. Title2\n..."
-- Model outputs option letter (e.g., "C")
+- Uses multiple-choice format: "1. Title1\n2. Title2\n..." (numeric options)
+- Model outputs option number (e.g., "3")
 - Directly optimizes for ranking/selection task
+- Supports unlimited candidates (no 26-option limit like A-Z)
 
 Expected improvement: +3-6% AUC over standard SFT
 """
@@ -55,17 +56,17 @@ class MINDRankingSFTDataset:
         behaviors_path: str,
         news_path: str,
         tokenizer,
-        max_len: int = 1024,
+        max_len: int = 8192,
         sample: int = -1,
         seed: int = 42,
-        max_history: int = 50,
-        max_candidates: int = 20,  # Limit candidates to fit in context
+        max_history: int = 0,  # 0 = no limit (use all history)
+        max_candidates: int = 0,  # 0 = no limit (use all candidates)
         use_abstract: bool = False,
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
-        self.max_history = max_history
-        self.max_candidates = max_candidates
+        self.max_history = max_history if max_history > 0 else None  # None = no limit
+        self.max_candidates = max_candidates if max_candidates > 0 else None  # None = no limit
         self.use_abstract = use_abstract
 
         # Load news articles
@@ -136,9 +137,10 @@ class MINDRankingSFTDataset:
                 if not candidates or sum(labels) == 0:
                     continue
 
-                # Get history
-                history = [self.news[nid] for nid in history_ids[-self.max_history:]
-                          if nid in self.news]
+                # Get history (use all if max_history is None)
+                if self.max_history is not None:
+                    history_ids = history_ids[-self.max_history:]
+                history = [self.news[nid] for nid in history_ids if nid in self.news]
 
                 behaviors.append({
                     'impression_id': impression_id,
@@ -151,7 +153,7 @@ class MINDRankingSFTDataset:
 
     def _build_multiple_choice_prompt(self, history, candidates, clicked_idx):
         """
-        Build multiple-choice ranking prompt.
+        Build multiple-choice ranking prompt with numeric options.
 
         Format:
         Role: You are a news recommendation assistant.
@@ -162,11 +164,11 @@ class MINDRankingSFTDataset:
         2. [Title] ... (Category)
 
         Candidate News Articles:
-        A. [Title] ... (Category)
-        B. [Title] ... (Category)
+        1. [Title] ... (Category)
+        2. [Title] ... (Category)
         ...
 
-        Output only the option letter.
+        Output only the option number.
 
         Answer:
         """
@@ -184,22 +186,21 @@ class MINDRankingSFTDataset:
 
         prompt += "\n"
 
-        # Candidate articles
+        # Candidate articles (use numbers instead of letters)
         prompt += "Candidate News Articles:\n"
-        option_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         for i, cand_id in enumerate(candidates):
             cand = self.news[cand_id]
-            letter = option_letters[i]
+            option_num = i + 1  # 1-indexed
             category = f" ({cand['category']})" if cand['category'] else ""
-            prompt += f"{letter}. [Title] {cand['text']}{category}\n"
+            prompt += f"{option_num}. [Title] {cand['text']}{category}\n"
 
         prompt += "\n"
         prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
-        prompt += "Output only the option letter.\n\n"
+        prompt += "Output only the option number.\n\n"
         prompt += "Answer:"
 
-        # Target is the letter of the clicked article
-        target = f" {option_letters[clicked_idx]}"
+        # Target is the number of the clicked article (1-indexed)
+        target = f" {clicked_idx + 1}"
 
         return prompt, target
 
@@ -212,8 +213,8 @@ class MINDRankingSFTDataset:
         candidates = behavior['candidates']
         labels = behavior['labels']
 
-        # Limit candidates if too many
-        if len(candidates) > self.max_candidates:
+        # Limit candidates if max_candidates is set
+        if self.max_candidates is not None and len(candidates) > self.max_candidates:
             # Sample negatives + keep all positives
             clicked_indices = [i for i, l in enumerate(labels) if l == 1]
             non_clicked_indices = [i for i, l in enumerate(labels) if l == 0]
@@ -288,15 +289,15 @@ def train(
     eval_news_path: str = "",
     output_dir: str = "",
     use_abstract: bool = False,
-    max_history: int = 50,
-    max_candidates: int = 20,
+    max_history: int = 0,  # 0 = no limit (use all history)
+    max_candidates: int = 0,  # 0 = no limit (use all candidates)
     sample: int = -1,
     seed: int = 42,
     batch_size: int = 128,
     micro_batch_size: int = 4,
     num_epochs: int = 3,
     learning_rate: float = 3e-4,
-    cutoff_len: int = 1024,
+    cutoff_len: int = 8192,  # Increased for 128K context models
     group_by_length: bool = False,
     resume_from_checkpoint: str = None,
     train_from_scratch: bool = False,
@@ -360,8 +361,10 @@ def train(
     print(f"\nTraining with Ranking-Aware SFT:")
     print(f"  Train samples: {len(train_data)}")
     print(f"  Val samples: {len(val_data)}")
-    print(f"  Max candidates per sample: {max_candidates}")
-    print(f"  Format: Multiple-choice (A/B/C/...)")
+    print(f"  Max history: {'unlimited' if max_history == 0 else max_history}")
+    print(f"  Max candidates: {'unlimited' if max_candidates == 0 else max_candidates}")
+    print(f"  Cutoff length: {cutoff_len}")
+    print(f"  Format: Multiple-choice (1/2/3/...)")
 
     # Training arguments
     training_args = transformers.TrainingArguments(
@@ -413,7 +416,7 @@ def train(
     print(f"  Model saved to: {output_dir}/final_checkpoint")
     print(f"\nExpected improvement: +3-6% AUC over standard SFT")
     print(f"\nTo evaluate:")
-    print(f"  bash scripts/eval_mind.sh {output_dir}/final_checkpoint dev")
+    print(f"  bash scripts/eval_mind_ranking.sh {output_dir}/final_checkpoint dev")
 
 
 if __name__ == "__main__":

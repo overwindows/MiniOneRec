@@ -68,6 +68,8 @@ def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) ->
     """
     Build multiple-choice ranking prompt matching training format.
 
+    Uses numeric options (1, 2, 3, ...) instead of letters to support unlimited candidates.
+
     Returns the prompt without the "Answer:" part.
     """
     prompt = "Role: You are a news recommendation assistant.\n"
@@ -84,17 +86,16 @@ def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) ->
 
     prompt += "\n"
 
-    # Candidate articles
+    # Candidate articles (use numbers instead of letters)
     prompt += "Candidate News Articles:\n"
-    option_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     for i, cand in enumerate(candidates):
-        letter = option_letters[i]
+        option_num = i + 1  # 1-indexed
         category = f" ({cand['category']})" if cand.get('category') else ""
-        prompt += f"{letter}. [Title] {cand['text']}{category}\n"
+        prompt += f"{option_num}. [Title] {cand['text']}{category}\n"
 
     prompt += "\n"
     prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
-    prompt += "Output only the option letter.\n\n"
+    prompt += "Output only the option number.\n\n"
     prompt += "Answer:"
 
     return prompt
@@ -108,47 +109,65 @@ def score_candidates_multiple_choice(
     device,
 ) -> List[float]:
     """
-    Score candidates using multiple-choice format.
+    Score candidates using multiple-choice format with numeric options.
 
-    Instead of scoring full text, score the probability of each option letter (A, B, C, ...).
+    Scores the probability of each option number (1, 2, 3, ...).
+    Handles multi-digit numbers by computing the joint probability of all tokens.
 
     Returns:
-        List of scores (log probabilities of each letter)
+        List of scores (log probabilities of each number)
     """
-    option_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[:num_candidates]
-
     # Tokenize prompt
     prompt_ids = tokenizer.encode(prompt, add_special_tokens=True)
 
-    # Get letter token IDs (with leading space: " A", " B", " C")
-    letter_tokens = []
-    for letter in option_letters:
-        # Most tokenizers encode " A" (with space) as a single token
-        letter_text = f" {letter}"
-        token_ids = tokenizer.encode(letter_text, add_special_tokens=False)
+    # Pre-tokenize all candidate numbers to get their token sequences
+    candidate_tokens = []
+    for i in range(1, num_candidates + 1):
+        # Tokenize " {number}" (with leading space)
+        number_text = f" {i}"
+        token_ids = tokenizer.encode(number_text, add_special_tokens=False)
+        candidate_tokens.append(token_ids)
 
-        # Handle edge case: some tokenizers split " A" into [" ", "A"]
-        if len(token_ids) > 1:
-            # Take the last token (the letter itself)
-            letter_token = token_ids[-1]
-        else:
-            letter_token = token_ids[0]
-
-        letter_tokens.append(letter_token)
-
-    # Run model to get next token probabilities
+    # Group candidates by their first token to batch where possible
+    # For efficiency: run one forward pass on prompt, then handle multi-token cases
     input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
 
-    with torch.no_grad():
-        outputs = model(input_ids=input_ids)
-        logits = outputs.logits[0, -1, :]  # Last token logits
-        log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
-
-    # Extract log probabilities for each letter
     scores = []
-    for token_id in letter_tokens:
-        score = log_probs[token_id].item()
-        scores.append(score)
+    with torch.no_grad():
+        # Get initial logits (after prompt)
+        outputs = model(input_ids=input_ids)
+        first_logits = outputs.logits[0, -1, :]
+        first_log_probs = torch.nn.functional.log_softmax(first_logits, dim=-1)
+
+        for token_seq in candidate_tokens:
+            if len(token_seq) == 1:
+                # Single token - use cached first logits
+                score = first_log_probs[token_seq[0]].item()
+            else:
+                # Multi-token - compute joint probability P(t1) * P(t2|t1) * ...
+                # Start with first token probability from cached logits
+                score = first_log_probs[token_seq[0]].item()
+
+                # Build sequence incrementally for remaining tokens
+                current_ids = torch.cat([
+                    input_ids,
+                    torch.tensor([[token_seq[0]]], dtype=torch.long, device=device)
+                ], dim=1)
+
+                for j in range(1, len(token_seq)):
+                    outputs = model(input_ids=current_ids)
+                    logits = outputs.logits[0, -1, :]
+                    log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+                    score += log_probs[token_seq[j]].item()
+
+                    # Append this token for next iteration (if not last)
+                    if j < len(token_seq) - 1:
+                        current_ids = torch.cat([
+                            current_ids,
+                            torch.tensor([[token_seq[j]]], dtype=torch.long, device=device)
+                        ], dim=1)
+
+            scores.append(score)
 
     return scores
 
@@ -188,8 +207,7 @@ def main():
     parser.add_argument("--behaviors_path", required=True)
     parser.add_argument("--news_path", required=True)
     parser.add_argument("--use_abstract", action="store_true")
-    parser.add_argument("--max_history", type=int, default=50)
-    parser.add_argument("--max_candidates", type=int, default=20, help="Max candidates per impression (must match training)")
+    parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
@@ -236,12 +254,10 @@ def main():
 
     count = 0
     skipped_malformed = 0
-    skipped_too_many = 0
 
-    print(f"\nEvaluating with multiple-choice format...")
+    print(f"\nEvaluating with multiple-choice format (numeric options)...")
     print(f"Use abstract: {args.use_abstract}")
-    print(f"Max candidates: {args.max_candidates}")
-    print(f"Format: Candidate News Articles:\\nA. [Title] {'Title Abstract' if args.use_abstract else 'Title'} (Category)\\n...\\nAnswer: X")
+    print(f"Format: Candidate News Articles:\\n1. [Title] {'Title Abstract' if args.use_abstract else 'Title'} (Category)\\n...\\nAnswer: N")
     print()
 
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
@@ -253,7 +269,10 @@ def main():
                 continue
 
             impression_id = parts[0]
-            history = parts[3].split()[-args.max_history:]
+            history_ids = parts[3].split()
+            # Use all history if max_history is 0 or not set
+            if args.max_history > 0:
+                history_ids = history_ids[-args.max_history:]
             impressions = parts[4].split()
 
             labels = []
@@ -280,35 +299,8 @@ def main():
             if not candidate_objs:
                 continue
 
-            # Skip if too many candidates (can't fit in A-Z format)
-            if len(candidate_objs) > 26:
-                skipped_too_many += 1
-                continue
-
-            # Limit candidates to match training format
-            # Sample to keep all positives + some negatives if needed
-            if len(candidate_objs) > args.max_candidates:
-                clicked_indices = [i for i, l in enumerate(labels) if l == 1]
-                non_clicked_indices = [i for i, l in enumerate(labels) if l == 0]
-
-                if len(clicked_indices) >= args.max_candidates:
-                    # Too many positives, sample from them
-                    selected_indices = random.sample(clicked_indices, args.max_candidates)
-                else:
-                    # Keep all positives + sample negatives
-                    num_negatives = args.max_candidates - len(clicked_indices)
-                    num_negatives = min(num_negatives, len(non_clicked_indices))
-                    selected_indices = clicked_indices + random.sample(non_clicked_indices, num_negatives)
-
-                # Sort to maintain original order (avoid position bias)
-                selected_indices.sort()
-
-                candidate_objs = [candidate_objs[i] for i in selected_indices]
-                candidate_ids = [candidate_ids[i] for i in selected_indices]
-                labels = [labels[i] for i in selected_indices]
-
             # Build history (pass full news objects to include category)
-            history_objs = [news[nid] for nid in history if nid in news]
+            history_objs = [news[nid] for nid in history_ids if nid in news]
 
             # Build multiple-choice prompt and score
             prompt = build_multiple_choice_prompt(history_objs, candidate_objs)
@@ -345,12 +337,10 @@ def main():
 
         pbar.close()
 
-    print("\nMIND Evaluation (Ranking-Aware)")
+    print("\nMIND Evaluation (Ranking-Aware, Numeric Options)")
     print(f"Impressions processed: {count}")
     if skipped_malformed > 0:
         print(f"⚠️  Skipped malformed lines: {skipped_malformed}")
-    if skipped_too_many > 0:
-        print(f"⚠️  Skipped (>26 candidates): {skipped_too_many}")
 
     if aucs:
         print(f"AUC:  {_avg(aucs):.4f}")

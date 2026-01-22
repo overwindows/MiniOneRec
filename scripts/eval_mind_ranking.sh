@@ -39,7 +39,6 @@ MIND_ROOT="${MIND_ROOT:-../data/MIND}"
 MIND_SIZE="${MIND_SIZE:-small}"
 USE_ABSTRACT="${USE_ABSTRACT:-0}"
 MAX_HISTORY="${MAX_HISTORY:-50}"
-MAX_CANDIDATES="${MAX_CANDIDATES:-20}"  # Must match training (default: 20)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 
 # Construct paths
@@ -52,12 +51,11 @@ echo "MIND Ranking-Aware Evaluation"
 echo "========================================="
 echo "Model: ${MODEL_PATH}"
 echo "Dataset: MIND${MIND_SIZE} ${SPLIT} split"
-echo "Format: Multiple-choice (A/B/C/...)"
+echo "Format: Multiple-choice (1/2/3/...)"
 echo ""
 echo "Configuration:"
 echo "  Use abstract: ${USE_ABSTRACT}"
 echo "  Max history: ${MAX_HISTORY}"
-echo "  Max candidates: ${MAX_CANDIDATES}"
 echo "  Max impressions: ${MAX_IMPRESSIONS:-all}"
 echo "========================================="
 echo ""
@@ -75,8 +73,7 @@ CMD="python evaluate_mind_ranking.py \
   --model_path ${MODEL_PATH} \
   --behaviors_path ${BEHAVIORS_PATH} \
   --news_path ${NEWS_PATH} \
-  --max_history ${MAX_HISTORY} \
-  --max_candidates ${MAX_CANDIDATES}"
+  --max_history ${MAX_HISTORY}"
 
 if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
   CMD="${CMD} --use_abstract"

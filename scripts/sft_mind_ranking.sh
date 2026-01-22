@@ -55,7 +55,7 @@ NUM_EPOCHS=${NUM_EPOCHS:-8}
 LEARNING_RATE=${LEARNING_RATE:-3e-4}
 CUTOFF_LEN=${CUTOFF_LEN:-1024}
 MAX_HISTORY=${MAX_HISTORY:-50}
-MAX_CANDIDATES=${MAX_CANDIDATES:-20}  # Limit to fit in context
+MAX_CANDIDATES=${MAX_CANDIDATES:-20}  # Limit to fit in context (no upper limit with numeric format)
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 SAMPLE=${SAMPLE:--1}
 
@@ -81,7 +81,7 @@ echo "  Learning rate: ${LEARNING_RATE}"
 echo "  Max history: ${MAX_HISTORY}"
 echo "  Max candidates: ${MAX_CANDIDATES}"
 echo "  Use abstract: ${USE_ABSTRACT}"
-echo "  Format: Multiple-choice (A/B/C/...)"
+echo "  Format: Multiple-choice (1/2/3/...)"
 echo ""
 echo "GPUs: ${PROCESS_NUM}"
 echo "========================================="

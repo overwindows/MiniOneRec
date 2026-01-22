@@ -186,16 +186,29 @@ class MINDRankingSFTDataset:
 
     def _build_samples(self):
         samples = []
+        skipped_overlength = 0
         for behavior in self.behaviors:
             candidates, labels = self._limit_candidates(behavior)
             clicked_indices = [i for i, l in enumerate(labels) if l == 1]
             for clicked_idx in clicked_indices:
+                prompt, target = self._build_multiple_choice_prompt(
+                    behavior['history'], candidates, clicked_idx
+                )
+                full_text = prompt + target
+                input_ids = self.tokenizer.encode(
+                    full_text, add_special_tokens=True, truncation=False
+                )
+                if len(input_ids) > self.max_len:
+                    skipped_overlength += 1
+                    continue
                 samples.append({
                     'history': behavior['history'],
                     'candidates': candidates,
                     'labels': labels,
                     'clicked_idx': clicked_idx,
                 })
+        if skipped_overlength:
+            print(f"Skipped {skipped_overlength} samples over cutoff_len={self.max_len}")
         return samples
 
     def _build_multiple_choice_prompt(self, history, candidates, clicked_idx):
@@ -297,6 +310,43 @@ class MINDRankingSFTDataset:
                 [1 if id != self.tokenizer.pad_token_id else 0 for id in input_ids[:self.max_len]],
                 dtype=torch.long
             )
+        }
+
+
+class _TorchStackCollator:
+    def __init__(self, debug=False, max_logs=5):
+        self.debug = debug
+        self.max_logs = max_logs
+        self._count = 0
+
+    def _should_log(self):
+        if not self.debug or self._count >= self.max_logs:
+            return False
+        try:
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                return torch.distributed.get_rank() == 0
+        except Exception:
+            return True
+        return True
+
+    def __call__(self, batch):
+        input_ids = torch.stack([item["input_ids"] for item in batch])
+        labels = torch.stack([item["labels"] for item in batch])
+        attention_mask = torch.stack([item["attention_mask"] for item in batch])
+
+        if self._should_log():
+            seq_lens = attention_mask.sum(dim=1).tolist()
+            print(
+                f"[debug] batch_size={len(batch)} "
+                f"seq_len/max={input_ids.shape[1]} "
+                f"seq_lens(min/mean/max)={min(seq_lens)}/{sum(seq_lens)/len(seq_lens):.1f}/{max(seq_lens)}"
+            )
+            self._count += 1
+
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+            "attention_mask": attention_mask,
         }
 
 
@@ -418,9 +468,7 @@ def train(
         train_dataset=train_data,
         eval_dataset=val_data if val_data else None,
         args=training_args,
-        data_collator=transformers.DataCollatorForSeq2Seq(
-            tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
-        ),
+        data_collator=_TorchStackCollator(debug=bool(os.environ.get("DEBUG_SEQ", ""))),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)] if val_data else None,
     )
 

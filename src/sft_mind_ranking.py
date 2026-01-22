@@ -226,7 +226,7 @@ class MINDRankingSFTDataset:
         prompt += "User History:\n"
         if history:
             for i, h in enumerate(history, 1):
-                category = f" ({h['category']})" if h['category'] else ""
+                category = f" ({h.get('category', '')})" if h.get('category') else ""
                 prompt += f"{i}. [Title] {h['text']}{category}\n"
         else:
             prompt += "(No reading history)\n"
@@ -238,7 +238,7 @@ class MINDRankingSFTDataset:
         for i, cand_id in enumerate(candidates):
             cand = self.news[cand_id]
             option_num = i + 1  # 1-indexed
-            category = f" ({cand['category']})" if cand['category'] else ""
+            category = f" ({cand.get('category', '')})" if cand.get('category') else ""
             prompt += f"{option_num}. [Title] {cand['text']}{category}\n"
 
         prompt += "\n"

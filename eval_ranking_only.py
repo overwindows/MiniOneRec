@@ -1,14 +1,15 @@
 """
 Ranking-Only Evaluation for MIND (Multiple-Choice Format)
 
-This script evaluates MIND models using ONLY the multiple-choice ranking format
-that matches the training process.
+This script evaluates MIND models using the multiple-choice ranking format
+that EXACTLY matches the training process in sft_mind_ranking.py.
 
 Key Features:
-- Multiple-choice prompt: "A. Title1\nB. Title2\nC. Title3\n..."
-- Scores letter probabilities: P(" A"), P(" B"), P(" C"), ...
+- Multiple-choice prompt: "1. Title1\n2. Title2\n3. Title3\n..." (NUMERIC)
+- Scores number probabilities: P(" 1"), P(" 2"), P(" 3"), ...
 - Exactly matches training format
 - No text generation, only selection
+- Uses official MIND evaluation metrics
 
 Usage:
     python eval_ranking_only.py \
@@ -20,7 +21,7 @@ Usage:
 import argparse
 import math
 import random
-from typing import List, Tuple
+from typing import List
 from pathlib import Path
 
 import numpy as np
@@ -68,6 +69,8 @@ def build_ranking_prompt(history_items: List[dict], candidates: List[dict]) -> s
     """
     Build multiple-choice ranking prompt (EXACT training format).
 
+    Uses NUMERIC options (1, 2, 3, ...) to match sft_mind_ranking.py training.
+
     Returns:
         Prompt string ending with "Answer:"
     """
@@ -78,30 +81,29 @@ def build_ranking_prompt(history_items: List[dict], candidates: List[dict]) -> s
     prompt += "User History:\n"
     if history_items:
         for i, item in enumerate(history_items, 1):
-            category = f" ({item['category']})" if item.get('category') else ""
+            category = f" ({item.get('category', '')})" if item.get('category') else ""
             prompt += f"{i}. [Title] {item['text']}{category}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
 
-    # Candidate articles
+    # Candidate articles (NUMERIC options to match training)
     prompt += "Candidate News Articles:\n"
-    option_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     for i, cand in enumerate(candidates):
-        letter = option_letters[i]
-        category = f" ({cand['category']})" if cand.get('category') else ""
-        prompt += f"{letter}. [Title] {cand['text']}{category}\n"
+        option_num = i + 1  # 1-indexed
+        category = f" ({cand.get('category', '')})" if cand.get('category') else ""
+        prompt += f"{option_num}. [Title] {cand['text']}{category}\n"
 
     prompt += "\n"
     prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
-    prompt += "Output only the option letter.\n\n"
+    prompt += "Output only the option number.\n\n"
     prompt += "Answer:"
 
     return prompt
 
 
-def score_letter_probabilities(
+def score_number_probabilities(
     model,
     tokenizer,
     prompt: str,
@@ -109,49 +111,100 @@ def score_letter_probabilities(
     device
 ) -> List[float]:
     """
-    Score each option by measuring P(letter | prompt).
+    Score each option by measuring P(number | prompt).
 
     For prompt ending with "Answer:", computes:
-    - P(" A" | prompt)
-    - P(" B" | prompt)
-    - P(" C" | prompt)
+    - P(" 1" | prompt)
+    - P(" 2" | prompt)
+    - P(" 3" | prompt)
     etc.
 
-    Returns:
-        List of log probabilities for each letter
-    """
-    option_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[:num_options]
+    Handles multi-digit numbers (10+) by computing joint probability.
+    Uses KV-cache for efficiency.
 
+    Returns:
+        List of log probabilities for each number
+    """
     # Tokenize prompt
     prompt_ids = tokenizer.encode(prompt, add_special_tokens=True)
     input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
 
-    # Get letter token IDs
-    letter_token_ids = []
-    for letter in option_letters:
-        # Encode " A", " B", " C", ... (with leading space)
-        letter_text = f" {letter}"
-        tokens = tokenizer.encode(letter_text, add_special_tokens=False)
+    # Pre-tokenize all candidate numbers to get their token sequences
+    candidate_tokens = []
+    for i in range(1, num_options + 1):
+        # Tokenize " {number}" (with leading space)
+        number_text = f" {i}"
+        token_ids = tokenizer.encode(number_text, add_special_tokens=False)
+        candidate_tokens.append(token_ids)
 
-        # Handle tokenizers that split " A" into multiple tokens
-        if len(tokens) > 1:
-            letter_token_id = tokens[-1]  # Take last token (the letter)
-        else:
-            letter_token_id = tokens[0]
+    scores = [0.0] * num_options
 
-        letter_token_ids.append(letter_token_id)
-
-    # Get model predictions
     with torch.no_grad():
-        outputs = model(input_ids=input_ids)
-        logits = outputs.logits[0, -1, :]  # Last position logits
-        log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+        # Get initial logits with KV-cache
+        outputs = model(input_ids=input_ids, use_cache=True)
+        first_logits = outputs.logits[0, -1, :]
+        first_log_probs = torch.nn.functional.log_softmax(first_logits, dim=-1)
+        base_past_kv = outputs.past_key_values
 
-    # Extract probabilities for each letter
-    scores = []
-    for token_id in letter_token_ids:
-        score = log_probs[token_id].item()
-        scores.append(score)
+        # Group candidates by first token to batch second-token scoring
+        first_token_groups = {}
+        for idx, token_seq in enumerate(candidate_tokens):
+            first_tok = token_seq[0]
+            if first_tok not in first_token_groups:
+                first_token_groups[first_tok] = []
+            first_token_groups[first_tok].append((idx, token_seq))
+
+        for first_tok, group in first_token_groups.items():
+            first_tok_log_prob = first_log_probs[first_tok].item()
+
+            # Check if any in group need second token
+            needs_second = [(idx, seq) for idx, seq in group if len(seq) > 1]
+            single_token = [(idx, seq) for idx, seq in group if len(seq) == 1]
+
+            # Handle single-token candidates (1-9)
+            for idx, seq in single_token:
+                scores[idx] = first_tok_log_prob
+
+            if not needs_second:
+                continue
+
+            # For multi-token: run one forward pass with first token to get second token probs
+            first_tok_tensor = torch.tensor([[first_tok]], dtype=torch.long, device=device)
+            outputs2 = model(input_ids=first_tok_tensor, past_key_values=base_past_kv, use_cache=True)
+            second_logits = outputs2.logits[0, -1, :]
+            second_log_probs = torch.nn.functional.log_softmax(second_logits, dim=-1)
+            second_past_kv = outputs2.past_key_values
+
+            # Check if any need third token
+            needs_third = [(idx, seq) for idx, seq in needs_second if len(seq) > 2]
+            two_token = [(idx, seq) for idx, seq in needs_second if len(seq) == 2]
+
+            # Handle two-token candidates (10-99)
+            for idx, seq in two_token:
+                scores[idx] = first_tok_log_prob + second_log_probs[seq[1]].item()
+
+            # Handle three+ token candidates (100+)
+            if needs_third:
+                second_token_groups = {}
+                for idx, seq in needs_third:
+                    second_tok = seq[1]
+                    if second_tok not in second_token_groups:
+                        second_token_groups[second_tok] = []
+                    second_token_groups[second_tok].append((idx, seq))
+
+                for second_tok, group3 in second_token_groups.items():
+                    second_tok_log_prob = second_log_probs[second_tok].item()
+
+                    second_tok_tensor = torch.tensor([[second_tok]], dtype=torch.long, device=device)
+                    outputs3 = model(input_ids=second_tok_tensor, past_key_values=second_past_kv, use_cache=True)
+                    third_logits = outputs3.logits[0, -1, :]
+                    third_log_probs = torch.nn.functional.log_softmax(third_logits, dim=-1)
+
+                    for idx, seq in group3:
+                        score = first_tok_log_prob + second_tok_log_prob
+                        if len(seq) > 2:
+                            score += third_log_probs[seq[2]].item()
+                        scores[idx] = score
 
     return scores
 
@@ -189,7 +242,7 @@ def ndcg_score(y_true, y_score, k=10):
     """
     best = dcg_score(y_true, y_true, k)
     actual = dcg_score(y_true, y_score, k)
-    return actual / best
+    return actual / best if best > 0 else 0.0
 
 
 def compute_metrics(labels: List[int], scores: List[float]) -> dict:
@@ -226,14 +279,16 @@ def compute_metrics(labels: List[int], scores: List[float]) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ranking-only MIND evaluation")
+    parser = argparse.ArgumentParser(description="Ranking-only MIND evaluation (numeric format)")
     parser.add_argument("--model_path", required=True, help="Path to trained model")
     parser.add_argument("--split", default="dev", choices=["dev", "test"], help="Evaluation split")
     parser.add_argument("--mind_root", default="../data/MIND", help="MIND dataset root")
     parser.add_argument("--use_abstract", action="store_true", help="Use news abstracts")
-    parser.add_argument("--max_history", type=int, default=50, help="Max history items")
+    parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
     parser.add_argument("--max_impressions", type=int, default=0, help="Limit impressions (0=all)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2")
+    parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -243,12 +298,13 @@ def main():
     news_path = f"{args.mind_root}/{args.split}/news.tsv"
 
     print("=" * 80)
-    print("MIND Ranking-Only Evaluation")
+    print("MIND Ranking-Only Evaluation (Official Metrics)")
     print("=" * 80)
     print(f"Model: {args.model_path}")
     print(f"Split: {args.split}")
-    print(f"Format: Multiple-choice (A/B/C/...)")
-    print(f"Scoring: Letter probabilities only")
+    print(f"Format: Multiple-choice (1/2/3/...) - matches training")
+    print(f"Scoring: Number probabilities")
+    print(f"Max history: {'unlimited' if args.max_history == 0 else args.max_history}")
     print("=" * 80)
     print()
 
@@ -263,10 +319,17 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
+    model_kwargs = {
+        "torch_dtype": torch.bfloat16,
+        "device_map": "auto"
+    }
+    if args.flash_attn:
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+        print("✓ Using Flash Attention 2")
+
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path,
-        dtype=torch.bfloat16,
-        device_map="auto"
+        **model_kwargs
     )
     model.eval()
     device = next(model.parameters()).device
@@ -280,9 +343,10 @@ def main():
         'ndcg5': [],
         'ndcg10': []
     }
+    predictions = []
 
     count = 0
-    skipped_too_many = 0
+    skipped_no_positive = 0
 
     with open(behaviors_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -298,11 +362,14 @@ def main():
 
             # Parse impression
             impression_id = parts[0]
-            history_ids = parts[3].split()[-args.max_history:]
+            history_ids = parts[3].split()
+            if args.max_history > 0:
+                history_ids = history_ids[-args.max_history:]
             impressions = parts[4].split()
 
             # Parse candidates and labels
             candidates = []
+            candidate_ids = []
             labels = []
             for imp in impressions:
                 if '-' not in imp:
@@ -310,15 +377,12 @@ def main():
                 nid, label = imp.rsplit('-', 1)
                 if nid in news:
                     candidates.append(news[nid])
+                    candidate_ids.append(nid)
                     labels.append(int(label))
 
             # Skip if no candidates or no positives
             if not candidates or sum(labels) == 0:
-                continue
-
-            # Skip if too many candidates (>26, can't fit in A-Z)
-            if len(candidates) > 26:
-                skipped_too_many += 1
+                skipped_no_positive += 1
                 continue
 
             # Build history
@@ -327,8 +391,8 @@ def main():
             # Build prompt
             prompt = build_ranking_prompt(history_items, candidates)
 
-            # Score letters
-            scores = score_letter_probabilities(
+            # Score numbers
+            scores = score_number_probabilities(
                 model, tokenizer, prompt, len(candidates), device
             )
 
@@ -336,6 +400,12 @@ def main():
             metrics = compute_metrics(labels, scores)
             for key in all_metrics:
                 all_metrics[key].append(metrics[key])
+
+            # Store predictions for leaderboard
+            if args.output_file:
+                ranked_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+                ranked_news_ids = [candidate_ids[i] for i in ranked_indices]
+                predictions.append((impression_id, ranked_news_ids))
 
             count += 1
 
@@ -350,17 +420,25 @@ def main():
 
     # Final results
     print("\n" + "=" * 80)
-    print("RESULTS")
+    print("RESULTS (Official MIND Metrics)")
     print("=" * 80)
     print(f"Impressions processed: {count}")
-    if skipped_too_many > 0:
-        print(f"Skipped (>26 candidates): {skipped_too_many}")
+    if skipped_no_positive > 0:
+        print(f"Skipped (no positive labels): {skipped_no_positive}")
     print()
     print(f"AUC:      {np.mean(all_metrics['auc']):.4f}")
     print(f"MRR:      {np.mean(all_metrics['mrr']):.4f}")
     print(f"nDCG@5:   {np.mean(all_metrics['ndcg5']):.4f}")
     print(f"nDCG@10:  {np.mean(all_metrics['ndcg10']):.4f}")
     print("=" * 80)
+
+    # Write predictions
+    if args.output_file and predictions:
+        print(f"\nWriting predictions to: {args.output_file}")
+        with open(args.output_file, "w", encoding="utf-8") as f:
+            for impression_id, ranked_news_ids in predictions:
+                f.write(f"{impression_id} {' '.join(ranked_news_ids)}\n")
+        print(f"✓ Wrote {len(predictions)} predictions")
 
 
 if __name__ == "__main__":

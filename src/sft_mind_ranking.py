@@ -254,7 +254,7 @@ class MINDRankingSFTDataset:
             add_special_tokens=True
         )
 
-        # Create labels (mask prompt, only train on target letter)
+        # Create training labels (mask prompt, only train on target letter)
         prompt_ids = self.tokenizer.encode(
             prompt,
             max_length=self.max_len,
@@ -262,17 +262,17 @@ class MINDRankingSFTDataset:
             add_special_tokens=True
         )
 
-        labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+        train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
 
         # Pad if needed
         if len(input_ids) < self.max_len:
             pad_len = self.max_len - len(input_ids)
             input_ids = input_ids + [self.tokenizer.pad_token_id] * pad_len
-            labels = labels + [-100] * pad_len
+            train_labels = train_labels + [-100] * pad_len
 
         return {
             'input_ids': torch.tensor(input_ids[:self.max_len], dtype=torch.long),
-            'labels': torch.tensor(labels[:self.max_len], dtype=torch.long),
+            'labels': torch.tensor(train_labels[:self.max_len], dtype=torch.long),
             'attention_mask': torch.tensor(
                 [1 if id != self.tokenizer.pad_token_id else 0 for id in input_ids[:self.max_len]],
                 dtype=torch.long

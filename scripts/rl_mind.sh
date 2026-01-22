@@ -108,9 +108,8 @@ TRAIN_BATCH_SIZE=${TRAIN_BATCH_SIZE:-64}  # Reduced for memory with larger promp
 KL_LOSS_COEF=${KL_LOSS_COEF:-0.5}  # High KL penalty to stay close to SFT
 MAX_HISTORY=${MAX_HISTORY:-50}
 USE_ABSTRACT=${USE_ABSTRACT:-0}
-# IMPORTANT: For ranking SFT models, use letter format (A,B,C...) to match training
-# Set USE_NUMERIC=1 only if you want numeric format (1,2,3...) for >26 candidates
-USE_NUMERIC=${USE_NUMERIC:-0}  # Default to letters for ranking SFT compatibility
+# IMPORTANT: For ranking SFT models, use numeric format (1,2,3...) to match training/eval
+USE_NUMERIC=${USE_NUMERIC:-1}
 REGENERATE_DATA=${REGENERATE_DATA:-0}  # Force regenerate parquet files
 
 # Output directory (can be overridden or auto-generated)

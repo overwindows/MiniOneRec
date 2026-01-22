@@ -52,8 +52,16 @@ def _map_option_to_candidate(solution_str, extra_info):
     if not option_letters or not candidates or len(option_letters) != len(candidates):
         return solution_str
     solution_upper = str(solution_str or "").upper()
-    tokens = re.findall(r"[A-Z]+", solution_upper)
-    for token in reversed(tokens):
+    # Handle numeric and letter options
+    numeric_tokens = re.findall(r"\d+", solution_upper)
+    if numeric_tokens:
+        for token in reversed(numeric_tokens):
+            if token in option_letters:
+                idx = option_letters.index(token)
+                if 0 <= idx < len(candidates):
+                    return candidates[idx]
+    letter_tokens = re.findall(r"[A-Z]+", solution_upper)
+    for token in reversed(letter_tokens):
         if token in option_letters:
             idx = option_letters.index(token)
             if 0 <= idx < len(candidates):

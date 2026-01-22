@@ -68,6 +68,7 @@ class MINDRankingSFTDataset:
         self.max_history = max_history if max_history > 0 else None  # None = no limit
         self.max_candidates = max_candidates if max_candidates > 0 else None  # None = no limit
         self.use_abstract = use_abstract
+        self.seed = seed
 
         # Load news articles
         self.news = self._load_news(news_path)
@@ -80,7 +81,10 @@ class MINDRankingSFTDataset:
             random.seed(seed)
             self.behaviors = random.sample(self.behaviors, sample)
 
+        self.samples = self._build_samples()
+
         print(f"Loaded {len(self.behaviors)} behaviors with ranking format")
+        print(f"Expanded to {len(self.samples)} samples (one per clicked item)")
 
     def _load_news(self, news_path: str):
         """Load news articles from news.tsv"""
@@ -151,6 +155,49 @@ class MINDRankingSFTDataset:
 
         return behaviors
 
+    def _limit_candidates(self, behavior):
+        candidates = behavior['candidates']
+        labels = behavior['labels']
+
+        if self.max_candidates is None or len(candidates) <= self.max_candidates:
+            return candidates, labels
+
+        # Sample negatives + keep all positives (deterministic per impression)
+        clicked_indices = [i for i, l in enumerate(labels) if l == 1]
+        non_clicked_indices = [i for i, l in enumerate(labels) if l == 0]
+        rng = random.Random(f"{behavior['impression_id']}-{self.seed}")
+
+        if len(clicked_indices) >= self.max_candidates:
+            selected_indices = rng.sample(clicked_indices, self.max_candidates)
+        else:
+            num_negatives = self.max_candidates - len(clicked_indices)
+            num_negatives = min(num_negatives, len(non_clicked_indices))
+            if num_negatives > 0:
+                sampled_neg = rng.sample(non_clicked_indices, num_negatives)
+                selected_indices = clicked_indices + sampled_neg
+            else:
+                selected_indices = clicked_indices
+
+        rng.shuffle(selected_indices)
+
+        candidates = [candidates[i] for i in selected_indices]
+        labels = [labels[i] for i in selected_indices]
+        return candidates, labels
+
+    def _build_samples(self):
+        samples = []
+        for behavior in self.behaviors:
+            candidates, labels = self._limit_candidates(behavior)
+            clicked_indices = [i for i, l in enumerate(labels) if l == 1]
+            for clicked_idx in clicked_indices:
+                samples.append({
+                    'history': behavior['history'],
+                    'candidates': candidates,
+                    'labels': labels,
+                    'clicked_idx': clicked_idx,
+                })
+        return samples
+
     def _build_multiple_choice_prompt(self, history, candidates, clicked_idx):
         """
         Build multiple-choice ranking prompt with numeric options.
@@ -205,45 +252,17 @@ class MINDRankingSFTDataset:
         return prompt, target
 
     def __len__(self):
-        return len(self.behaviors)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        behavior = self.behaviors[idx]
-        history = behavior['history']
-        candidates = behavior['candidates']
-        labels = behavior['labels']
-
-        # Limit candidates if max_candidates is set
-        if self.max_candidates is not None and len(candidates) > self.max_candidates:
-            # Sample negatives + keep all positives
-            clicked_indices = [i for i, l in enumerate(labels) if l == 1]
-            non_clicked_indices = [i for i, l in enumerate(labels) if l == 0]
-
-            # If more clicked than max_candidates, sample from clicked only
-            if len(clicked_indices) >= self.max_candidates:
-                selected_indices = random.sample(clicked_indices, self.max_candidates)
-            else:
-                # Keep all clicked + sample negatives to fill up to max_candidates
-                num_negatives = self.max_candidates - len(clicked_indices)
-                num_negatives = min(num_negatives, len(non_clicked_indices))
-                if num_negatives > 0:
-                    sampled_neg = random.sample(non_clicked_indices, num_negatives)
-                    selected_indices = clicked_indices + sampled_neg
-                else:
-                    selected_indices = clicked_indices
-
-            random.shuffle(selected_indices)
-
-            candidates = [candidates[i] for i in selected_indices]
-            labels = [labels[i] for i in selected_indices]
-
-        # Randomly select one clicked article as target
-        clicked_indices = [i for i, l in enumerate(labels) if l == 1]
-        target_idx = random.choice(clicked_indices)
+        sample = self.samples[idx]
+        history = sample['history']
+        candidates = sample['candidates']
+        clicked_idx = sample['clicked_idx']
 
         # Build prompt
         prompt, target = self._build_multiple_choice_prompt(
-            history, candidates, target_idx
+            history, candidates, clicked_idx
         )
 
         # Tokenize
@@ -255,7 +274,7 @@ class MINDRankingSFTDataset:
             add_special_tokens=True
         )
 
-        # Create training labels (mask prompt, only train on target letter)
+        # Create training labels (mask prompt, only train on target number)
         prompt_ids = self.tokenizer.encode(
             prompt,
             max_length=self.max_len,
@@ -376,6 +395,7 @@ def train(
         learning_rate=learning_rate,
         bf16=True,
         logging_steps=10,
+        logging_first_step=True,
         eval_strategy="steps" if val_data else "no",
         save_strategy="steps",
         eval_steps=200 if val_data else None,
@@ -389,6 +409,7 @@ def train(
         run_name=wandb_run_name if wandb_run_name else None,
         metric_for_best_model="eval_loss" if val_data else None,
         greater_is_better=False,
+        disable_tqdm=False,
     )
 
     # Initialize trainer

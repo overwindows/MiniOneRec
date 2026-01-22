@@ -25,7 +25,7 @@ import pandas as pd
 from tqdm import tqdm
 
 
-def load_news(news_path: str, use_abstract: bool) -> Dict[str, str]:
+def load_news(news_path: str, use_abstract: bool) -> Dict[str, Dict[str, str]]:
     """
     Load news articles from news.tsv.
 
@@ -34,7 +34,7 @@ def load_news(news_path: str, use_abstract: bool) -> Dict[str, str]:
         use_abstract: Whether to include abstracts in news text
 
     Returns:
-        Dictionary mapping news_id -> news_text
+        Dictionary mapping news_id -> dict(title, text, category)
     """
     news = {}
     with open(news_path, 'r', encoding='utf-8') as f:
@@ -43,13 +43,19 @@ def load_news(news_path: str, use_abstract: bool) -> Dict[str, str]:
             if len(parts) < 4:
                 continue
             news_id = parts[0]
+            category = parts[1] if len(parts) > 1 else ""
             title = parts[3]
             abstract = parts[4] if len(parts) > 4 else ""
 
             if use_abstract and abstract:
-                news[news_id] = f"{title} {abstract}"
+                text = f"{title} {abstract}"
             else:
-                news[news_id] = title
+                text = title
+            news[news_id] = {
+                "title": title,
+                "text": text,
+                "category": category,
+            }
 
     return news
 
@@ -57,13 +63,13 @@ def load_news(news_path: str, use_abstract: bool) -> Dict[str, str]:
 _OPTION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
-def build_prompt(history_titles: List[str], candidates: List[str], use_numeric: bool = True) -> List[Dict[str, str]]:
+def build_prompt(history_items: List[Dict[str, str]], candidates: List[Dict[str, str]], use_numeric: bool = True) -> List[Dict[str, str]]:
     """
     Build multiple-choice ranking prompt.
 
     Args:
-        history_titles: List of news titles in user's reading history
-        candidates: List of candidate news titles
+        history_items: List of news dicts in user's reading history
+        candidates: List of candidate news dicts
         use_numeric: If True, use numeric indices (1, 2, 3...) instead of letters (A, B, C...)
                      This allows for more than 26 candidates.
 
@@ -73,18 +79,20 @@ def build_prompt(history_titles: List[str], candidates: List[str], use_numeric: 
     prompt = "Role: You are a news recommendation assistant.\n"
     prompt += "Task: Select the most relevant news article for the user based on their reading history.\n\n"
     prompt += "User History:\n"
-    if history_titles:
-        for i, title in enumerate(history_titles, 1):
-            prompt += f"{i}. [Title] {title}\n"
+    if history_items:
+        for i, item in enumerate(history_items, 1):
+            category = f" ({item['category']})" if item.get("category") else ""
+            prompt += f"{i}. [Title] {item['text']}{category}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
-    prompt += f"Candidate News Articles ({len(candidates)} total):\n"
+    prompt += "Candidate News Articles:\n"
 
     if use_numeric:
         for i, cand in enumerate(candidates, 1):
-            prompt += f"{i}. [Title] {cand}\n"
+            category = f" ({cand['category']})" if cand.get("category") else ""
+            prompt += f"{i}. [Title] {cand['text']}{category}\n"
         prompt += "\n"
         prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
         prompt += "Output only the candidate number.\n\n"
@@ -93,7 +101,8 @@ def build_prompt(history_titles: List[str], candidates: List[str], use_numeric: 
         # Legacy letter-based format (limited to 26 candidates)
         for i, cand in enumerate(candidates):
             letter = _OPTION_LETTERS[i] if i < len(_OPTION_LETTERS) else str(i + 1)
-            prompt += f"{letter}. [Title] {cand}\n"
+            category = f" ({cand['category']})" if cand.get("category") else ""
+            prompt += f"{letter}. [Title] {cand['text']}{category}\n"
         prompt += "\n"
         prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
         prompt += "Output only the option letter.\n\n"
@@ -194,7 +203,7 @@ def prepare_mind_for_rl(
                 labels.append(label_int)
 
                 if label_int == 1:
-                    clicked_titles.append(news[news_id])
+                    clicked_titles.append(news[news_id]["text"])
 
             # Validation checks
             if not clicked_titles:
@@ -257,8 +266,8 @@ def prepare_mind_for_rl(
                 labels = [labels[i] for i in keep_indices]
 
             # Build prompt from history
-            history_titles = [news.get(nid, '') for nid in history_ids if nid in news]
-            prompt = build_prompt(history_titles, candidates, use_numeric=use_numeric)
+            history_items = [news[nid] for nid in history_ids if nid in news]
+            prompt = build_prompt(history_items, candidates, use_numeric=use_numeric)
 
             # Use first clicked title as ground truth
             ground_truth = clicked_titles[0]
@@ -271,14 +280,14 @@ def prepare_mind_for_rl(
                 option_letters = list(_OPTION_LETTERS[:len(candidates)])
 
             extra_info = {
-                'candidates': candidates,
+                'candidates': [c["text"] for c in candidates],
                 'labels': labels,
                 'option_letters': option_letters,
                 'use_numeric': use_numeric,
                 'impression_id': impression_id,
                 'user_id': user_id,
                 'timestamp': timestamp,
-                'num_history': len(history_titles),
+                'num_history': len(history_items),
                 'num_candidates': len(candidates),
                 'num_clicked': sum(labels)
             }

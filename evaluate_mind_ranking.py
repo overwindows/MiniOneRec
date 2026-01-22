@@ -5,15 +5,18 @@ This evaluation uses the SAME multiple-choice prompt format as training,
 ensuring perfect alignment between training and evaluation.
 
 Key difference from evaluate_mind.py:
-- Uses multiple-choice format: "A. Title1\nB. Title2\n..."
-- Scores option letters (A, B, C, ...) instead of full text
+- Uses multiple-choice format: "1. Title1\n2. Title2\n..." (numeric options)
+- Scores option numbers (1, 2, 3, ...) instead of full text
 - Matches training format exactly
+- Uses KV-cache for efficient multi-token scoring
+- Supports Flash Attention 2 for faster long-context processing
 
 Usage:
     python evaluate_mind_ranking.py \
         --model_path output_dir/sft_mind_ranking_*/final_checkpoint \
         --behaviors_path ../data/MIND/dev/behaviors.tsv \
         --news_path ../data/MIND/dev/news.tsv \
+        --flash_attn \
         --max_impressions 1000  # Optional: for quick testing
 """
 
@@ -113,6 +116,7 @@ def score_candidates_multiple_choice(
 
     Scores the probability of each option number (1, 2, 3, ...).
     Handles multi-digit numbers by computing the joint probability of all tokens.
+    Uses KV-cache for efficiency.
 
     Returns:
         List of scores (log probabilities of each number)
@@ -128,46 +132,82 @@ def score_candidates_multiple_choice(
         token_ids = tokenizer.encode(number_text, add_special_tokens=False)
         candidate_tokens.append(token_ids)
 
-    # Group candidates by their first token to batch where possible
-    # For efficiency: run one forward pass on prompt, then handle multi-token cases
     input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
 
     scores = []
     with torch.no_grad():
-        # Get initial logits (after prompt)
-        outputs = model(input_ids=input_ids)
+        # Get initial logits with KV-cache
+        outputs = model(input_ids=input_ids, use_cache=True)
         first_logits = outputs.logits[0, -1, :]
         first_log_probs = torch.nn.functional.log_softmax(first_logits, dim=-1)
+        base_past_kv = outputs.past_key_values
 
-        for token_seq in candidate_tokens:
-            if len(token_seq) == 1:
-                # Single token - use cached first logits
-                score = first_log_probs[token_seq[0]].item()
-            else:
-                # Multi-token - compute joint probability P(t1) * P(t2|t1) * ...
-                # Start with first token probability from cached logits
-                score = first_log_probs[token_seq[0]].item()
+        # Group candidates by first token to batch second-token scoring
+        # This reduces forward passes for multi-digit numbers
+        first_token_groups = {}
+        for idx, token_seq in enumerate(candidate_tokens):
+            first_tok = token_seq[0]
+            if first_tok not in first_token_groups:
+                first_token_groups[first_tok] = []
+            first_token_groups[first_tok].append((idx, token_seq))
 
-                # Build sequence incrementally for remaining tokens
-                current_ids = torch.cat([
-                    input_ids,
-                    torch.tensor([[token_seq[0]]], dtype=torch.long, device=device)
-                ], dim=1)
+        # Initialize scores array
+        scores = [0.0] * num_candidates
 
-                for j in range(1, len(token_seq)):
-                    outputs = model(input_ids=current_ids)
-                    logits = outputs.logits[0, -1, :]
-                    log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
-                    score += log_probs[token_seq[j]].item()
+        for first_tok, group in first_token_groups.items():
+            first_tok_log_prob = first_log_probs[first_tok].item()
 
-                    # Append this token for next iteration (if not last)
-                    if j < len(token_seq) - 1:
-                        current_ids = torch.cat([
-                            current_ids,
-                            torch.tensor([[token_seq[j]]], dtype=torch.long, device=device)
-                        ], dim=1)
+            # Check if any in group need second token
+            needs_second = [(idx, seq) for idx, seq in group if len(seq) > 1]
+            single_token = [(idx, seq) for idx, seq in group if len(seq) == 1]
 
-            scores.append(score)
+            # Handle single-token candidates
+            for idx, seq in single_token:
+                scores[idx] = first_tok_log_prob
+
+            if not needs_second:
+                continue
+
+            # For multi-token: run one forward pass with first token to get second token probs
+            first_tok_tensor = torch.tensor([[first_tok]], dtype=torch.long, device=device)
+            outputs2 = model(input_ids=first_tok_tensor, past_key_values=base_past_kv, use_cache=True)
+            second_logits = outputs2.logits[0, -1, :]
+            second_log_probs = torch.nn.functional.log_softmax(second_logits, dim=-1)
+            second_past_kv = outputs2.past_key_values
+
+            # Check if any need third token
+            needs_third = [(idx, seq) for idx, seq in needs_second if len(seq) > 2]
+            two_token = [(idx, seq) for idx, seq in needs_second if len(seq) == 2]
+
+            # Handle two-token candidates
+            for idx, seq in two_token:
+                scores[idx] = first_tok_log_prob + second_log_probs[seq[1]].item()
+
+            # Handle three+ token candidates (rare: numbers >= 100)
+            if needs_third:
+                # Group by second token
+                second_token_groups = {}
+                for idx, seq in needs_third:
+                    second_tok = seq[1]
+                    if second_tok not in second_token_groups:
+                        second_token_groups[second_tok] = []
+                    second_token_groups[second_tok].append((idx, seq))
+
+                for second_tok, group3 in second_token_groups.items():
+                    second_tok_log_prob = second_log_probs[second_tok].item()
+
+                    # Run forward pass for third token
+                    second_tok_tensor = torch.tensor([[second_tok]], dtype=torch.long, device=device)
+                    outputs3 = model(input_ids=second_tok_tensor, past_key_values=second_past_kv, use_cache=True)
+                    third_logits = outputs3.logits[0, -1, :]
+                    third_log_probs = torch.nn.functional.log_softmax(third_logits, dim=-1)
+
+                    for idx, seq in group3:
+                        score = first_tok_log_prob + second_tok_log_prob
+                        if len(seq) > 2:
+                            score += third_log_probs[seq[2]].item()
+                        # For 4+ tokens (1000+), just use first 3 tokens as approximation
+                        scores[idx] = score
 
     return scores
 
@@ -211,6 +251,7 @@ def main():
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
+    parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2 for faster inference")
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -225,8 +266,17 @@ def main():
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
 
+    # Load model with optional Flash Attention 2
+    model_kwargs = {
+        "torch_dtype": torch.bfloat16,
+        "device_map": "auto",
+    }
+    if args.flash_attn:
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+        print("✓ Using Flash Attention 2")
+
     model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, dtype=torch.bfloat16, device_map="auto"
+        args.model_path, **model_kwargs
     )
     model.eval()
     device = next(model.parameters()).device

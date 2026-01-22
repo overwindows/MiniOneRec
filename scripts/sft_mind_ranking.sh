@@ -2,7 +2,7 @@
 # Train MIND with Ranking-Aware SFT (Multiple-Choice Format)
 #
 # This script trains using a multiple-choice format where the model
-# selects from a list of candidates (A/B/C/...), aligning training with evaluation.
+# selects from a list of candidates (1/2/3/...), aligning training with evaluation.
 #
 # Expected improvement: +3-6% AUC over standard SFT
 #
@@ -53,9 +53,9 @@ BATCH_SIZE=${BATCH_SIZE:-1024}
 MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-8}
 NUM_EPOCHS=${NUM_EPOCHS:-8}
 LEARNING_RATE=${LEARNING_RATE:-3e-4}
-CUTOFF_LEN=${CUTOFF_LEN:-1024}
-MAX_HISTORY=${MAX_HISTORY:-50}
-MAX_CANDIDATES=${MAX_CANDIDATES:-20}  # Limit to fit in context (no upper limit with numeric format)
+CUTOFF_LEN=${CUTOFF_LEN:-8192}  # Increased for 128K context models
+MAX_HISTORY=${MAX_HISTORY:-0}  # 0 = no limit (use all history)
+MAX_CANDIDATES=${MAX_CANDIDATES:-0}  # 0 = no limit (use all candidates)
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 SAMPLE=${SAMPLE:--1}
 
@@ -78,8 +78,9 @@ echo "  Batch size: ${BATCH_SIZE}"
 echo "  Micro batch: ${MICRO_BATCH_SIZE}"
 echo "  Epochs: ${NUM_EPOCHS}"
 echo "  Learning rate: ${LEARNING_RATE}"
-echo "  Max history: ${MAX_HISTORY}"
-echo "  Max candidates: ${MAX_CANDIDATES}"
+echo "  Cutoff length: ${CUTOFF_LEN}"
+echo "  Max history: ${MAX_HISTORY:-unlimited}"
+echo "  Max candidates: ${MAX_CANDIDATES:-unlimited}"
 echo "  Use abstract: ${USE_ABSTRACT}"
 echo "  Format: Multiple-choice (1/2/3/...)"
 echo ""

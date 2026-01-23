@@ -61,12 +61,14 @@ class MINDRankingSFTDataset:
         seed: int = 42,
         max_history: int = 0,  # 0 = no limit (use all history)
         max_candidates: int = 0,  # 0 = no limit (use all candidates)
+        neg_ratio: float = 0,  # 0 = no limit, >0 = negatives per positive (e.g., 4.0 = 4 negatives per positive)
         use_abstract: bool = False,
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.max_history = max_history if max_history > 0 else None  # None = no limit
         self.max_candidates = max_candidates if max_candidates > 0 else None  # None = no limit
+        self.neg_ratio = neg_ratio if neg_ratio > 0 else None  # None = no limit
         self.use_abstract = use_abstract
         self.seed = seed
 
@@ -156,27 +158,51 @@ class MINDRankingSFTDataset:
         return behaviors
 
     def _limit_candidates(self, behavior):
+        """
+        Limit candidates using neg_ratio and/or max_candidates.
+
+        Priority:
+        1. neg_ratio: Sample negatives based on ratio to positives (e.g., 4.0 = 4 negs per pos)
+        2. max_candidates: Hard cap on total candidates
+        """
         candidates = behavior['candidates']
         labels = behavior['labels']
 
-        if self.max_candidates is None or len(candidates) <= self.max_candidates:
-            return candidates, labels
-
-        # Sample negatives + keep all positives (deterministic per impression)
         clicked_indices = [i for i, l in enumerate(labels) if l == 1]
         non_clicked_indices = [i for i, l in enumerate(labels) if l == 0]
         rng = random.Random(f"{behavior['impression_id']}-{self.seed}")
 
-        if len(clicked_indices) >= self.max_candidates:
-            selected_indices = rng.sample(clicked_indices, self.max_candidates)
-        else:
-            num_negatives = self.max_candidates - len(clicked_indices)
+        # Determine number of negatives to use
+        if self.neg_ratio is not None:
+            # Use neg_ratio: sample negatives based on ratio to positives
+            num_negatives = int(len(clicked_indices) * self.neg_ratio)
             num_negatives = min(num_negatives, len(non_clicked_indices))
-            if num_negatives > 0:
-                sampled_neg = rng.sample(non_clicked_indices, num_negatives)
-                selected_indices = clicked_indices + sampled_neg
+        elif self.max_candidates is not None and len(candidates) > self.max_candidates:
+            # Use max_candidates: fill remaining slots with negatives
+            num_negatives = self.max_candidates - len(clicked_indices)
+            num_negatives = max(0, min(num_negatives, len(non_clicked_indices)))
+        else:
+            # No limit: use all negatives
+            num_negatives = len(non_clicked_indices)
+
+        # Sample negatives
+        if num_negatives > 0 and num_negatives < len(non_clicked_indices):
+            sampled_neg_indices = rng.sample(non_clicked_indices, num_negatives)
+        else:
+            sampled_neg_indices = non_clicked_indices[:num_negatives]
+
+        # Combine positives + sampled negatives
+        selected_indices = clicked_indices + sampled_neg_indices
+
+        # Apply max_candidates cap if both neg_ratio and max_candidates are set
+        if self.max_candidates is not None and len(selected_indices) > self.max_candidates:
+            # Keep all positives if possible, otherwise sample
+            if len(clicked_indices) >= self.max_candidates:
+                selected_indices = rng.sample(clicked_indices, self.max_candidates)
             else:
-                selected_indices = clicked_indices
+                # Keep all positives, sample from negatives
+                remaining = self.max_candidates - len(clicked_indices)
+                selected_indices = clicked_indices + sampled_neg_indices[:remaining]
 
         rng.shuffle(selected_indices)
 
@@ -360,6 +386,7 @@ def train(
     use_abstract: bool = False,
     max_history: int = 0,  # 0 = no limit (use all history)
     max_candidates: int = 0,  # 0 = no limit (use all candidates)
+    neg_ratio: float = 0,  # 0 = no limit, >0 = negatives per positive (e.g., 4.0)
     sample: int = -1,
     seed: int = 42,
     batch_size: int = 128,
@@ -412,6 +439,7 @@ def train(
         seed=seed,
         max_history=max_history,
         max_candidates=max_candidates,
+        neg_ratio=neg_ratio,
         use_abstract=use_abstract,
     )
 
@@ -424,6 +452,7 @@ def train(
         seed=seed,
         max_history=max_history,
         max_candidates=max_candidates,
+        neg_ratio=neg_ratio,
         use_abstract=use_abstract,
     )
 
@@ -432,6 +461,7 @@ def train(
     print(f"  Val samples: {len(val_data)}")
     print(f"  Max history: {'unlimited' if max_history == 0 else max_history}")
     print(f"  Max candidates: {'unlimited' if max_candidates == 0 else max_candidates}")
+    print(f"  Neg ratio: {'unlimited' if neg_ratio == 0 else neg_ratio}")
     print(f"  Cutoff length: {cutoff_len}")
     print(f"  Format: Multiple-choice (1/2/3/...)")
 

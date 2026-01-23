@@ -51,21 +51,33 @@ DEV_NEWS="${MIND_ROOT}/dev/news.tsv"
 # Training hyperparameters
 BATCH_SIZE=${BATCH_SIZE:-1024}
 MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-8}
-NUM_EPOCHS=${NUM_EPOCHS:-8}
+NUM_EPOCHS=${NUM_EPOCHS:-3}
 LEARNING_RATE=${LEARNING_RATE:-3e-4}
-CUTOFF_LEN=${CUTOFF_LEN:-8192}  # Increased for 128K context models
-MAX_HISTORY=${MAX_HISTORY:-0}  # 0 = no limit (use all history)
-MAX_CANDIDATES=${MAX_CANDIDATES:-0}  # 0 = no limit (use all candidates)
+CUTOFF_LEN=${CUTOFF_LEN:-4096}  # Reduced for faster training with neg sampling
+MAX_HISTORY=${MAX_HISTORY:-50}  # Limit history to reduce sequence length
+MAX_CANDIDATES=${MAX_CANDIDATES:-0}  # 0 = no limit (use neg_ratio instead)
+NEG_RATIO=${NEG_RATIO:-4.0}  # Negatives per positive (0=unlimited, 4.0 recommended)
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 SAMPLE=${SAMPLE:--1}
 
 # Output
 MODEL_BASENAME=$(basename ${MODEL_PATH})
-OUTPUT_DIR="output_dir/sft_mind_ranking_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_${USE_ABSTRACT}"
+# Build output dir name with key settings
+OUTPUT_NAME="sft_mind_ranking_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}"
+if [[ "${NEG_RATIO}" != "0" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_neg${NEG_RATIO}"
+fi
+if [[ "${MAX_HISTORY}" != "0" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_hist${MAX_HISTORY}"
+fi
+if [[ "${USE_ABSTRACT}" == "1" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_abs"
+fi
+OUTPUT_DIR="output_dir/${OUTPUT_NAME}"
 
 # Wandb
 WANDB_PROJECT=${WANDB_PROJECT:-"MiniOneRec"}
-WANDB_RUN_NAME=${WANDB_RUN_NAME:-"sft_mind_ranking_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_${USE_ABSTRACT}"}
+WANDB_RUN_NAME=${WANDB_RUN_NAME:-"${OUTPUT_NAME}"}
 echo "========================================="
 echo "MIND Ranking-Aware SFT Training"
 echo "========================================="
@@ -81,6 +93,7 @@ echo "  Learning rate: ${LEARNING_RATE}"
 echo "  Cutoff length: ${CUTOFF_LEN}"
 echo "  Max history: ${MAX_HISTORY:-unlimited}"
 echo "  Max candidates: ${MAX_CANDIDATES:-unlimited}"
+echo "  Neg ratio: ${NEG_RATIO:-unlimited}"
 echo "  Use abstract: ${USE_ABSTRACT}"
 echo "  Format: Multiple-choice (1/2/3/...)"
 echo ""
@@ -128,6 +141,7 @@ torchrun --nproc_per_node ${PROCESS_NUM} \
         --cutoff_len ${CUTOFF_LEN} \
         --max_history ${MAX_HISTORY} \
         --max_candidates ${MAX_CANDIDATES} \
+        --neg_ratio ${NEG_RATIO} \
         --train_behaviors_path ${TRAIN_BEHAVIORS} \
         --train_news_path ${TRAIN_NEWS} \
         --eval_behaviors_path ${DEV_BEHAVIORS} \

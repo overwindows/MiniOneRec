@@ -65,11 +65,19 @@ SAMPLE=${SAMPLE:--1}
 
 # Output
 MODEL_BASENAME=$(basename ${MODEL_PATH})
-OUTPUT_DIR="output_dir/sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}"
+# Build output dir name with key settings
+OUTPUT_NAME="sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}"
+if [[ "${MAX_HISTORY}" != "0" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_hist${MAX_HISTORY}"
+fi
+if [[ "${USE_ABSTRACT}" == "1" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_abs"
+fi
+OUTPUT_DIR="output_dir/${OUTPUT_NAME}"
 
 # Wandb
 WANDB_PROJECT=${WANDB_PROJECT:-"MiniOneRec"}
-WANDB_RUN_NAME=${WANDB_RUN_NAME:-"sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}"}
+WANDB_RUN_NAME=${WANDB_RUN_NAME:-"${OUTPUT_NAME}"}
 
 echo "========================================="
 echo "MIND Point-wise SFT Training"

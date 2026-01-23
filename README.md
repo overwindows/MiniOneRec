@@ -294,10 +294,11 @@ The script will automatically find and extract the ZIP files to the correct dire
 
 ### Training on MIND
 
-We provide two training approaches for MIND dataset:
+We provide three training approaches for MIND dataset:
 
 1. **Standard SFT** (`sft_mind.sh`) - Traditional next-item prediction (53.72% AUC)
-2. **Ranking-Aware SFT** (`sft_mind_ranking.sh`) - 🔥 **NEW: Multiple-choice ranking format (65.49% AUC - RECOMMENDED!)**
+2. **Ranking-Aware SFT** (`sft_mind_ranking.sh`) - 🔥 **Multiple-choice ranking format (65.49% AUC - RECOMMENDED!)**
+3. **Point-wise SFT** (`sft_mind_pointwise.sh`) - 🆕 **Yes/No classification per candidate**
 
 #### 🚀 Ranking-Aware SFT (Recommended)
 
@@ -325,23 +326,92 @@ User History:
 2. [Title] LeBron James scores 40 points (Sports)
 
 Candidate News Articles:
-A. [Title] Best gardening tips for spring (Lifestyle)
-B. [Title] Nvidia stock jumps 10% on AI news (Finance)
-C. [Title] NBA playoffs schedule announced (Sports)
+1. [Title] Best gardening tips for spring (Lifestyle)
+2. [Title] Nvidia stock jumps 10% on AI news (Finance)
+3. [Title] NBA playoffs schedule announced (Sports)
 
-Output only the option letter.
+Please analyze the user's interests and select the best article from the candidates above.
+Output only the option number.
 
-Answer: C
+Answer: 3
 ```
 
 **Why it works:**
 - ✅ Model sees ALL candidates during training (not just the clicked one)
 - ✅ Learns to rank and compare options
 - ✅ Training format matches evaluation format
+- ✅ Uses numeric options (1/2/3/...) - supports unlimited candidates
 - ✅ **Result: +11.77% AUC improvement** (53.72% → 65.49%)
 
 **Configuration:** Uses same environment variables as standard SFT, plus:
 - `MAX_CANDIDATES=20` - Limit candidates per sample to fit in context
+
+#### 🆕 Point-wise SFT (Yes/No Classification)
+
+**What's different?** Instead of showing all candidates in one prompt, this approach evaluates each candidate independently with a Yes/No question: "Is this article relevant to the user?"
+
+**Key advantages:**
+- ✅ More training signal (every candidate gets a label)
+- ✅ Shorter context per sample (faster training)
+- ✅ No position bias
+- ✅ Can leverage more negatives efficiently
+
+**Quick Start:**
+```bash
+# Basic training on MINDsmall with point-wise format
+bash scripts/sft_mind_pointwise.sh
+
+# Multi-GPU training
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/sft_mind_pointwise.sh
+
+# With more negatives per positive (try 1.0, 2.0, 3.0)
+NEG_RATIO=2.0 bash scripts/sft_mind_pointwise.sh
+
+# Evaluate with point-wise scoring
+bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkpoint dev
+```
+
+**Training Format Example:**
+```
+Role: You are a news recommendation assistant.
+Task: Determine if the candidate article matches the user's interests.
+
+User History:
+1. [Title] Lakers win against Warriors (Sports)
+2. [Title] LeBron James scores 40 points (Sports)
+
+Candidate Article:
+[Title] NBA playoffs schedule announced (Sports)
+
+Based on the user's reading history, is this article relevant to them?
+Answer with Yes or No.
+
+Answer: Yes
+```
+
+**Why it works:**
+- ✅ Dense training signal - each candidate labeled independently
+- ✅ No position bias - candidates aren't shown together
+- ✅ Flexible negative ratio - can use more negatives per positive
+- ✅ Shorter sequences - efficient training
+
+**Configuration:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEG_RATIO` | `1.0` | Number of negatives per positive |
+| `CUTOFF_LEN` | `2048` | Max sequence length (shorter than list-wise) |
+| `MAX_HISTORY` | `0` | Max history items (0=unlimited) |
+| `USE_ABSTRACT` | `0` | Set to 1 to include abstracts |
+
+**Comparison: List-wise vs Point-wise:**
+
+| Aspect | List-wise (Ranking) | Point-wise (Yes/No) |
+|--------|---------------------|---------------------|
+| Training signal | Sparse (1 per impression) | Dense (1 per candidate) |
+| Context length | Long (all candidates) | Short (single candidate) |
+| Position bias | Possible | None |
+| Scoring method | P(option number) | P(Yes) - P(No) |
+| Best for | Direct ranking | Dense supervision |
 
 #### Standard SFT
 
@@ -407,10 +477,11 @@ Training logs are uploaded to Weights & Biases (wandb) automatically.
 
 ### Evaluate on MIND
 
-We provide two evaluation scripts:
+We provide three evaluation scripts:
 
 1. **Ranking-Only Evaluation** (`eval_ranking_only.sh`) - For ranking-aware models, uses multiple-choice format
-2. **Standard Evaluation** (`eval_mind.sh`) - For standard SFT models, uses text generation format
+2. **Point-wise Evaluation** (`eval_mind_pointwise.sh`) - 🆕 For point-wise models, scores P(Yes) vs P(No)
+3. **Standard Evaluation** (`eval_mind.sh`) - For standard SFT models, uses text generation format
 
 #### Ranking-Only Evaluation (for Ranking-Aware Models)
 
@@ -422,12 +493,43 @@ bash scripts/eval_ranking_only.sh output_dir/sft_mind_ranking_*/final_checkpoint
 bash scripts/eval_ranking_only.sh output_dir/sft_mind_ranking_*/final_checkpoint dev
 ```
 
-**How it works:** Evaluates using the same multiple-choice format as training (scores P(A), P(B), P(C), ...).
+**How it works:** Evaluates using the same multiple-choice format as training (scores P(1), P(2), P(3), ...).
 
 **Metrics:** All metrics match the [official MIND evaluation script](https://github.com/msnews/MIND/blob/master/evaluate.py) exactly:
 - AUC: Uses sklearn's `roc_auc_score`
 - MRR: Official formula `sum(rr_score) / sum(y_true)`
 - DCG/nDCG: Official gain formula `2^label - 1` with discount `log2(rank+1)`
+
+#### Point-wise Evaluation (for Point-wise Models)
+
+```bash
+# Quick test (100 impressions)
+bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkpoint dev 100
+
+# Full evaluation (single GPU)
+CUDA_VISIBLE_DEVICES=0 bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkpoint dev
+
+# Multi-GPU parallel evaluation (4-8x faster)
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkpoint dev
+
+# With abstracts
+USE_ABSTRACT=1 CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkpoint dev
+```
+
+**How it works:**
+- Each candidate is scored independently using: `score = log P(" Yes") - log P(" No")`
+- Candidates are ranked by their scores within each impression
+- Uses batched inference for efficiency
+
+**Configuration:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BATCH_SIZE` | `8` | Batch size for scoring candidates |
+| `USE_ABSTRACT` | `0` | Include abstracts in prompts |
+| `MAX_HISTORY` | `0` | Max history items (0=unlimited) |
+| `FLASH_ATTN` | `1` | Use Flash Attention 2 |
+
+**Metrics:** Same official MIND metrics (AUC, MRR, nDCG@5, nDCG@10).
 
 #### Standard Evaluation
 
@@ -486,7 +588,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_ranking_small_Qwen3-4B-Base_bs1024** | 62.90% | 43.57% | 48.57% | 55.31% | Ranking-aware SFT with Qwen3-4B-Base |
 | **sft_mind_ranking_small_Qwen3-Reranker-4B_bs1024** | 62.02% | 43.05% | 47.72% | 54.61% | Ranking-aware SFT with Qwen3-Reranker-4B |
 
-**Note on ranking evaluation**: The ranking-aware model was evaluated on 39,918 impressions (skipped 33,234 with >26 candidates due to A-Z limitation). This represents the majority of dev set impressions with reasonable candidate counts.
+**Note on ranking evaluation**: The ranking-aware model now uses numeric options (1/2/3/...) instead of letters (A/B/C), supporting unlimited candidates per impression.
 
 **Key Findings**:
 
@@ -1125,6 +1227,10 @@ Reward options: `rule`, `ranking`, `ranking_only`, `semantic`, `sasrec`. For `se
 | `prepare_mind.py`        | Prepare (extract + organize) the MIND dataset from downloaded ZIPs                                       |
 | `eval_mind.sh`           | MIND evaluation script with automatic data extraction from ZIPs                                           |
 | `evaluate_mind.py`       | Core MIND evaluation implementation (AUC, MRR, nDCG@5, nDCG@10)                                           |
+| `src/sft_mind_pointwise.py` | Point-wise SFT training for MIND (Yes/No classification)                                              |
+| `evaluate_mind_pointwise.py` | Point-wise evaluation script (scores P(Yes) vs P(No))                                                |
+| `scripts/sft_mind_pointwise.sh` | Shell script for point-wise SFT training                                                           |
+| `scripts/eval_mind_pointwise.sh` | Shell script for point-wise evaluation with multi-GPU support                                     |
 | `llm_eval.py`            | Single-GPU LLM capability evaluation (MMLU, HellaSwag, etc.)                                              |
 | `llm_eval_parallel.py`   | Multi-GPU parallel LLM evaluation                                                                         |
 | `eval_llm.sh`            | LLM evaluation script with decoupled dataset download                                                     |

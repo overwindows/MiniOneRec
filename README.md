@@ -656,9 +656,65 @@ bash scripts/eval_mind.sh output_dir/sft_text_Industrial_and_Scientific_qwen3-1.
 
 To submit results to the **[official MIND leaderboard](https://msnews.github.io/)**:
 
-1. **Train on MINDlarge train split** (see above)
-2. **Evaluate on MINDlarge test split** to generate predictions
-3. **Submit predictions** to the leaderboard portal at https://msnews.github.io/
+#### Step 1: Train on MINDlarge
+
+```bash
+# Ranking-aware SFT (recommended)
+MIND_SIZE=large bash scripts/sft_mind_ranking.sh
+
+# Or point-wise SFT
+MIND_SIZE=large bash scripts/sft_mind_pointwise.sh
+
+# Or standard SFT
+MIND_SIZE=large bash scripts/sft_mind.sh
+```
+
+#### Step 2: Generate Test Predictions
+
+**For Ranking-Aware Models:**
+```bash
+# Single GPU
+CUDA_VISIBLE_DEVICES=0 bash scripts/eval_mind_ranking.sh \
+    output_dir/sft_mind_ranking_large_*/final_checkpoint test
+
+# Multi-GPU parallel (faster)
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_ranking.sh \
+    output_dir/sft_mind_ranking_large_*/final_checkpoint test
+
+# Predictions saved to: ./results_mind/test_ranking_predictions.txt
+```
+
+**For Point-wise Models:**
+```bash
+# Single GPU
+CUDA_VISIBLE_DEVICES=0 bash scripts/eval_mind_pointwise.sh \
+    output_dir/sft_mind_pointwise_large_*/final_checkpoint test
+
+# Multi-GPU parallel (faster)
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_pointwise.sh \
+    output_dir/sft_mind_pointwise_large_*/final_checkpoint test
+
+# Predictions saved to: ./results_mind/test_pointwise_predictions.txt
+```
+
+**For Standard SFT Models:**
+```bash
+OUTPUT_FILE=./results_mind/test_predictions.txt \
+    bash scripts/eval_mind.sh output_dir/sft_mind_large_*/final_checkpoint test
+```
+
+#### Step 3: Submit to Leaderboard
+
+1. Go to [https://msnews.github.io/](https://msnews.github.io/)
+2. Upload your prediction file
+
+**Prediction File Format:**
+```
+impression_id1 news_id_rank1 news_id_rank2 news_id_rank3 ...
+impression_id2 news_id_rank1 news_id_rank2 news_id_rank3 ...
+```
+
+Each line contains the impression ID followed by space-separated news IDs ranked by predicted relevance (most relevant first).
 
 **Important**: The test split labels are not public. You must submit your predictions to the leaderboard server for official scoring.
 

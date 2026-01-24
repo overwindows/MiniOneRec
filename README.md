@@ -581,6 +581,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_small_Qwen3-1.7B_bs1024** | 53.72% | 26.23% | 24.53% | 31.00% | Fine-tuned on MIND directly |
 | **sft_mind_ranking_small_Qwen3-1.7B_bs1024** | 65.49% | 45.30% | 50.36% | 56.57% | Ranking-aware SFT |
 | **sft_mind_ranking_small_Qwen3-1.7B-Base_bs1024_ep3** | **66.17%** 🏆 | **45.20%** 🏆 | **50.09%** 🏆 | **56.45%** 🏆 | **Ranking-aware SFT with Qwen3-1.7B-Base - NEW BEST!** |
+| **sft_mind_ranking_small_Qwen3-1.7B-Base_bs1024_ep3_neg8.0_hist50** | 65.17% | 28.36% | 30.43% | 37.22% | Ranking-aware SFT with neg_ratio=8, max_history=50 |
 | **rl_mind_small_Qwen3-1.7B-Base_mind_ndcg** | 66.11% | 45.28% | 50.23% | 56.57% | RL fine-tuned from ranking SFT (nDCG reward) |
 | **sft_mind_ranking_small_Qwen3-Reranker-0.6B_bs1024_ep3** | 64.60% | 44.61% | 49.65% | 56.03% | Ranking-aware SFT with Qwen3-Reranker-0.6B |
 | **sft_mind_ranking_small_Qwen3-4B-Base_bs1024_ep8** | 61.06% ⬇️ | 41.11% ⬇️ | 45.55% ⬇️ | 52.33% ⬇️ | Ranking-aware SFT with Qwen3-4B-Base (8 epochs, overfitting) |
@@ -1910,6 +1911,24 @@ torchrun \
 **Installing Flash Attention 2:**
 ```bash
 pip install flash-attn --no-build-isolation
+```
+
+**Troubleshooting Flash Attention:**
+
+If you see `ImportError: undefined symbol` errors after installing flash-attn, it means there's a version mismatch with your PyTorch. Fix it by:
+
+```bash
+# Check your PyTorch and CUDA versions
+python -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA: {torch.version.cuda}')"
+
+# Reinstall flash-attn matching your versions
+pip uninstall flash-attn -y
+pip install flash-attn==2.7.3 --no-build-isolation  # For PyTorch 2.6.0+cu124
+```
+
+Or disable Flash Attention during evaluation:
+```bash
+FLASH_ATTN=0 bash scripts/eval_mind_ranking.sh <model_path> dev
 ```
 
 **Troubleshooting OOM:**

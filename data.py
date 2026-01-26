@@ -8,6 +8,7 @@ import random
 from tqdm import tqdm
 import os
 import copy
+import logging
 import torch.nn.functional as F
 
 
@@ -36,7 +37,7 @@ class Tokenizer:
 
 
 class SFTData(Dataset):
-    def __init__(self, train_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
+    def __init__(self, train_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -61,7 +62,7 @@ class SFTData(Dataset):
             f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
             f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
         ]
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -98,7 +99,7 @@ class SFTData(Dataset):
                 "history_str": history_str,
                 "dedup": target_item_id == last_history_item_id}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -132,7 +133,7 @@ class SFTData(Dataset):
         labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
 
         if len(tokens) >= self.max_len:
-            print(len(tokens))
+            pass
 
         return {
             "input_ids": tokens[-self.max_len:],
@@ -144,7 +145,7 @@ class SFTData(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
             # print(inputs[-1])
 
         self.inputs = inputs
@@ -159,11 +160,11 @@ class SFTData(Dataset):
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class InstructionJSONLDataset(Dataset):
-    def __init__(self, jsonl_path, tokenizer, max_len=2048, sample=-1, seed=0):
+    def __init__(self, jsonl_path, tokenizer, max_len=4096, sample=-1, seed=0):
         random.seed(seed)
         self.tokenizer = Tokenizer(tokenizer)
         self.max_len = max_len
@@ -179,7 +180,7 @@ class InstructionJSONLDataset(Dataset):
                     continue
         if sample > 0:
             self.data = random.sample(self.data, min(sample, len(self.data)))
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -200,7 +201,7 @@ class InstructionJSONLDataset(Dataset):
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         data_point = self.data[idx]
         output_text = data_point.get("output", "")
         prompt = self.generate_prompt(data_point)
@@ -223,11 +224,11 @@ class InstructionJSONLDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class ItemTokenSFTDataset(Dataset):
@@ -237,7 +238,7 @@ class ItemTokenSFTDataset(Dataset):
         tokenizer,
         item_emb_path,
         item_token="<item>",
-        max_len=2048,
+        max_len=4096,
         sample=-1,
         seed=0,
         category="",
@@ -271,7 +272,7 @@ class ItemTokenSFTDataset(Dataset):
             f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
             f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
         ]
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -298,7 +299,7 @@ class ItemTokenSFTDataset(Dataset):
             "target_item_id": target_item_id,
         }
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -369,11 +370,11 @@ class ItemTokenSFTDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class TextMetaSFTDataset(Dataset):
@@ -382,7 +383,7 @@ class TextMetaSFTDataset(Dataset):
         train_file,
         tokenizer,
         item_meta_path,
-        max_len=2048,
+        max_len=4096,
         sample=-1,
         seed=0,
         category="",
@@ -412,7 +413,7 @@ class TextMetaSFTDataset(Dataset):
             f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
             f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
         ]
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -453,7 +454,7 @@ class TextMetaSFTDataset(Dataset):
             "dedup": target_item_id == last_history_item_id,
         }
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -484,11 +485,11 @@ class TextMetaSFTDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class MINDTextSFTDataset(Dataset):
@@ -497,7 +498,7 @@ class MINDTextSFTDataset(Dataset):
         behaviors_path,
         news_path,
         tokenizer,
-        max_len=2048,
+        max_len=4096,
         sample=-1,
         seed=0,
         max_history=50,
@@ -551,7 +552,7 @@ class MINDTextSFTDataset(Dataset):
 
         if sample > 0:
             self.data = random.sample(self.data, min(sample, len(self.data)))
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -567,7 +568,7 @@ The user has read the following news before: {history_text}
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         row = self.data[idx]
         history_text = self._history_titles(row["history"])
         target_title = self.news.get(row["target"], "")
@@ -592,11 +593,11 @@ The user has read the following news before: {history_text}
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class EvalMINDTextDataset(Dataset):
@@ -605,7 +606,7 @@ class EvalMINDTextDataset(Dataset):
         behaviors_path,
         news_path,
         tokenizer,
-        max_len=2048,
+        max_len=4096,
         sample=-1,
         seed=0,
         max_history=50,
@@ -661,7 +662,7 @@ class EvalMINDTextDataset(Dataset):
 
         if sample > 0:
             self.data = random.sample(self.data, min(sample, len(self.data)))
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -686,7 +687,7 @@ The user has read the following news before: {history_text}
             "output": target_title + "\n",
         }
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         row = self.data[idx]
         history_text = self._history_titles(row["history"])
         prompt = self.generate_prompt(history_text)
@@ -716,7 +717,7 @@ The user has read the following news before: {history_text}
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def get_all(self):
@@ -726,11 +727,11 @@ The user has read the following news before: {history_text}
         return temp
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class D3Dataset(Dataset):
-    def __init__(self, train_file, max_len=2048, sample=-1, seed=0, category="", dedup=False):
+    def __init__(self, train_file, max_len=4096, sample=-1, seed=0, category="", dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -753,7 +754,7 @@ class D3Dataset(Dataset):
             f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
             f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
         ]
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -783,7 +784,7 @@ class D3Dataset(Dataset):
                 "history_str": history_str,
                 "dedup": target_item_id == last_history_item_id}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -805,7 +806,7 @@ class D3Dataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
 
         self.inputs = inputs
 
@@ -819,12 +820,12 @@ class D3Dataset(Dataset):
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class EvalD3Dataset(Dataset):
 
-    def __init__(self, train_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
+    def __init__(self, train_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -848,7 +849,7 @@ class EvalD3Dataset(Dataset):
             f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
             f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
         ]
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -883,7 +884,7 @@ class EvalD3Dataset(Dataset):
                 "output": target_item + '\n',
                 "dedup": target_item_id == last_history_item_id}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -918,7 +919,7 @@ class EvalD3Dataset(Dataset):
         labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
 
         if len(tokens) >= self.max_len:
-            print(len(tokens))
+            pass
 
         return {
             "input_ids": tokens[-self.max_len:],
@@ -930,7 +931,7 @@ class EvalD3Dataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
 
         self.inputs = inputs
 
@@ -942,7 +943,7 @@ class EvalD3Dataset(Dataset):
 
 
 class EvalTextMetaDataset(Dataset):
-    def __init__(self, train_file, tokenizer, item_meta_path, max_len=2048, sample=-1, test=False, seed=0, category=""):
+    def __init__(self, train_file, tokenizer, item_meta_path, max_len=4096, sample=-1, test=False, seed=0, category=""):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -969,7 +970,7 @@ class EvalTextMetaDataset(Dataset):
             f"Bearing in mind the {category} that the user has recently been enthralled by, please construct a catalog of other {category} that the user potentially partook in beforehand.",
             f"In relation to the user's recent entertainment with a given {category}, it would be appreciated if you could curate a list of {category} that might form part of the user's previous gaming history."
         ]
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1010,7 +1011,7 @@ class EvalTextMetaDataset(Dataset):
             "dedup": target_item_id == last_history_item_id,
         }
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -1048,7 +1049,7 @@ class EvalTextMetaDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def get_all(self):
@@ -1061,11 +1062,11 @@ class EvalTextMetaDataset(Dataset):
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class SidDataset(Dataset):
-    def __init__(self, train_file, max_len=2048, sample=-1, seed=0, category="", dedup=False):
+    def __init__(self, train_file, max_len=4096, sample=-1, seed=0, category="", dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -1075,7 +1076,7 @@ class SidDataset(Dataset):
         self.dedup = dedup
         self.prompt2history = {}
         self.history2target = {}
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1087,10 +1088,10 @@ class SidDataset(Dataset):
 ### Response:\n{data_point["output"]}"""
 
     def get_history(self, row):
-        row['history_item_sid'] = eval(row['history_item_sid'])
+        history_item_sid = eval(row['history_item_sid'])
         L = len(row['history_item_sid'])
         history = ""
-        history_str = "::".join(row["history_item_sid"])
+        history_str = "::".join(history_item_sid)
         for i in range(L):
             if i == 0:
                 history += row['history_item_sid'][i]
@@ -1105,7 +1106,7 @@ class SidDataset(Dataset):
                 "history_str": history_str,
                 "dedup": target_item_sid == last_history_item_sid}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         history = self.get_history(self.data.iloc[idx])
         target_item = history['output']
         history['output'] = ''
@@ -1123,7 +1124,7 @@ class SidDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
 
         self.inputs = inputs
 
@@ -1137,22 +1138,22 @@ class SidDataset(Dataset):
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class SidSFTDataset(Dataset):
-    def __init__(self, train_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
+    def __init__(self, train_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
         if sample > 0:
-            self.data = self.data.sample(sample, random_state=seed)
+            self.data = self.data.sample(sample, random_state=seed).reset_index(drop=True)
         self.tokenizer = Tokenizer(tokenizer)
         self.test = test
         self.max_len = max_len
         self.category = category
         self.dedup = dedup
-        self.get_inputs()
+        # Lazy loading: removed self.get_inputs() - now processes on-demand in __getitem__
 
     def __len__(self):
         return len(self.data)
@@ -1164,10 +1165,10 @@ class SidSFTDataset(Dataset):
 ### Response:\n{data_point["output"]}"""
 
     def get_history(self, row):
-        row['history_item_sid'] = eval(row['history_item_sid'])
+        history_item_sid = eval(row['history_item_sid'])
         L = len(row['history_item_sid'])
         history = ""
-        history_str = ", ".join(row["history_item_sid"])
+        history_str = ", ".join(history_item_sid)
         for i in range(L):
             if i == 0:
                 history += row['history_item_sid'][i]
@@ -1181,7 +1182,7 @@ class SidSFTDataset(Dataset):
                 "history_str": history_str,
                 "dedup": target_item_sid == last_history_item_sid}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -1220,7 +1221,7 @@ Can you predict the next possible item that the user may expect?
         labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
 
         if len(tokens) >= self.max_len:
-            print(len(tokens))
+            import warnings; warnings.warn(f"Token length {len(tokens)} exceeds max_len {self.max_len}", stacklevel=2)
 
         return {
             "input_ids": tokens[-self.max_len:],
@@ -1228,12 +1229,13 @@ Can you predict the next possible item that the user may expect?
             "labels": labels[-self.max_len:],
         }
 
-    def get_inputs(self):
-        inputs = []
-        for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
-
-        self.inputs = inputs
+    # Deprecated: Pre-loading all samples uses too much memory
+    # Use lazy loading via __getitem__ instead for DataLoader compatibility
+    # def get_inputs(self):
+    #     inputs = []
+    #     for i in tqdm(range(len(self.data))):
+    #         inputs.append(self.prepare_sample(i))
+    #     self.inputs = inputs
 
     def get_all(self):
         temp = []
@@ -1241,15 +1243,13 @@ Can you predict the next possible item that the user may expect?
             temp.append(self.get_history(self.data.iloc[i]))
         return temp
 
-    def get_inputs_list(self):
-        return self.inputs
-
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        # Lazy loading: prepare sample on-demand (enables DataLoader multi-worker + DDP)
+        return self.prepare_sample(idx)
 
 
 class SidSFTDataset_GPR(Dataset):
-    def __init__(self, train_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
+    def __init__(self, train_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -1280,7 +1280,7 @@ class SidSFTDataset_GPR(Dataset):
         except FileNotFoundError:
             self.item_features = {}
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1292,10 +1292,10 @@ class SidSFTDataset_GPR(Dataset):
 ### Response:\n{data_point["output"]}"""
 
     def get_history(self, row):
-        row['history_item_sid'] = eval(row['history_item_sid'])
+        history_item_sid = eval(row['history_item_sid'])
         L = len(row['history_item_sid'])
         history = ""
-        history_str = ", ".join(row["history_item_sid"])
+        history_str = ", ".join(history_item_sid)
         for i in range(L):
             if i == 0:
                 history += row['history_item_sid'][i]
@@ -1309,7 +1309,7 @@ class SidSFTDataset_GPR(Dataset):
                 "history_str": history_str,
                 "dedup": target_item_sid == last_history_item_sid}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -1388,7 +1388,7 @@ Can you predict the next possible item that the user may expect?
         labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
 
         if len(tokens) >= self.max_len:
-            print(len(tokens))
+            import warnings; warnings.warn(f"Token length {len(tokens)} exceeds max_len {self.max_len}", stacklevel=2)
 
         return {
             "input_ids": tokens[-self.max_len:],
@@ -1400,7 +1400,7 @@ Can you predict the next possible item that the user may expect?
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
 
         self.inputs = inputs
 
@@ -1414,12 +1414,12 @@ Can you predict the next possible item that the user may expect?
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class EvalSidDataset(Dataset):
 
-    def __init__(self, train_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
+    def __init__(self, train_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", K=4, dedup=False):
         self.data = pd.read_csv(train_file)
         random.seed(seed)
 
@@ -1430,7 +1430,7 @@ class EvalSidDataset(Dataset):
         self.max_len = max_len
         self.category = category
         self.dedup = dedup
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1449,7 +1449,7 @@ class EvalSidDataset(Dataset):
 ### Response:\n{data_point["output"]}"""
 
     def get_history(self, row):
-        row['history_item_sid'] = eval(row['history_item_sid'])
+        history_item_sid = eval(row['history_item_sid'])
         L = len(row['history_item_sid'])
         history = ""
         for i in range(L):
@@ -1465,7 +1465,7 @@ class EvalSidDataset(Dataset):
                 "output": target_item + '\n',
                 "dedup": target_item_sid == last_history_item_sid}
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -1500,7 +1500,7 @@ Can you predict the next possible item that the user may expect?
         labels = [-100] * input_prompt_len + tokens[input_prompt_len:]
 
         if len(tokens) >= self.max_len:
-            print(len(tokens))
+            import warnings; warnings.warn(f"Token length {len(tokens)} exceeds max_len {self.max_len}", stacklevel=2)
 
         return {
             "input_ids": tokens[-self.max_len:],
@@ -1512,7 +1512,7 @@ Can you predict the next possible item that the user may expect?
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
 
         self.inputs = inputs
 
@@ -1526,11 +1526,11 @@ Can you predict the next possible item that the user may expect?
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class SidItemFeatDataset(Dataset):
-    def __init__(self, item_file, index_file, tokenizer=None, max_len=2048, sample=-1, test=False, seed=0, category=""):
+    def __init__(self, item_file, index_file, tokenizer=None, max_len=4096, sample=-1, test=False, seed=0, category=""):
         """
         Dataset for sid2title and title2sid tasks.
 
@@ -1594,7 +1594,7 @@ class SidItemFeatDataset(Dataset):
             self.data = random.sample(self.data, sample)
 
         if self.tokenizer is not None:
-            self.get_inputs()
+            pass  # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1612,7 +1612,7 @@ class SidItemFeatDataset(Dataset):
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         if self.tokenizer is None:
             return self.data[idx]
 
@@ -1658,16 +1658,16 @@ Answer the question about item identification.
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def get_inputs_list(self):
-        return self.inputs if hasattr(self, 'inputs') else [self.pre(i) for i in range(len(self))]
+        return self.inputs if hasattr(self, 'inputs') else [self.prepare_sample(i) for i in range(len(self))]
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        return self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        return self.prepare_sample(idx)
 
 
 class RLTitle2SidDataset(Dataset):
@@ -1747,7 +1747,7 @@ class RLTitle2SidDataset(Dataset):
         if sample > 0 and sample < len(self.data):
             self.data = random.sample(self.data, sample)
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1765,7 +1765,7 @@ class RLTitle2SidDataset(Dataset):
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         data_point = self.data[idx]
         prompt = self.generate_prompt(data_point)
         target_item = data_point['output'] + "\n"
@@ -1782,7 +1782,7 @@ class RLTitle2SidDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def get_all(self):
@@ -1795,7 +1795,7 @@ class RLTitle2SidDataset(Dataset):
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class RLSeqTitle2SidDataset(Dataset):
@@ -1823,7 +1823,7 @@ class RLSeqTitle2SidDataset(Dataset):
         self.prompt2history = {}
         self.history2target = {}
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1865,7 +1865,7 @@ class RLSeqTitle2SidDataset(Dataset):
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         history_data = self.get_history(self.data.iloc[idx])
 
         # Skip if duplicate and dedup is enabled
@@ -1890,7 +1890,7 @@ class RLSeqTitle2SidDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            result = self.pre(i)
+            result = self.prepare_sample(i)
             if result is not None:  # Skip None results from deduplication
                 inputs.append(result)
         self.inputs = inputs
@@ -1906,8 +1906,8 @@ class RLSeqTitle2SidDataset(Dataset):
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        result = self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        result = self.prepare_sample(idx)
         return result if result is not None else {"prompt": "", "completion": ""}
 
 
@@ -1963,7 +1963,7 @@ class RLSid2TitleDataset(Dataset):
         if sample > 0 and sample < len(self.data):
             self.data = random.sample(self.data, sample)
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -1977,7 +1977,7 @@ class RLSid2TitleDataset(Dataset):
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         data_point = self.data[idx]
         prompt = self.generate_prompt(data_point)
         target_item = data_point['output'] + "\n"
@@ -1994,7 +1994,7 @@ class RLSid2TitleDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            inputs.append(self.pre(i))
+            inputs.append(self.prepare_sample(i))
         self.inputs = inputs
 
     def get_all(self):
@@ -2007,7 +2007,7 @@ class RLSid2TitleDataset(Dataset):
         return self.inputs
 
     def __getitem__(self, idx):
-        return self.inputs[idx]
+        return self.prepare_sample(idx)  # Lazy loading
 
 
 class RLSidhis2TitleDataset(Dataset):
@@ -2048,7 +2048,7 @@ class RLSidhis2TitleDataset(Dataset):
         for item_id, features in self.item_feat.items():
             self.id2title[item_id] = features['title']
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -2060,10 +2060,10 @@ class RLSidhis2TitleDataset(Dataset):
 ### Response:\n{data_point["output"]}"""
 
     def get_history(self, row):
-        row['history_item_sid'] = eval(row['history_item_sid'])
+        history_item_sid = eval(row['history_item_sid'])
         L = len(row['history_item_sid'])
         history = ""
-        history_str = "::".join(row["history_item_sid"])
+        history_str = "::".join(history_item_sid)
         for i in range(L):
             if i == 0:
                 history += row['history_item_sid'][i]
@@ -2087,7 +2087,7 @@ class RLSidhis2TitleDataset(Dataset):
             "dedup": target_item_sid == last_history_item_sid
         }
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         history = self.get_history(self.data.iloc[idx])
 
         # Skip if duplicate and dedup is enabled
@@ -2110,7 +2110,7 @@ class RLSidhis2TitleDataset(Dataset):
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            result = self.pre(i)
+            result = self.prepare_sample(i)
             if result is not None:  # Skip None results from deduplication
                 inputs.append(result)
         self.inputs = inputs
@@ -2126,13 +2126,13 @@ class RLSidhis2TitleDataset(Dataset):
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        result = self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        result = self.prepare_sample(idx)
         return result if result is not None else {"prompt": "", "completion": ""}
 
 
 class FusionSeqRecDataset(Dataset):
-    def __init__(self, train_file, item_file, index_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", dedup=False):
+    def __init__(self, train_file, item_file, index_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", dedup=False):
         """
         Fusion dataset combining sequence recommendation with item features.
         Uses semantic IDs for user history, outputs item titles or descriptions.
@@ -2191,7 +2191,7 @@ class FusionSeqRecDataset(Dataset):
                     self.sid2description[combined_sid] = processed_description
         # print("self.sid2title: ", self.sid2title)
         # print("self.sid2description: ", self.sid2description)
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def _process_description(self, description, title):
         """
@@ -2293,7 +2293,7 @@ class FusionSeqRecDataset(Dataset):
 
 ### Response:\n"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -2352,7 +2352,7 @@ Can you recommend the next item for the user based on their interaction history?
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            result = self.pre(i)
+            result = self.prepare_sample(i)
             if result is not None:  # Skip None results from deduplication
                 inputs.append(result)
         self.inputs = inputs
@@ -2362,12 +2362,12 @@ Can you recommend the next item for the user based on their interaction history?
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        return self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        return self.prepare_sample(idx)
 
 
 class TitleHistory2SidSFTDataset(Dataset):
-    def __init__(self, train_file, item_file, index_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", dedup=False):
+    def __init__(self, train_file, item_file, index_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", dedup=False):
         """
         SFT dataset that uses item titles in user history to predict next item's semantic ID.
 
@@ -2409,7 +2409,7 @@ class TitleHistory2SidSFTDataset(Dataset):
                 combined_sid = sids[0] + sids[1] + sids[2]
                 self.id2sid[item_id] = combined_sid
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def __len__(self):
         return len(self.data)
@@ -2455,7 +2455,7 @@ class TitleHistory2SidSFTDataset(Dataset):
             "dedup": is_duplicate
         }
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -2503,7 +2503,7 @@ Based on the user's historical interaction with item titles, predict the semanti
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.data))):
-            result = self.pre(i)
+            result = self.prepare_sample(i)
             if result is not None:  # Skip None results from deduplication
                 inputs.append(result)
         self.inputs = inputs
@@ -2519,13 +2519,13 @@ Based on the user's historical interaction with item titles, predict the semanti
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        result = self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        result = self.prepare_sample(idx)
         return result if result is not None else {"input_ids": [], "attention_mask": [], "labels": []}
 
 
 class PreferenceSFTDataset(Dataset):
-    def __init__(self, user_preference_file, index_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", dedup=False):
+    def __init__(self, user_preference_file, index_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", dedup=False):
         """
         SFT dataset that uses user interaction history and preferences from preference file.
 
@@ -2593,7 +2593,7 @@ class PreferenceSFTDataset(Dataset):
         if sample > 0 and sample < len(self.matched_data):
             self.matched_data = random.sample(self.matched_data, sample)
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def _prepare_preference_data(self):
         """Prepare data directly from training samples"""
@@ -2678,7 +2678,7 @@ class PreferenceSFTDataset(Dataset):
 
 ### Response:\n{data_point["output"]}"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -2727,7 +2727,7 @@ Analyze the user's interaction history, provide insights about their preferences
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.matched_data))):
-            result = self.pre(i)
+            result = self.prepare_sample(i)
             if result is not None:  # Skip None results from empty histories
                 inputs.append(result)
         self.inputs = inputs
@@ -2743,13 +2743,13 @@ Analyze the user's interaction history, provide insights about their preferences
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        result = self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        result = self.prepare_sample(idx)
         return result if result is not None else {"input_ids": [], "attention_mask": [], "labels": []}
 
 
 class UserPreference2sidSFTDataset(Dataset):
-    def __init__(self, user_preference_file, index_file, tokenizer, max_len=2048, sample=-1, test=False, seed=0, category="", dedup=False):
+    def __init__(self, user_preference_file, index_file, tokenizer, max_len=4096, sample=-1, test=False, seed=0, category="", dedup=False):
         """
         SFT dataset that uses user interaction history with preferences to predict next item's semantic ID.
         Uses interaction history from preference file, predicts the last item in the sequence.
@@ -2818,7 +2818,7 @@ class UserPreference2sidSFTDataset(Dataset):
         if sample > 0 and sample < len(self.matched_data):
             self.matched_data = random.sample(self.matched_data, sample)
 
-        self.get_inputs()
+        # self.get_inputs()  # DISABLED: Using lazy loading instead
 
     def _prepare_sequence_data(self):
         """Prepare sequence prediction data from training samples"""
@@ -2901,7 +2901,7 @@ class UserPreference2sidSFTDataset(Dataset):
 
 ### Response:\n{data_point["output"]}"""
 
-    def pre(self, idx):
+    def prepare_sample(self, idx):
         instruction = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request. 
 
 ### Instruction:
@@ -2950,7 +2950,7 @@ Based on the user interaction history and preference analysis, predict the next 
     def get_inputs(self):
         inputs = []
         for i in tqdm(range(len(self.matched_data))):
-            result = self.pre(i)
+            result = self.prepare_sample(i)
             if result is not None:  # Skip None results from empty histories or missing targets
                 inputs.append(result)
         self.inputs = inputs
@@ -2966,6 +2966,6 @@ Based on the user interaction history and preference analysis, predict the next 
 
     def __getitem__(self, idx):
         if hasattr(self, 'inputs'):
-            return self.inputs[idx]
-        result = self.pre(idx)
+            return self.prepare_sample(idx)  # Lazy loading
+        result = self.prepare_sample(idx)
         return result if result is not None else {"input_ids": [], "attention_mask": [], "labels": []}

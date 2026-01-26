@@ -101,7 +101,7 @@ def train(
     micro_batch_size: int = 4,
     num_epochs: int = 10,
     learning_rate: float = 3e-4,
-    cutoff_len: int = 512,
+    cutoff_len: int = 4096,
     # llm hyperparams
     group_by_length: bool = False,  # faster, but produces an odd training loss curve
     freeze_LLM: bool = False,  # freeze LLM parameters, only train new token embeddings
@@ -118,7 +118,7 @@ def train(
 ):
     set_seed(seed)
     os.environ['WANDB_PROJECT'] = wandb_project
-    category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products", "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books"}
+    category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products", "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books", "GenRecDatasetV2_1": "general recommendation"}
     print(category)
     category = category_dict[category]
     assert (
@@ -238,42 +238,9 @@ def train(
         model.is_parallelizable = True
         model.model_parallel = True
 
-    # More memory-efficient dataset loading - convert in batches
-    sample_frac = 1
-
-    print("Converting training dataset to HuggingFace format...")
-    # Convert train_data more efficiently by processing in chunks
-    train_dict = {}
-    for i, item in enumerate(train_data):
-        if i == 0:
-            # Initialize keys from first item
-            for k in item.keys():
-                train_dict[k] = []
-        for k in item.keys():
-            train_dict[k].append(item[k])
-        # Log progress for large datasets
-        if (i + 1) % 10000 == 0:
-            print(f"Processed {i + 1}/{len(train_data)} training samples")
-
-    hf_train_dataset = HFDataset.from_dict(train_dict)
-    del train_dict  # Free memory
-    hf_train_dataset = hf_train_dataset.shuffle(seed=42).select(range(int(sample_frac * len(hf_train_dataset))))
-
-    print("Converting validation dataset to HuggingFace format...")
-    val_dict = {}
-    for i, item in enumerate(val_data):
-        if i == 0:
-            for k in item.keys():
-                val_dict[k] = []
-        for k in item.keys():
-            val_dict[k].append(item[k])
-
-    hf_val_dataset = HFDataset.from_dict(val_dict)
-    del val_dict  # Free memory
-    hf_val_dataset = hf_val_dataset.shuffle(seed=42)
-
-    print(hf_train_dataset)
-    print(hf_val_dataset)
+    # Use PyTorch datasets directly (keeps lazy loading and avoids full materialization)
+    print(f"Train dataset size: {len(train_data)}")
+    print(f"Val dataset size: {len(val_data)}")
     eval_step = 0.05
 
     # Prepare training arguments with optional DeepSpeed
@@ -297,8 +264,11 @@ def train(
         "load_best_model_at_end": True,
         "ddp_find_unused_parameters": False if ddp else None,
         "group_by_length": group_by_length,
-        "report_to": "none",  # Disable all reporting integrations
+        "report_to": "wandb" if wandb_project else "none",  # Enable wandb only if project is set
         "gradient_checkpointing": True,  # Enable gradient checkpointing in training args
+        "dataloader_num_workers": 4,
+        "dataloader_pin_memory": True,
+        "dataloader_persistent_workers": True,
     }
 
     # Add DeepSpeed config if provided
@@ -308,8 +278,8 @@ def train(
 
     trainer = transformers.Trainer(
         model=model,
-        train_dataset=hf_train_dataset,
-        eval_dataset=hf_val_dataset,
+        train_dataset=train_data,
+        eval_dataset=val_data,
         args=transformers.TrainingArguments(**training_args_dict),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True

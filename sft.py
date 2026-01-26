@@ -103,7 +103,7 @@ def train(
     micro_batch_size: int = 4,
     num_epochs: int = 10,
     learning_rate: float = 3e-4,
-    cutoff_len: int = 512,
+    cutoff_len: int = 4096,
     # llm hyperparams
     group_by_length: bool = False,  # faster, but produces an odd training loss curve
     freeze_LLM: bool = False,  # freeze LLM parameters, only train new token embeddings
@@ -120,7 +120,7 @@ def train(
     set_seed(seed)
     os.environ['WANDB_PROJECT'] = wandb_project
     category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products",
-                     "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books"}
+                     "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books", "GenRecDatasetV2_1": "general recommendation"}
     print(category)
     category = category_dict[category]
     assert (
@@ -227,23 +227,17 @@ def train(
         model.is_parallelizable = True
         model.model_parallel = True
 
-    sample_frac = 1
-    hf_train_dataset = HFDataset.from_dict(
-        {k: [v[k] for v in train_data] for k in train_data[0].keys()})
-    hf_train_dataset = hf_train_dataset.shuffle(seed=42).select(
-        range(int(sample_frac * len(hf_train_dataset))))
-    hf_val_dataset = HFDataset.from_dict(
-        {k: [v[k] for v in val_data] for k in val_data[0].keys()}).shuffle(seed=seed)
-    hf_val_dataset = hf_val_dataset.shuffle(seed=42)
-
-    print(hf_train_dataset)
-    print(hf_val_dataset)
+    # Use PyTorch datasets directly instead of converting to HF format
+    # This preserves lazy loading - samples are prepared on-demand by DataLoader
+    print(f"Train dataset size: {len(train_data)}")
+    print(f"Val dataset size: {len(val_data)}")
+    
     eval_step = 0.05
     trainer = transformers.Trainer(
         # deepspeed=deepspeed,
         model=model,
-        train_dataset=hf_train_dataset,
-        eval_dataset=hf_val_dataset,
+        train_dataset=train_data,
+        eval_dataset=val_data,
         args=transformers.TrainingArguments(
             # deepspeed=deepspeed,
             run_name=wandb_run_name,
@@ -265,7 +259,11 @@ def train(
             load_best_model_at_end=True,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            report_to=None,
+            report_to="wandb" if wandb_project else None,  # Enable wandb if project specified
+            dataloader_num_workers=4,  # Parallel data loading (4 workers per GPU)
+            dataloader_pin_memory=True,  # Faster GPU transfer
+            dataloader_persistent_workers=True,  # Keep workers alive between epochs
+            disable_tqdm=False,  # Enable progress bar
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True

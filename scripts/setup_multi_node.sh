@@ -126,6 +126,27 @@ for node in $NODES; do
             echo \"Torchvision version OK: \$CURRENT_TV\"
         fi
 
+        # Fix NCCL version consistency (critical for multi-node training)
+        NCCL_VERSION=\"2.21.5\"
+        CURRENT_NCCL=\$(python -c \"import nvidia.nccl; print(nvidia.nccl.__version__)\" 2>/dev/null || echo \"unknown\")
+        if [[ \"\$CURRENT_NCCL\" != \"\$NCCL_VERSION\" ]]; then
+            echo \"Fixing NCCL on $node: \$CURRENT_NCCL -> \$NCCL_VERSION\"
+            pip uninstall nvidia-nccl-cu11 nvidia-nccl-cu12 -y 2>/dev/null || true
+            pip install -q nvidia-nccl-cu12==\$NCCL_VERSION
+        else
+            echo \"NCCL version OK: \$CURRENT_NCCL\"
+        fi
+
+        # Fix accelerate version consistency
+        ACCELERATE_VERSION=\"1.10.1\"
+        CURRENT_ACC=\$(python -c \"import accelerate; print(accelerate.__version__)\" 2>/dev/null || echo \"unknown\")
+        if [[ \"\$CURRENT_ACC\" != \"\$ACCELERATE_VERSION\" ]]; then
+            echo \"Fixing accelerate on $node: \$CURRENT_ACC -> \$ACCELERATE_VERSION\"
+            pip install -q accelerate==\$ACCELERATE_VERSION
+        else
+            echo \"Accelerate version OK: \$CURRENT_ACC\"
+        fi
+
         # Check if other requirements are installed
         if python -c \"import transformers, deepspeed\" 2>/dev/null; then
             echo \"Core packages already installed on $node\"

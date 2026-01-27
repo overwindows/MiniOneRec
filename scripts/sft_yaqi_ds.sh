@@ -39,6 +39,9 @@ if [ -z "$HOSTFILE" ]; then
 fi
 MODEL_PATH=Qwen/Qwen3-1.7B
 
+# Data root path (can be overridden by environment variable)
+DATA_ROOT=${DATA_ROOT:-/home/aiscuser/MiniOneRec/data/GenRecDatasetV3}
+
 # Create default hostfile if it doesn't exist (single node with 8 GPUs)
 if [ ! -f "$HOSTFILE" ]; then
     echo "Creating default hostfile for single-node training..."
@@ -49,10 +52,11 @@ echo "Using hostfile: $HOSTFILE"
 cat $HOSTFILE
 
 for category in "GenRecDatasetV2_1"; do
-    train_file=$(ls -f /home/aiscuser/MiniOneRec/data/GenRecDatasetV3/train/train.csv)
-    eval_file=$(ls -f /home/aiscuser/MiniOneRec/data/GenRecDatasetV3/valid/valid.csv)
-    test_file=$(ls -f /home/aiscuser/MiniOneRec/data/GenRecDatasetV3/test/test.csv)
-    info_file=$(ls -f /home/aiscuser/MiniOneRec/data/GenRecDatasetV3/info/GenRecDatasetV2_1.txt)
+    train_file=${DATA_ROOT}/train/train.csv
+    eval_file=${DATA_ROOT}/valid/valid.csv
+    test_file=${DATA_ROOT}/test/test.csv
+    info_file=${DATA_ROOT}/info/GenRecDatasetV2_1.txt
+    echo "DATA_ROOT: ${DATA_ROOT}"
     echo ${train_file} ${eval_file} ${info_file} ${test_file}
 
     export PDSH_RCMD_TYPE=ssh
@@ -68,13 +72,13 @@ for category in "GenRecDatasetV2_1"; do
             --train_file ${train_file} \
             --eval_file ${eval_file} \
             --output_dir output_dir/MiniOneRec_v2 \
-            --wandb_project wandb_proj \
-            --wandb_run_name wandb_name \
+            --wandb_project MiniOneRec \
+            --wandb_run_name sft_GenRecV2_Qwen3-1.7B_bs1024 \
             --category ${category} \
             --train_from_scratch False \
             --seed 42 \
-            --sid_index_path /home/aiscuser/MiniOneRec/data/GenRecDatasetV3/index/GenRecDatasetV2_1.index.json \
-            --item_meta_path /home/aiscuser/MiniOneRec/data/GenRecDatasetV3/index/GenRecDatasetV2_1.item.json \
+            --sid_index_path ${DATA_ROOT}/index/GenRecDatasetV2_1.index.json \
+            --item_meta_path ${DATA_ROOT}/index/GenRecDatasetV2_1.item.json \
             --freeze_LLM False \
             --deepspeed_config ds_config_zero2.json
 

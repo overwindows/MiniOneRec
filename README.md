@@ -1002,6 +1002,94 @@ Good luck achieving SOTA! 🚀
 
 ---
 
+### 🔀 Hybrid Approaches: Combining Point-wise and Ranking
+
+We provide several approaches to combine point-wise (Yes/No classification) and ranking (select best) methods. Each approach captures different aspects:
+
+| Approach | Description | When to Use |
+|----------|-------------|-------------|
+| **Score Ensemble** | Combine scores from both models at inference | Quick experiment, no retraining needed |
+| **Two-Stage Training** | Point-wise pre-train → Ranking fine-tune | Better initialization for ranking |
+| **Cascade/Reranking** | Point-wise filters top-K → Ranking reranks | Fast inference with accuracy |
+| **Multi-Task Learning** | Train on both tasks simultaneously | Joint optimization |
+
+#### 1. Score Ensemble (No Retraining)
+
+Combine scores from separately trained point-wise and ranking models:
+
+```bash
+# Evaluate with ensemble (alpha = weight for point-wise scores)
+bash scripts/eval_mind_ensemble.sh \
+    output_dir/sft_mind_pointwise_*/final_checkpoint \
+    output_dir/sft_mind_ranking_*/final_checkpoint \
+    0.5 dev  # alpha=0.5, 50% each
+
+# Try different alpha values
+ALPHA=0.3 bash scripts/eval_mind_ensemble.sh ...  # More weight on ranking
+ALPHA=0.7 bash scripts/eval_mind_ensemble.sh ...  # More weight on point-wise
+```
+
+#### 2. Two-Stage Training
+
+First train point-wise (learns relevance), then fine-tune with ranking (learns ordering):
+
+```bash
+bash scripts/sft_mind_twostage.sh
+
+# Customize stages
+STAGE1_EPOCHS=2 STAGE2_EPOCHS=3 bash scripts/sft_mind_twostage.sh
+```
+
+**Stage 1**: Point-wise SFT (shorter context, faster training)
+**Stage 2**: Ranking SFT with lower learning rate (fine-tuning)
+
+#### 3. Cascade/Reranking
+
+Use point-wise for fast initial filtering, then ranking for accurate reranking:
+
+```bash
+# Point-wise filters to top-10, ranking reranks them
+bash scripts/eval_mind_cascade.sh \
+    output_dir/sft_mind_pointwise_*/final_checkpoint \
+    output_dir/sft_mind_ranking_*/final_checkpoint \
+    10 dev  # top_k=10
+
+# Try different top-K values
+TOP_K=5 bash scripts/eval_mind_cascade.sh ...   # More aggressive filtering
+TOP_K=20 bash scripts/eval_mind_cascade.sh ...  # Keep more candidates
+```
+
+#### 4. Multi-Task Learning
+
+Train a single model on both tasks simultaneously:
+
+```bash
+bash scripts/sft_mind_multitask.sh
+
+# Customize task ratio (0.5 = 50% point-wise, 50% ranking)
+POINTWISE_RATIO=0.3 bash scripts/sft_mind_multitask.sh  # More ranking samples
+POINTWISE_RATIO=0.7 bash scripts/sft_mind_multitask.sh  # More point-wise samples
+```
+
+The model learns both:
+- **Point-wise**: "Is this article relevant?" → Yes/No
+- **Ranking**: "Which article is most relevant?" → Select number
+
+#### Scripts Summary
+
+| Script | Type | Description |
+|--------|------|-------------|
+| `evaluate_mind_ensemble.py` | Eval | Score ensemble at inference time |
+| `evaluate_mind_cascade.py` | Eval | Cascade: filter + rerank |
+| `src/sft_mind_twostage.py` | Train | Two-stage: point-wise → ranking |
+| `src/sft_mind_multitask.py` | Train | Multi-task joint training |
+| `scripts/eval_mind_ensemble.sh` | Shell | Run ensemble evaluation |
+| `scripts/eval_mind_cascade.sh` | Shell | Run cascade evaluation |
+| `scripts/sft_mind_twostage.sh` | Shell | Run two-stage training |
+| `scripts/sft_mind_multitask.sh` | Shell | Run multi-task training |
+
+---
+
 ### 🎯 Reinforcement Learning for MIND (Advanced)
 
 After SFT training, you can further improve ranking performance using **Reinforcement Learning with nDCG reward**. This directly optimizes the ranking metric you care about!

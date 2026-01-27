@@ -74,7 +74,7 @@ for node in $NODES; do
             source /opt/conda/etc/profile.d/conda.sh
         fi
 
-        # Create symlink to shared NFS DATA path (code is rsync'd separately)
+        # Create symlink to shared NFS DATA path (code is rsynced separately)
         if [ -n \"$RESOLVED_DATA_PATH\" ] && [ -d \"$RESOLVED_DATA_PATH\" ]; then
             mkdir -p /home/aiscuser/MiniOneRec/data 2>/dev/null || true
             if [ ! -e /home/aiscuser/MiniOneRec/data/GenRecDatasetV3 ]; then

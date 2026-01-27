@@ -15,8 +15,10 @@ export TORCH_NCCL_BLOCKING_WAIT=1
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=7200
 
-# WandB Configuration (enabled; set WANDB_DISABLED=true to turn off)
+# WandB Configuration
+export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
 export WANDB_MODE=online
+echo "WandB: online mode"
 
 # Use a different port to avoid conflicts
 export MASTER_PORT=29502
@@ -68,7 +70,7 @@ for category in "GenRecDatasetV2_1"; do
             sft_ds.py \
             --base_model ${MODEL_PATH} \
             --batch_size 1024 \
-            --micro_batch_size 4 \
+            --micro_batch_size 2 \
             --train_file ${train_file} \
             --eval_file ${eval_file} \
             --output_dir output_dir/MiniOneRec_v2 \

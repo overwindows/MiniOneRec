@@ -13,6 +13,14 @@ SHARED_DATA_PATH="${SHARED_DATA_PATH:-/scratch/azureml/cr/j/*/cap/data-capabilit
 # Resolve glob patterns to actual paths
 RESOLVED_DATA_PATH=$(ls -d $SHARED_DATA_PATH 2>/dev/null | head -1)
 
+# Get WandB API key from environment, netrc file, or use default
+if [ -z "$WANDB_API_KEY" ]; then
+    # Try to get from existing wandb config
+    WANDB_API_KEY=$(python -c "import netrc; print(netrc.netrc().authenticators('api.wandb.ai')[2])" 2>/dev/null || echo "")
+fi
+# Use default key if still not set
+WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
+
 # Check if the path is a shared path accessible from all nodes
 # Prefer /home/aiscuser paths which are typically shared
 if [[ "$WORK_DIR" == /scratch/* ]]; then
@@ -170,6 +178,14 @@ for node in $NODES; do
             else
                 echo \"Skipping flash-attn (torch not installed)\"
             fi
+        fi
+
+        # Configure WandB authentication
+        if [ -n \"$WANDB_API_KEY\" ]; then
+            echo \"Configuring WandB on $node...\"
+            python -c \"import wandb; wandb.login(key=\\\"$WANDB_API_KEY\\\")\" 2>/dev/null && echo \"WandB configured successfully\" || echo \"WandB login failed\"
+        else
+            echo \"WANDB_API_KEY not set, skipping WandB login\"
         fi
 
         echo \"Setup complete on $node\"

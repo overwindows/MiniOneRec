@@ -155,17 +155,13 @@ for node in $NODES; do
             echo \"Accelerate version OK: \$CURRENT_ACC\"
         fi
 
-        # Check if other requirements are installed
-        if python -c \"import transformers, deepspeed\" 2>/dev/null; then
-            echo \"Core packages already installed on $node\"
+        # Always install requirements to keep nodes consistent
+        echo \"Installing requirements on $node...\"
+        if [ -f requirements.txt ]; then
+            pip install -q -r requirements.txt
         else
-            echo \"Installing requirements on $node...\"
-            if [ -f requirements.txt ]; then
-                pip install -q -r requirements.txt
-            else
-                echo \"requirements.txt not found, installing core packages...\"
-                pip install -q transformers==\$TRANSFORMERS_VERSION accelerate deepspeed==\$DEEPSPEED_VERSION fire wandb scikit-learn tqdm
-            fi
+            echo \"requirements.txt not found, installing core packages...\"
+            pip install -q transformers==\$TRANSFORMERS_VERSION accelerate deepspeed==\$DEEPSPEED_VERSION fire wandb scikit-learn tqdm
         fi
 
         # Check if flash-attn is installed (requires torch to be installed first)

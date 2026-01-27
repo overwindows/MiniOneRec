@@ -284,13 +284,15 @@ Once you have the ZIP files downloaded locally, use the preparation script to ex
 
 ```bash
 # For development with MINDsmall
-python prepare_mind.py --root ../data/MIND --size small --splits train,dev --local ../downloaded/zips
+python prepare_mind.py --root ../data/MIND_small --size small --splits train,dev --local ../downloaded/zips
 
 # For leaderboard with MINDlarge
-python prepare_mind.py --root ../data/MIND --size large --splits train,dev,test --local ../downloaded/zips
+python prepare_mind.py --root ../data/MIND_large --size large --splits train,dev,test --local ../downloaded/zips
 ```
 
 The script will automatically find and extract the ZIP files to the correct directory structure.
+
+**Tip:** If you keep separate folders (`../data/MIND_small` and `../data/MIND_large`), the training/eval scripts will auto-select the right one based on `MIND_SIZE` when `MIND_ROOT` is not set.
 
 ### Training on MIND
 
@@ -555,7 +557,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 **Auto-extraction feature**: The script automatically extracts MIND data from ZIP files if `behaviors.tsv` and `news.tsv` are not found.
 
 **Environment variables**:
-- `MIND_ROOT`: Root directory containing MIND data (default: `../data/MIND`)
+- `MIND_ROOT`: Root directory containing MIND data (default: auto-select `../data/MIND_small` or `../data/MIND_large` based on `MIND_SIZE`, falling back to `../data/MIND`)
 - `MIND_SIZE`: Dataset size - `small` or `large` (default: `small`)
 - `MIND_ZIPS`: Directory containing MIND ZIP files (default: `~/wuc/downloaded/zips`)
 - `USE_ABSTRACT`: Set to 1 to use abstracts (default: 0)
@@ -2027,6 +2029,40 @@ If you still encounter OOM errors:
 1. Reduce `batch_size` to 8
 2. Reduce `cutoff_len` to 256 or 384
 3. Enable NVMe offload in DeepSpeed config (for very large models)
+
+### Training on GenRecDatasetV3
+
+For training on the GenRecDatasetV3 dataset with multi-node DeepSpeed:
+
+```bash
+# Basic usage (default data path)
+bash scripts/sft_yaqi_ds.sh
+
+# Custom data path (e.g., shared NFS)
+DATA_ROOT=/path/to/your/GenRecDatasetV3 bash scripts/sft_yaqi_ds.sh
+```
+
+**Environment Variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATA_ROOT` | `/home/aiscuser/MiniOneRec/data/GenRecDatasetV3` | Root path to GenRecDatasetV3 data |
+| `HOSTFILE` | Auto-detected (`/job/hostfile` or `./hostfile`) | Path to DeepSpeed hostfile |
+| `MASTER_PORT` | `29502` | Port for distributed training |
+
+**Expected Data Structure:**
+```
+${DATA_ROOT}/
+├── train/train.csv
+├── valid/valid.csv
+├── test/test.csv
+├── info/GenRecDatasetV2_1.txt
+└── index/
+    ├── GenRecDatasetV2_1.index.json
+    └── GenRecDatasetV2_1.item.json
+```
+
+**Multi-Node Setup:**
+Ensure `DATA_ROOT` points to a path accessible from all nodes (e.g., shared NFS mount).
 
 ### 5. Recommendation-Oriented RL
 > (Optional) For production-scale datasets, considering the cost of reinforcement learning and diminishing marginal returns, you can perform the RL stage using only a relatively small subset on the order of tens of thousands of samples.

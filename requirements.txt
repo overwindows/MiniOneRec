@@ -5,7 +5,7 @@ torcheval==0.0.7
 torchmetrics==1.0.3
 torchrec==0.6.0+cu118
 torchsnapshot==0.1.0
-# torchvision==0.21.0
+torchvision==0.21.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.3.5
 aiohttp==3.10.3
@@ -137,4 +137,4 @@ wcwidth==0.2.13
 xxhash==3.6.0
 yarl==1.9.4
 zipp==3.20.0
---extra-index-url https://download.pytorch.org/whl/cu118
+--extra-index-url https://download.pytorch.org/whl/cu124

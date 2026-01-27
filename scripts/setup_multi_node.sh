@@ -7,6 +7,12 @@ NODES=$(cat /job/hostfile | awk '{print $1}')
 # Use current directory or specify WORK_DIR environment variable
 WORK_DIR="${WORK_DIR:-$(pwd)}"
 
+# Shared NFS path for DATA only (code is synced to each node)
+SHARED_DATA_PATH="${SHARED_DATA_PATH:-/scratch/azureml/cr/j/*/cap/data-capability/wd/INPUT_msndni/shares/users/wuc/data/GenRecDatasetV3}"
+
+# Resolve glob patterns to actual paths
+RESOLVED_DATA_PATH=$(ls -d $SHARED_DATA_PATH 2>/dev/null | head -1)
+
 # Check if the path is a shared path accessible from all nodes
 # Prefer /home/aiscuser paths which are typically shared
 if [[ "$WORK_DIR" == /scratch/* ]]; then
@@ -68,6 +74,17 @@ for node in $NODES; do
             source /opt/conda/etc/profile.d/conda.sh
         fi
 
+        # Create symlink to shared NFS DATA path (code is rsync'd separately)
+        if [ -n \"$RESOLVED_DATA_PATH\" ] && [ -d \"$RESOLVED_DATA_PATH\" ]; then
+            mkdir -p /home/aiscuser/MiniOneRec/data 2>/dev/null || true
+            if [ ! -e /home/aiscuser/MiniOneRec/data/GenRecDatasetV3 ]; then
+                echo \"Creating data symlink: /home/aiscuser/MiniOneRec/data/GenRecDatasetV3 -> $RESOLVED_DATA_PATH\"
+                ln -sf \"$RESOLVED_DATA_PATH\" /home/aiscuser/MiniOneRec/data/GenRecDatasetV3
+            else
+                echo \"Data symlink already exists\"
+            fi
+        fi
+
         # Check if MiniOneRec environment exists
         if conda env list | grep -q \"^MiniOneRec \"; then
             echo \"Environment MiniOneRec already exists on $node\"
@@ -96,6 +113,17 @@ for node in $NODES; do
             pip install -q torch==\$TORCH_VERSION
         else
             echo \"Torch version OK: \$CURRENT_TORCH\"
+        fi
+
+        # Fix torchvision compatibility (must match torch version)
+        TORCHVISION_VERSION=\"0.21.0\"
+        CURRENT_TV=\$(python -c \"import torchvision; print(torchvision.__version__)\" 2>/dev/null | cut -d'+' -f1)
+        if [[ \"\$CURRENT_TV\" != \"\$TORCHVISION_VERSION\" ]]; then
+            echo \"Fixing torchvision on $node: \$CURRENT_TV -> \$TORCHVISION_VERSION\"
+            pip uninstall torchvision -y 2>/dev/null
+            pip install -q torchvision==\$TORCHVISION_VERSION --index-url https://download.pytorch.org/whl/cu124
+        else
+            echo \"Torchvision version OK: \$CURRENT_TV\"
         fi
 
         # Check if other requirements are installed

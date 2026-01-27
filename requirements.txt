@@ -57,7 +57,7 @@ mypy-extensions==1.0.0
 nest-asyncio==1.6.0
 networkx==3.2.1
 ninja==1.11.1.1
-numpy==1.26.3
+numpy>=1.26.3,<2.0.0
 nvidia-cublas-cu12==12.4.5.8
 nvidia-cuda-cupti-cu12==12.4.127
 nvidia-cuda-nvrtc-cu12==12.4.127

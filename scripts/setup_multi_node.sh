@@ -15,9 +15,23 @@ if [[ "$WORK_DIR" == /scratch/* ]]; then
 fi
 
 echo "Setting up environment on all nodes from /job/hostfile..."
+echo "Work directory: $WORK_DIR"
 cat /job/hostfile
 
+# Get current node name
+CURRENT_NODE=$(hostname)
+
 for node in $NODES; do
+    # Skip syncing to current node
+    if [[ "$node" != "$CURRENT_NODE" ]]; then
+        echo "================================"
+        echo "Syncing code to $node..."
+        echo "================================"
+        # Create directory and sync code (excluding large files)
+        ssh $node "mkdir -p $WORK_DIR" 2>/dev/null
+        rsync -az --exclude='output_dir' --exclude='*.safetensors' --exclude='*.bin' --exclude='*.pt' --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' "$WORK_DIR/" "$node:$WORK_DIR/"
+        echo "Code synced to $node"
+    fi
     echo "================================"
     echo "Setting up $node..."
     echo "================================"

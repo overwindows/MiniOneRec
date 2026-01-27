@@ -82,8 +82,24 @@ for node in $NODES; do
         # Navigate to project directory
         cd $WORK_DIR
 
-        # Check if requirements are installed
-        if python -c \"import transformers, deepspeed, torch\" 2>/dev/null; then
+        # Define required versions for consistency across nodes
+        TORCH_VERSION=\"2.6.0\"
+        TRANSFORMERS_VERSION=\"4.51.3\"
+        DEEPSPEED_VERSION=\"0.18.0\"
+        FLASH_ATTN_VERSION=\"2.7.3\"
+
+        # Check torch version and reinstall if different
+        CURRENT_TORCH=\$(python -c \"import torch; print(torch.__version__)\" 2>/dev/null | cut -d'+' -f1)
+        if [[ \"\$CURRENT_TORCH\" != \"\$TORCH_VERSION\" ]]; then
+            echo \"Torch version mismatch on $node: \$CURRENT_TORCH vs \$TORCH_VERSION\"
+            echo \"Installing torch==\$TORCH_VERSION...\"
+            pip install -q torch==\$TORCH_VERSION
+        else
+            echo \"Torch version OK: \$CURRENT_TORCH\"
+        fi
+
+        # Check if other requirements are installed
+        if python -c \"import transformers, deepspeed\" 2>/dev/null; then
             echo \"Core packages already installed on $node\"
         else
             echo \"Installing requirements on $node...\"
@@ -91,7 +107,7 @@ for node in $NODES; do
                 pip install -q -r requirements.txt
             else
                 echo \"requirements.txt not found, installing core packages...\"
-                pip install -q torch transformers accelerate deepspeed fire wandb scikit-learn tqdm
+                pip install -q transformers==\$TRANSFORMERS_VERSION accelerate deepspeed==\$DEEPSPEED_VERSION fire wandb scikit-learn tqdm
             fi
         fi
 
@@ -101,7 +117,7 @@ for node in $NODES; do
         else
             if python -c \"import torch\" 2>/dev/null; then
                 echo \"Installing flash-attn on $node...\"
-                pip install flash-attn --no-build-isolation
+                pip install flash-attn==2.7.3 --no-build-isolation
             else
                 echo \"Skipping flash-attn (torch not installed)\"
             fi

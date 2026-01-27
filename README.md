@@ -581,6 +581,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_small_Qwen3-1.7B_bs1024** | 53.72% | 26.23% | 24.53% | 31.00% | Fine-tuned on MIND directly |
 | **sft_mind_ranking_small_Qwen3-1.7B_bs1024** | 65.49% | 45.30% | 50.36% | 56.57% | Ranking-aware SFT |
 | **sft_mind_ranking_small_Qwen3-1.7B_bs1024_ep3_neg8.0_hist50** | 62.41% | 27.86% | 30.21% | 36.79% | Ranking-aware SFT with neg_ratio=8, max_history=50 |
+| **sft_mind_ranking_small_Qwen3-1.7B_bs1024_ep3_neg6.0_hist50** | 65.84% | 28.28% | 30.41% | 37.24% | Ranking-aware SFT with neg_ratio=6, max_history=50 |
 | **sft_mind_ranking_small_Qwen3-1.7B-Base_bs1024_ep3** | **66.17%** 🏆 | **45.20%** 🏆 | **50.09%** 🏆 | **56.45%** 🏆 | **Ranking-aware SFT with Qwen3-1.7B-Base - NEW BEST!** |
 | **sft_mind_ranking_small_Qwen3-1.7B-Base_bs1024_ep3_neg8.0_hist50** | 65.17% | 28.36% | 30.43% | 37.22% | Ranking-aware SFT with neg_ratio=8, max_history=50 |
 | **rl_mind_small_Qwen3-1.7B-Base_mind_ndcg** | 66.11% | 45.28% | 50.23% | 56.57% | RL fine-tuned from ranking SFT (nDCG reward) |

@@ -112,6 +112,8 @@ for node in $NODES; do
         TRANSFORMERS_VERSION=\"4.51.3\"
         DEEPSPEED_VERSION=\"0.18.0\"
         FLASH_ATTN_VERSION=\"2.7.3\"
+        TORCHREC_VERSION=\"0.8.0+cu124\"
+        FBGEMM_VERSION=\"0.8.0+cu124\"
 
         # Check torch version and reinstall if different
         CURRENT_TORCH=\$(python -c \"import torch; print(torch.__version__)\" 2>/dev/null | cut -d'+' -f1)
@@ -164,13 +166,44 @@ for node in $NODES; do
             pip install -q transformers==\$TRANSFORMERS_VERSION accelerate deepspeed==\$DEEPSPEED_VERSION fire wandb scikit-learn tqdm
         fi
 
+        # Enforce exact versions for core native deps (avoid mismatches across nodes)
+        CURRENT_DS=\$(python -c \"import deepspeed; print(deepspeed.__version__)\" 2>/dev/null || echo \"unknown\")
+        if [[ \"\$CURRENT_DS\" != \"\$DEEPSPEED_VERSION\" ]]; then
+            echo \"Fixing DeepSpeed on $node: \$CURRENT_DS -> \$DEEPSPEED_VERSION\"
+            pip install -q deepspeed==\$DEEPSPEED_VERSION
+        else
+            echo \"DeepSpeed version OK: \$CURRENT_DS\"
+        fi
+
+        CURRENT_TR=\$(python -c \"import torchrec; print(torchrec.__version__)\" 2>/dev/null || echo \"unknown\")
+        if [[ \"\$CURRENT_TR\" != \"\$TORCHREC_VERSION\" ]]; then
+            echo \"Fixing torchrec on $node: \$CURRENT_TR -> \$TORCHREC_VERSION\"
+            pip install -q torchrec==\$TORCHREC_VERSION --index-url https://download.pytorch.org/whl/cu124
+        else
+            echo \"torchrec version OK: \$CURRENT_TR\"
+        fi
+
+        CURRENT_FB=\$(python -c \"import fbgemm_gpu; print(fbgemm_gpu.__version__)\" 2>/dev/null || echo \"unknown\")
+        if [[ \"\$CURRENT_FB\" != \"\$FBGEMM_VERSION\" ]]; then
+            echo \"Fixing fbgemm_gpu on $node: \$CURRENT_FB -> \$FBGEMM_VERSION\"
+            pip install -q fbgemm_gpu==\$FBGEMM_VERSION --index-url https://download.pytorch.org/whl/cu124
+        else
+            echo \"fbgemm_gpu version OK: \$CURRENT_FB\"
+        fi
+
         # Check if flash-attn is installed (requires torch to be installed first)
         if python -c \"import flash_attn\" 2>/dev/null; then
-            echo \"flash-attn already installed on $node\"
+            CURRENT_FA=\$(python -c \"import flash_attn; print(getattr(flash_attn, '__version__', 'unknown'))\" 2>/dev/null || echo \"unknown\")
+            if [[ \"\$CURRENT_FA\" != \"\$FLASH_ATTN_VERSION\" ]]; then
+                echo \"Fixing flash-attn on $node: \$CURRENT_FA -> \$FLASH_ATTN_VERSION\"
+                pip install -q flash-attn==\$FLASH_ATTN_VERSION --no-build-isolation
+            else
+                echo \"flash-attn version OK: \$CURRENT_FA\"
+            fi
         else
             if python -c \"import torch\" 2>/dev/null; then
                 echo \"Installing flash-attn on $node...\"
-                pip install flash-attn==2.7.3 --no-build-isolation
+                pip install flash-attn==\$FLASH_ATTN_VERSION --no-build-isolation
             else
                 echo \"Skipping flash-attn (torch not installed)\"
             fi

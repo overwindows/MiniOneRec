@@ -4,7 +4,15 @@
 # This script ensures all nodes have the proper environment
 
 NODES=$(cat /job/hostfile | awk '{print $1}')
-WORK_DIR="/scratch/azureml/cr/j/8b977194111146c28d89b1eb86b95f80/cap/data-capability/wd/INPUT_msndni/shares/users/wuc/MiniOneRec"
+# Use current directory or specify WORK_DIR environment variable
+WORK_DIR="${WORK_DIR:-$(pwd)}"
+
+# Check if the path is a shared path accessible from all nodes
+# Prefer /home/aiscuser paths which are typically shared
+if [[ "$WORK_DIR" == /scratch/* ]]; then
+    echo "WARNING: $WORK_DIR may not be accessible on other nodes."
+    echo "Consider using a shared path like /home/aiscuser/..."
+fi
 
 echo "Setting up environment on all nodes from /job/hostfile..."
 cat /job/hostfile
@@ -65,15 +73,24 @@ for node in $NODES; do
             echo \"Core packages already installed on $node\"
         else
             echo \"Installing requirements on $node...\"
-            pip install -q -r requirements.txt
+            if [ -f requirements.txt ]; then
+                pip install -q -r requirements.txt
+            else
+                echo \"requirements.txt not found, installing core packages...\"
+                pip install -q torch transformers accelerate deepspeed fire wandb scikit-learn tqdm
+            fi
         fi
 
-        # Check if flash-attn is installed
+        # Check if flash-attn is installed (requires torch to be installed first)
         if python -c \"import flash_attn\" 2>/dev/null; then
             echo \"flash-attn already installed on $node\"
         else
-            echo \"Installing flash-attn on $node...\"
-            pip install flash-attn --no-build-isolation
+            if python -c \"import torch\" 2>/dev/null; then
+                echo \"Installing flash-attn on $node...\"
+                pip install flash-attn --no-build-isolation
+            else
+                echo \"Skipping flash-attn (torch not installed)\"
+            fi
         fi
 
         echo \"Setup complete on $node\"

@@ -26,6 +26,7 @@ export NCCL_TIMEOUT=7200
 export TORCH_DISTRIBUTED_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=7200
+export TORCH_CUDA_ARCH_LIST="8.0"
 
 # =========================
 # CPU / Threading (important!)

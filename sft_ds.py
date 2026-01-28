@@ -1,4 +1,32 @@
 import os
+
+"""
+# NCCL – force safe behavior on AML
+os.environ["NCCL_DEBUG"] = "INFO"
+os.environ["NCCL_DEBUG_SUBSYS"] = "INIT,NET"
+
+os.environ["NCCL_IB_DISABLE"] = "1"
+os.environ["NCCL_P2P_DISABLE"] = "1"
+os.environ["NCCL_SOCKET_IFNAME"] = "eth0"
+
+os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "1"
+os.environ["NCCL_BLOCKING_WAIT"] = "1"
+os.environ["NCCL_TIMEOUT"] = "7200"
+
+# PyTorch distributed
+os.environ["TORCH_DISTRIBUTED_DEBUG"] = "INFO"
+os.environ["TORCH_NCCL_ASYNC_ERROR_HANDLING"] = "1"
+os.environ["TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC"] = "7200"
+
+# CUDA build / runtime
+os.environ["TORCH_CUDA_ARCH_LIST"] = "8.0"
+os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "1"
+
+# CPU threading
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+"""
+
 import sys
 from typing import List
 import numpy as np 

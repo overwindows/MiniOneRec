@@ -1,19 +1,42 @@
 #!/bin/bash
 
-# NCCL Configuration for multi-node training
+# =========================
+# NCCL (STABILITY FIRST)
+# =========================
 export NCCL_DEBUG=INFO
-export NCCL_IB_DISABLE=1
-export NCCL_SOCKET_IFNAME=eth0
-export NCCL_TIMEOUT=7200
-export NCCL_ASYNC_ERROR_HANDLING=1
-export NCCL_P2P_DISABLE=1
-export NCCL_BUFFSIZE=2097152
+export NCCL_DEBUG_SUBSYS=INIT,NET
 
-# PyTorch Distributed Configuration
-export TORCH_DISTRIBUTED_DEBUG=DETAIL
-export TORCH_NCCL_BLOCKING_WAIT=1
+# Disable RDMA / IB (AML-safe)
+export NCCL_IB_DISABLE=1
+export NCCL_P2P_DISABLE=1
+
+# Force TCP and correct NIC
+export NCCL_SOCKET_IFNAME=eth0
+
+# Prevent silent hangs
+export NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_BLOCKING_WAIT=1
+
+# Increase timeout for large allreduces
+export NCCL_TIMEOUT=7200
+
+# =========================
+# PyTorch Distributed
+# =========================
+export TORCH_DISTRIBUTED_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=7200
+
+# =========================
+# CPU / Threading (important!)
+# =========================
+export OMP_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+
+# =========================
+# CUDA (reduce contention)
+# =========================
+export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 # WandB Configuration
 export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"

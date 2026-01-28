@@ -266,9 +266,9 @@ def train(
         "group_by_length": group_by_length,
         "report_to": "wandb" if wandb_project else "none",  # Enable wandb only if project is set
         "gradient_checkpointing": True,  # Enable gradient checkpointing in training args
-        "dataloader_num_workers": 4,
-        "dataloader_pin_memory": True,
-        "dataloader_persistent_workers": True,
+        "dataloader_num_workers": 2,
+        "dataloader_pin_memory": False,
+        "dataloader_persistent_workers": False,
     }
 
     # Add DeepSpeed config if provided

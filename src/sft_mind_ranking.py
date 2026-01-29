@@ -449,7 +449,7 @@ def train(
     micro_batch_size: int = 2,  # OPTIMIZED: For 8B model memory (was 4)
     num_epochs: int = 5,  # OPTIMIZED: More epochs for MIND-large (was 3)
     learning_rate: float = 2e-5,  # CRITICAL: For fine-tuning 8B pretrained (was 3e-4)
-    cutoff_len: int = 4096,  # Sufficient for ranking task (was 8192)
+    cutoff_len: int = 6144,  # Increased to avoid skipping samples with many candidates (was 4096)
     group_by_length: bool = False,
     resume_from_checkpoint: str = None,
     train_from_scratch: bool = False,

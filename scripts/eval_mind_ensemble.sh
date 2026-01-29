@@ -29,8 +29,16 @@ if [[ -z "${POINTWISE_MODEL}" ]] || [[ -z "${RANKING_MODEL}" ]]; then
 fi
 
 # Configuration
-MIND_ROOT="${MIND_ROOT:-../data/MIND}"
 MIND_SIZE="${MIND_SIZE:-small}"
+if [[ -z "${MIND_ROOT:-}" ]]; then
+  if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
+    MIND_ROOT="../data/MIND_large"
+  elif [[ "${MIND_SIZE}" == "small" && -d "../data/MIND_small" ]]; then
+    MIND_ROOT="../data/MIND_small"
+  else
+    MIND_ROOT="../data/MIND"
+  fi
+fi
 USE_ABSTRACT="${USE_ABSTRACT:-0}"
 MAX_HISTORY="${MAX_HISTORY:-0}"
 MAX_IMPRESSIONS="${MAX_IMPRESSIONS:-0}"

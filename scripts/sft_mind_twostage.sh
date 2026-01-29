@@ -37,8 +37,16 @@ fi
 MODEL_PATH=${MODEL_PATH:-"Qwen/Qwen3-1.7B-Base"}
 
 # MIND dataset
-MIND_ROOT=${MIND_ROOT:-"../data/MIND"}
 MIND_SIZE=${MIND_SIZE:-"small"}
+if [[ -z "${MIND_ROOT:-}" ]]; then
+    if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
+        MIND_ROOT="../data/MIND_large"
+    elif [[ "${MIND_SIZE}" == "small" && -d "../data/MIND_small" ]]; then
+        MIND_ROOT="../data/MIND_small"
+    else
+        MIND_ROOT="../data/MIND"
+    fi
+fi
 
 # Data paths
 TRAIN_BEHAVIORS="${MIND_ROOT}/train/behaviors.tsv"

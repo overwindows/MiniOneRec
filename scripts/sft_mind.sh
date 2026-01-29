@@ -26,8 +26,16 @@ MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-1.7B}
 # MODEL_PATH=Qwen/Qwen3-4B-Instruct-2507
 # MODEL_PATH=Qwen/Qwen3-8B-Instruct-2507
 
-MIND_ROOT=${MIND_ROOT:-../data/MIND}
 MIND_SIZE=${MIND_SIZE:-small}  # small or large
+if [[ -z "${MIND_ROOT:-}" ]]; then
+    if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
+        MIND_ROOT="../data/MIND_large"
+    elif [[ "${MIND_SIZE}" == "small" && -d "../data/MIND_small" ]]; then
+        MIND_ROOT="../data/MIND_small"
+    else
+        MIND_ROOT="../data/MIND"
+    fi
+fi
 
 # Paths
 TRAIN_BEHAVIORS="${MIND_ROOT}/train/behaviors.tsv"

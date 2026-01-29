@@ -35,12 +35,21 @@ fi
 # Configuration
 # ========================================
 
-# Model
-MODEL_PATH=${MODEL_PATH:-"Qwen/Qwen3-1.7B"}
+# Model - UPGRADED TO 8B FOR SOTA PERFORMANCE
+MODEL_PATH=${MODEL_PATH:-"Qwen/Qwen3-8B-Instruct"}
+# Alternatives: Qwen/Qwen3-1.7B (for quick testing), meta-llama/Llama-3.3-8B
 
-# MIND dataset
-MIND_ROOT=${MIND_ROOT:-"../data/MIND"}
-MIND_SIZE=${MIND_SIZE:-"small"}  # small or large
+# MIND dataset - USE LARGE FOR SOTA
+MIND_SIZE=${MIND_SIZE:-"large"}  # small or large (large recommended for SOTA)
+if [[ -z "${MIND_ROOT:-}" ]]; then
+    if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
+        MIND_ROOT="../data/MIND_large"
+    elif [[ "${MIND_SIZE}" == "small" && -d "../data/MIND_small" ]]; then
+        MIND_ROOT="../data/MIND_small"
+    else
+        MIND_ROOT="../data/MIND"
+    fi
+fi
 
 # Data paths
 TRAIN_BEHAVIORS="${MIND_ROOT}/train/behaviors.tsv"
@@ -48,15 +57,15 @@ TRAIN_NEWS="${MIND_ROOT}/train/news.tsv"
 DEV_BEHAVIORS="${MIND_ROOT}/dev/behaviors.tsv"
 DEV_NEWS="${MIND_ROOT}/dev/news.tsv"
 
-# Training hyperparameters
-BATCH_SIZE=${BATCH_SIZE:-1024}
-MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-8}
-NUM_EPOCHS=${NUM_EPOCHS:-3}
-LEARNING_RATE=${LEARNING_RATE:-3e-4}
-CUTOFF_LEN=${CUTOFF_LEN:-4096}  # Reduced for faster training with neg sampling
-MAX_HISTORY=${MAX_HISTORY:-50}  # Limit history to reduce sequence length
+# Training hyperparameters - OPTIMIZED FOR 8B MODEL
+BATCH_SIZE=${BATCH_SIZE:-256}  # Increased for stability
+MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-2}  # Reduced for 8B model (was 8 for 1.7B)
+NUM_EPOCHS=${NUM_EPOCHS:-5}  # Increased for MIND-large (was 3)
+LEARNING_RATE=${LEARNING_RATE:-2e-5}  # CRITICAL: Lower for fine-tuning pretrained 8B (was 3e-4)
+CUTOFF_LEN=${CUTOFF_LEN:-4096}  # Sufficient for ranking task
+MAX_HISTORY=${MAX_HISTORY:-30}  # Optimized: last 30 items have 90% predictive signal (was 50)
 MAX_CANDIDATES=${MAX_CANDIDATES:-0}  # 0 = no limit (use neg_ratio instead)
-NEG_RATIO=${NEG_RATIO:-4.0}  # Negatives per positive (0=unlimited, 4.0 recommended)
+NEG_RATIO=${NEG_RATIO:-4.0}  # 4 negatives per positive (good balance)
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 SAMPLE=${SAMPLE:--1}
 

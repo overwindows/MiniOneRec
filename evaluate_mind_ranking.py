@@ -69,36 +69,41 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 
 def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) -> str:
     """
-    Build multiple-choice ranking prompt matching training format.
+    Build OPTIMIZED multiple-choice ranking prompt matching training format.
+
+    Based on Prompt4NR research (arXiv:2304.05263):
+    - Concise format saves ~20 tokens
+    - Category in [brackets] at start for better visibility
+    - Natural language question
+    - Limit to last 30 history items for focus
 
     Uses numeric options (1, 2, 3, ...) instead of letters to support unlimited candidates.
 
-    Returns the prompt without the "Answer:" part.
+    Returns the prompt with "Answer:" at the end.
     """
-    prompt = "Role: You are a news recommendation assistant.\n"
-    prompt += "Task: Select the most relevant news article for the user based on their reading history.\n\n"
+    prompt = "A user read these news articles:\n"
 
-    # User history (must match training format exactly - includes category)
-    prompt += "User History:\n"
+    # User history - limit to last 30 for token efficiency
     if history:
-        for i, h in enumerate(history, 1):
-            category = f" ({h['category']})" if h.get('category') else ""
-            prompt += f"{i}. [Title] {h['text']}{category}\n"
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get('category', 'General')
+            prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
 
-    # Candidate articles (use numbers instead of letters)
-    prompt += "Candidate News Articles:\n"
+    # Candidate articles - category first in brackets
+    prompt += "Candidate articles:\n"
     for i, cand in enumerate(candidates):
         option_num = i + 1  # 1-indexed
-        category = f" ({cand['category']})" if cand.get('category') else ""
-        prompt += f"{option_num}. [Title] {cand['text']}{category}\n"
+        cat = cand.get('category', 'General')
+        prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
     prompt += "\n"
-    prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
-    prompt += "Output only the option number.\n\n"
+    # Simple, direct question
+    prompt += "Which article will this user read? Answer with the number.\n\n"
     prompt += "Answer:"
 
     return prompt

@@ -67,33 +67,37 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 
 def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     """
-    Build point-wise prompt matching training format.
+    Build OPTIMIZED point-wise prompt matching training format.
+
+    Based on Prompt4NR research (arXiv:2304.05263):
+    - Concise format saves ~20 tokens (removes verbose "Role/Task")
+    - Category in [brackets] at start for better visibility
+    - Natural language question
+    - Limit to last 30 history items for focus
 
     Returns the prompt ending with "Answer:"
     """
-    prompt = "Role: You are a news recommendation assistant.\n"
-    prompt += "Task: Determine if the candidate article matches the user's interests.\n\n"
+    prompt = "A user read these news articles:\n"
 
-    # User history
-    prompt += "User History:\n"
+    # User history - limit to last 30 for token efficiency
     if history:
-        for i, h in enumerate(history, 1):
-            category = f" ({h.get('category', '')})" if h.get('category') else ""
-            prompt += f"{i}. [Title] {h['text']}{category}\n"
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get('category', 'General')
+            prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
 
-    # Candidate article
-    prompt += "Candidate Article:\n"
-    category = f" ({candidate.get('category', '')})" if candidate.get('category') else ""
-    prompt += f"[Title] {candidate['text']}{category}\n"
+    # Candidate article - category first in brackets
+    prompt += "Candidate article:\n"
+    cat = candidate.get('category', 'General')
+    prompt += f"[{cat}] {candidate['text']}\n"
 
     prompt += "\n"
-    prompt += "Based on the user's reading history, is this article relevant to them?\n"
-    prompt += "Answer with Yes or No.\n\n"
-    prompt += "Answer:"
+    # Simple, natural question
+    prompt += "Will this user read this article? Answer:"
 
     return prompt
 

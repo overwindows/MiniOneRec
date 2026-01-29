@@ -64,27 +64,36 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 # ============== Point-wise scoring ==============
 
 def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
-    """Build point-wise prompt matching training format."""
-    prompt = "Role: You are a news recommendation assistant.\n"
-    prompt += "Task: Determine if the candidate article matches the user's interests.\n\n"
+    """
+    Build OPTIMIZED point-wise prompt matching training format.
 
-    prompt += "User History:\n"
+    Based on Prompt4NR research (arXiv:2304.05263):
+    - Concise format saves ~20 tokens
+    - Category in [brackets] at start for better visibility
+    - Natural language question
+    - Limit to last 30 history items for focus
+    """
+    prompt = "A user read these news articles:\n"
+
+    # User history - limit to last 30 for token efficiency
     if history:
-        for i, h in enumerate(history, 1):
-            category = f" ({h.get('category', '')})" if h.get('category') else ""
-            prompt += f"{i}. [Title] {h['text']}{category}\n"
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get('category', 'General')
+            prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
-    prompt += "Candidate Article:\n"
-    category = f" ({candidate.get('category', '')})" if candidate.get('category') else ""
-    prompt += f"[Title] {candidate['text']}{category}\n"
+
+    # Candidate article - category first in brackets
+    prompt += "Candidate article:\n"
+    cat = candidate.get('category', 'General')
+    prompt += f"[{cat}] {candidate['text']}\n"
 
     prompt += "\n"
-    prompt += "Based on the user's reading history, is this article relevant to them?\n"
-    prompt += "Answer with Yes or No.\n\n"
-    prompt += "Answer:"
+    # Simple, natural question
+    prompt += "Will this user read this article? Answer:"
 
     return prompt
 
@@ -138,27 +147,37 @@ def score_pointwise_batch(
 # ============== Ranking-aware scoring ==============
 
 def build_ranking_prompt(history: List[dict], candidates: List[dict]) -> str:
-    """Build ranking prompt matching training format."""
-    prompt = "Role: You are a news recommendation assistant.\n"
-    prompt += "Task: Select the article that best matches the user's reading interests.\n\n"
+    """
+    Build OPTIMIZED multiple-choice ranking prompt matching training format.
 
-    prompt += "User History:\n"
+    Based on Prompt4NR research (arXiv:2304.05263):
+    - Concise format saves ~20 tokens
+    - Category in [brackets] at start for better visibility
+    - Natural language question
+    - Limit to last 30 history items for focus
+    """
+    prompt = "A user read these news articles:\n"
+
+    # User history - limit to last 30 for token efficiency
     if history:
-        for i, h in enumerate(history, 1):
-            category = f" ({h.get('category', '')})" if h.get('category') else ""
-            prompt += f"{i}. [Title] {h['text']}{category}\n"
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get('category', 'General')
+            prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
-    prompt += "Candidate Articles:\n"
+
+    # Candidate articles - category first in brackets
+    prompt += "Candidate articles:\n"
     for i, cand in enumerate(candidates, 1):
-        category = f" ({cand.get('category', '')})" if cand.get('category') else ""
-        prompt += f"{i}. [Title] {cand['text']}{category}\n"
+        cat = cand.get('category', 'General')
+        prompt += f"{i}. [{cat}] {cand['text']}\n"
 
     prompt += "\n"
-    prompt += "Which article number would this user most likely click on?\n"
-    prompt += "Answer with the article number only.\n\n"
+    # Simple, direct question
+    prompt += "Which article will this user read? Answer with the number.\n\n"
     prompt += "Answer:"
 
     return prompt

@@ -54,27 +54,38 @@ def load_news(news_path: str, use_abstract: bool = False) -> dict:
 
 
 def build_ranking_prompt(history_items: List[dict], candidates: List[dict]) -> str:
-    prompt = "Role: You are a news recommendation assistant.\n"
-    prompt += "Task: Select the most relevant news article for the user based on their reading history.\n\n"
+    """
+    Build OPTIMIZED multiple-choice ranking prompt with letter options (A, B, C...).
 
-    prompt += "User History:\n"
+    Based on Prompt4NR research (arXiv:2304.05263):
+    - Concise format saves ~20 tokens
+    - Category in [brackets] at start for better visibility
+    - Natural language question
+    - Limit to last 30 history items for focus
+    """
+    prompt = "A user read these news articles:\n"
+
+    # User history - limit to last 30 for token efficiency
     if history_items:
-        for i, item in enumerate(history_items, 1):
-            category = f" ({item.get('category', '')})" if item.get('category') else ""
-            prompt += f"{i}. [Title] {item['text']}{category}\n"
+        recent_history = history_items[-30:] if len(history_items) > 30 else history_items
+        for i, item in enumerate(recent_history, 1):
+            cat = item.get('category', 'General')
+            prompt += f"{i}. [{cat}] {item['text']}\n"
     else:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
-    prompt += "Candidate News Articles:\n"
+
+    # Candidate articles - category first in brackets, letter options
+    prompt += "Candidate articles:\n"
     for i, cand in enumerate(candidates):
         letter = _OPTION_LETTERS[i]
-        category = f" ({cand.get('category', '')})" if cand.get('category') else ""
-        prompt += f"{letter}. [Title] {cand['text']}{category}\n"
+        cat = cand.get('category', 'General')
+        prompt += f"{letter}. [{cat}] {cand['text']}\n"
 
     prompt += "\n"
-    prompt += "Please analyze the user's interests and select the best article from the candidates above.\n"
-    prompt += "Output only the option letter.\n\n"
+    # Simple, direct question
+    prompt += "Which article will this user read? Answer with the letter.\n\n"
     prompt += "Answer:"
     return prompt
 

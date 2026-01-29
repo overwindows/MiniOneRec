@@ -166,10 +166,33 @@ class MINDPointwiseSFTDataset:
                         'label': 1
                     })
 
-                # Sample negatives based on ratio
+                # IMPROVED: Hard negative sampling (50% same category, 50% different)
                 num_neg_to_sample = int(len(positives) * self.neg_ratio)
                 if num_neg_to_sample > 0 and negatives:
-                    sampled_negs = rng.sample(negatives, min(num_neg_to_sample, len(negatives)))
+                    # Get categories of positive items
+                    pos_categories = set([self.news[pid].get('category', '') for pid in positives])
+
+                    # Split negatives by category match
+                    hard_negs = []  # Same category
+                    easy_negs = []  # Different category
+                    for neg_id in negatives:
+                        neg_cat = self.news[neg_id].get('category', '')
+                        if neg_cat in pos_categories:
+                            hard_negs.append(neg_id)
+                        else:
+                            easy_negs.append(neg_id)
+
+                    # Sample 50/50 mix of hard and easy negatives
+                    num_hard = num_neg_to_sample // 2
+                    num_easy = num_neg_to_sample - num_hard
+
+                    sampled_negs = []
+                    if hard_negs:
+                        sampled_negs.extend(rng.sample(hard_negs, min(num_hard, len(hard_negs))))
+                    if easy_negs and len(sampled_negs) < num_neg_to_sample:
+                        remaining = num_neg_to_sample - len(sampled_negs)
+                        sampled_negs.extend(rng.sample(easy_negs, min(remaining, len(easy_negs))))
+
                     for neg_id in sampled_negs:
                         all_samples.append({
                             'impression_id': impression_id,
@@ -190,48 +213,46 @@ class MINDPointwiseSFTDataset:
 
     def _build_pointwise_prompt(self, history, candidate, label):
         """
-        Build point-wise prompt for binary classification.
+        Build OPTIMIZED point-wise prompt for binary classification.
+
+        Based on Prompt4NR research (arXiv:2304.05263):
+        - Concise format saves ~20 tokens (removes verbose "Role/Task")
+        - Category in [brackets] at start for better visibility
+        - Natural language question
+        - Limit to last 30 history items for focus
 
         Format:
-        Role: You are a news recommendation assistant.
-        Task: Determine if the candidate article matches the user's interests.
-
-        User History:
-        1. [Title] ... (Category)
-        2. [Title] ... (Category)
+        A user read these news articles:
+        1. [Category] Title...
+        2. [Category] Title...
         ...
 
-        Candidate Article:
-        [Title] ... (Category)
+        Candidate article:
+        [Category] Title...
 
-        Based on the user's reading history, is this article relevant to them?
-        Answer with Yes or No.
-
-        Answer:
+        Will this user read this article? Answer:
         """
-        prompt = "Role: You are a news recommendation assistant.\n"
-        prompt += "Task: Determine if the candidate article matches the user's interests.\n\n"
+        prompt = "A user read these news articles:\n"
 
-        # User history
-        prompt += "User History:\n"
+        # User history - limit to last 30 for token efficiency
         if history:
-            for i, h in enumerate(history, 1):
-                category = f" ({h.get('category', '')})" if h.get('category') else ""
-                prompt += f"{i}. [Title] {h['text']}{category}\n"
+            recent_history = history[-30:] if len(history) > 30 else history
+            for i, h in enumerate(recent_history, 1):
+                cat = h.get('category', 'General')
+                prompt += f"{i}. [{cat}] {h['text']}\n"
         else:
             prompt += "(No reading history)\n"
 
         prompt += "\n"
 
-        # Candidate article
-        prompt += "Candidate Article:\n"
-        category = f" ({candidate.get('category', '')})" if candidate.get('category') else ""
-        prompt += f"[Title] {candidate['text']}{category}\n"
+        # Candidate article - category first in brackets
+        prompt += "Candidate article:\n"
+        cat = candidate.get('category', 'General')
+        prompt += f"[{cat}] {candidate['text']}\n"
 
         prompt += "\n"
-        prompt += "Based on the user's reading history, is this article relevant to them?\n"
-        prompt += "Answer with Yes or No.\n\n"
-        prompt += "Answer:"
+        # Simple, natural question
+        prompt += "Will this user read this article? Answer:"
 
         # Target
         target = " Yes" if label == 1 else " No"

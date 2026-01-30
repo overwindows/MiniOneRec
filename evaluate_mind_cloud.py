@@ -86,7 +86,7 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
     prompt += "\n"
-    prompt += "Which article will this user read? Answer with the number.\n\n"
+    prompt += "Rank ALL candidate articles from most to least likely to be read by this user.\n\n"
     prompt += "Answer:"
     return prompt
 
@@ -196,13 +196,21 @@ def score_candidates_listwise(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
+            {
+                "role": "system",
+                "content": (
+                    "You are a helpful assistant that ranks news articles for users. "
+                    "Always respond with valid JSON in the exact format: {\"ranking\":[...]} "
+                    "where the list contains ALL option numbers ranked from most to least relevant."
+                )
+            },
             {
                 "role": "user",
                 "content": (
                     prompt
-                    + "\nReturn JSON only in this exact format: {\"ranking\":[3,1,2,...]}. "
-                    "Include all option numbers exactly once, best to worst."
+                    + f"\n\nYou MUST return valid JSON containing exactly {num_candidates} numbers (1 to {num_candidates}). "
+                    "Format: {\"ranking\":[3,1,5,2,4,...]} where the first number is the BEST article. "
+                    "Include every option number exactly once. Return ONLY the JSON, no explanations."
                 ),
             },
         ],
@@ -211,6 +219,15 @@ def score_candidates_listwise(
         max_tokens=max_tokens,
     )
     content = response.choices[0].message.content.strip()
+
+    # DEBUG: Print model responses to diagnose issues
+    import os
+    if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+        print(f"\n{'='*60}")
+        print(f"Candidates: {num_candidates} | Response length: {len(content)}")
+        print(f"Response: {content[:800]}")  # First 800 chars
+        print(f"{'='*60}\n")
+
     order = _parse_ranked_numbers(content, num_candidates)
 
     scores = [0.0] * num_candidates
@@ -268,7 +285,7 @@ def main():
         raise SystemExit("Missing SambaNova API key. Set SAMBANOVA_API_KEY or pass --api_key.")
 
     if args.max_tokens == 0:
-        args.max_tokens = 1 if args.mode == "pointwise" else 128
+        args.max_tokens = 1 if args.mode == "pointwise" else 512
 
     set_seed(args.seed)
 

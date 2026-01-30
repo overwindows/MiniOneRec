@@ -9,6 +9,7 @@ No logits/probs are used.
 """
 
 import argparse
+import json
 import math
 import os
 import random
@@ -100,10 +101,25 @@ def _get_sambanova_client(api_key: str, base_url: str):
 
 
 def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
-    nums = [int(n) for n in re.findall(r"\d+", text)]
+    order = []
+    try:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start : end + 1]
+        payload = json.loads(text)
+        if isinstance(payload, dict) and isinstance(payload.get("ranking"), list):
+            order = [int(n) for n in payload["ranking"]]
+    except Exception:
+        order = []
+
+    if not order:
+        order = [int(n) for n in re.findall(r"\d+", text)]
+
+    parsed = order
     order = []
     seen = set()
-    for n in nums:
+    for n in parsed:
         if 1 <= n <= num_candidates and n not in seen:
             order.append(n)
             seen.add(n)
@@ -185,8 +201,8 @@ def score_candidates_listwise(
                 "role": "user",
                 "content": (
                     prompt
-                    + "\nReturn a ranked list of all option numbers (best to worst), "
-                    "separated by spaces."
+                    + "\nReturn JSON only in this exact format: {\"ranking\":[3,1,2,...]}. "
+                    "Include all option numbers exactly once, best to worst."
                 ),
             },
         ],

@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage:
+#   ./run_cloud_eval.sh pointwise
+#   ./run_cloud_eval.sh listwise
+#
+# Required env vars:
+#   SAMBANOVA_API_KEY
+#
+# Optional env vars (defaults shown):
+#   SAMBANOVA_BASE_URL="https://api.sambanova.ai/v1"
+#   SAMBANOVA_MODEL="DeepSeek-V3.1"
+#   BEHAVIORS_PATH="../data/MIND/dev/behaviors.tsv"
+#   NEWS_PATH="../data/MIND/dev/news.tsv"
+#   USE_ABSTRACT="false"   # true/false
+#   MAX_HISTORY=0
+#   MAX_IMPRESSIONS=0
+#   TEMPERATURE=0.1
+#   TOP_P=0.1
+#   MAX_TOKENS=4            # pointwise default (override for listwise if desired)
+#   OUTPUT_FILE=""          # e.g. outputs/preds.tsv
+
+MODE="${1:-}"  # pointwise | listwise
+if [[ -z "$MODE" ]]; then
+  echo "Usage: $0 pointwise|listwise" >&2
+  exit 1
+fi
+
+if [[ "$MODE" != "pointwise" && "$MODE" != "listwise" ]]; then
+  echo "Mode must be 'pointwise' or 'listwise'" >&2
+  exit 1
+fi
+
+: "${SAMBANOVA_API_KEY:?SAMBANOVA_API_KEY is required}"
+
+SAMBANOVA_BASE_URL="${SAMBANOVA_BASE_URL:-https://api.sambanova.ai/v1}"
+SAMBANOVA_MODEL="${SAMBANOVA_MODEL:-DeepSeek-V3.1}"
+BEHAVIORS_PATH="${BEHAVIORS_PATH:-../data/MIND/dev/behaviors.tsv}"
+NEWS_PATH="${NEWS_PATH:-../data/MIND/dev/news.tsv}"
+USE_ABSTRACT="${USE_ABSTRACT:-false}"
+MAX_HISTORY="${MAX_HISTORY:-0}"
+MAX_IMPRESSIONS="${MAX_IMPRESSIONS:-0}"
+TEMPERATURE="${TEMPERATURE:-0.1}"
+TOP_P="${TOP_P:-0.1}"
+MAX_TOKENS="${MAX_TOKENS:-4}"
+OUTPUT_FILE="${OUTPUT_FILE:-}"
+
+ARGS=(
+  --mode "$MODE"
+  --model "$SAMBANOVA_MODEL"
+  --behaviors_path "$BEHAVIORS_PATH"
+  --news_path "$NEWS_PATH"
+  --api_key "$SAMBANOVA_API_KEY"
+  --base_url "$SAMBANOVA_BASE_URL"
+  --temperature "$TEMPERATURE"
+  --top_p "$TOP_P"
+  --max_tokens "$MAX_TOKENS"
+  --max_history "$MAX_HISTORY"
+  --max_impressions "$MAX_IMPRESSIONS"
+)
+
+if [[ "$USE_ABSTRACT" == "true" ]]; then
+  ARGS+=(--use_abstract)
+fi
+
+if [[ -n "$OUTPUT_FILE" ]]; then
+  ARGS+=(--output_file "$OUTPUT_FILE")
+fi
+
+python evaluate_mind_cloud.py "${ARGS[@]}"

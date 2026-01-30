@@ -2588,3 +2588,16 @@ Formula: `ratio = 2 * M / T`
 
 
 ---
+
+
+## Cloud Evaluation (SambaNova)
+
+Pointwise:
+```bash
+./run_cloud_eval_mind.sh pointwise
+```
+
+Listwise:
+```bash
+./run_cloud_eval_mind.sh listwise
+```

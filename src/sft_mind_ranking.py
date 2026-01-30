@@ -65,12 +65,15 @@ class MINDRankingSFTDataset:
         use_abstract: bool = False,
     ):
         self.tokenizer = tokenizer
-        self.max_len = max_len
+        self.max_len = int(max_len)  # Ensure it's an integer (fire.Fire may pass as string)
+        max_history = int(max_history)
+        max_candidates = int(max_candidates)
+        neg_ratio = float(neg_ratio)
         self.max_history = max_history if max_history > 0 else None  # None = no limit
         self.max_candidates = max_candidates if max_candidates > 0 else None  # None = no limit
         self.neg_ratio = neg_ratio if neg_ratio > 0 else None  # None = no limit
-        self.use_abstract = use_abstract
-        self.seed = seed
+        self.use_abstract = bool(use_abstract) if isinstance(use_abstract, bool) else str(use_abstract).lower() in ('true', '1', 'yes')
+        self.seed = int(seed)
 
         # Load news articles
         self.news = self._load_news(news_path)
@@ -79,6 +82,7 @@ class MINDRankingSFTDataset:
         self.behaviors = self._load_behaviors(behaviors_path)
 
         # Sample if requested
+        sample = int(sample)
         if sample > 0 and sample < len(self.behaviors):
             random.seed(seed)
             self.behaviors = random.sample(self.behaviors, sample)

@@ -192,6 +192,7 @@ def batch_score_candidates_pointwise(
     return scores
 
 
+
 def auc_score(labels: List[int], scores: List[float]) -> float:
     """Compute AUC score using sklearn's roc_auc_score."""
     pos = sum(labels)

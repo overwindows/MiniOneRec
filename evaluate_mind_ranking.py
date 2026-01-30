@@ -217,6 +217,7 @@ def score_candidates_multiple_choice(
     return scores
 
 
+
 def auc_score(labels: List[int], scores: List[float]) -> float:
     """Compute AUC score using sklearn's roc_auc_score."""
     pos = sum(labels)
@@ -278,14 +279,10 @@ def main():
     }
     if args.flash_attn:
         model_kwargs["attn_implementation"] = "flash_attention_2"
-        print("✓ Using Flash Attention 2")
 
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, **model_kwargs
-    )
+    model = AutoModelForCausalLM.from_pretrained(args.model_path, **model_kwargs)
     model.eval()
-    device = next(model.parameters()).device
-    print(f"✓ Model loaded on device: {device}")
+    device = model.device
 
     def _avg(xs):
         return float(np.mean(xs)) if xs else 0.0

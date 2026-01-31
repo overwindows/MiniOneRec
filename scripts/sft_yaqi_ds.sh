@@ -87,6 +87,10 @@ for category in "GenRecDatasetV2_1"; do
 
     export PDSH_RCMD_TYPE=ssh
 
+    # Set checkpoint path if resuming (comment out to start fresh)
+    RESUME_CHECKPOINT="${RESUME_CHECKPOINT:-}"  # Set via environment variable or edit here
+    WANDB_RUN_ID="${WANDB_RUN_ID:-}"  # Set WandB run ID to continue same run
+
     deepspeed --hostfile=$HOSTFILE \
             --master_port=${MASTER_PORT} \
             --launcher=pdsh \
@@ -106,6 +110,8 @@ for category in "GenRecDatasetV2_1"; do
             --sid_index_path ${DATA_ROOT}/index/GenRecDatasetV2_1.index.json \
             --item_meta_path ${DATA_ROOT}/index/GenRecDatasetV2_1.item.json \
             --freeze_LLM False \
-            --deepspeed_config ds_config_zero2.json
+            --deepspeed_config ds_config_zero2.json \
+            ${RESUME_CHECKPOINT:+--resume_from_checkpoint $RESUME_CHECKPOINT} \
+            ${WANDB_RUN_ID:+--wandb_run_id $WANDB_RUN_ID}
 
 done

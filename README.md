@@ -592,7 +592,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_ranking_small_Qwen3-Reranker-4B_bs1024_ep8** | 50.69% ⬇️ | 33.28% ⬇️ | 35.67% ⬇️ | 44.33% ⬇️ | Ranking-aware SFT with Qwen3-Reranker-4B (8 epochs, severe overfitting) |
 | **sft_mind_ranking_small_Qwen3-4B-Base_bs1024** | 62.90% | 43.57% | 48.57% | 55.31% | Ranking-aware SFT with Qwen3-4B-Base |
 | **sft_mind_ranking_small_Qwen3-Reranker-4B_bs1024** | 62.02% | 43.05% | 47.72% | 54.61% | Ranking-aware SFT with Qwen3-Reranker-4B |
-| **sft_mind_pointwise_small_Qwen3-1.7B-Base_bs1024_ep3_neg1.0** | 66.95% | 31.81% | 35.15% | 41.47% | Point-wise SFT (Yes/No classification) |
+| **sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30** | 67.78% | 33.62% | 37.38% | 43.32% | Point-wise SFT (Yes/No classification) |
 
 **Note on ranking evaluation**: The ranking-aware model now uses numeric options (1/2/3/...) instead of letters (A/B/C), supporting unlimited candidates per impression.
 

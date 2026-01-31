@@ -136,6 +136,7 @@ def train(
     # wandb params
     wandb_project: str = "",
     wandb_run_name: str = "",
+    wandb_run_id: str = "",  # Specify run_id to resume existing WandB run
     resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
     category: str="",
     train_from_scratch: bool = False,
@@ -146,6 +147,13 @@ def train(
 ):
     set_seed(seed)
     os.environ['WANDB_PROJECT'] = wandb_project
+
+    # Resume existing WandB run if run_id is provided
+    if wandb_run_id:
+        os.environ['WANDB_RUN_ID'] = wandb_run_id
+        os.environ['WANDB_RESUME'] = 'allow'  # Allow resuming if run exists, otherwise create new
+        print(f"Resuming WandB run: {wandb_run_id}")
+
     category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products", "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books", "GenRecDatasetV2_1": "general recommendation"}
     print(category)
     category = category_dict[category]

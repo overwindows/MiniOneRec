@@ -63,7 +63,11 @@ if [ -z "$HOSTFILE" ]; then
         HOSTFILE="./hostfile"
     fi
 fi
-MODEL_PATH=Qwen/Qwen3-1.7B
+# Model path (can be overridden to resume from checkpoint)
+MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-1.7B}
+
+# Output directory (use absolute path for multi-node training)
+OUTPUT_DIR=${OUTPUT_DIR:-/home/aiscuser/checkpoints/MiniOneRec_v2}
 
 # Data root path (can be overridden by environment variable)
 DATA_ROOT=${DATA_ROOT:-/home/aiscuser/MiniOneRec/data/GenRecDatasetV3}
@@ -101,7 +105,7 @@ for category in "GenRecDatasetV2_1"; do
             --micro_batch_size 2 \
             --train_file ${train_file} \
             --eval_file ${eval_file} \
-            --output_dir output_dir/MiniOneRec_v2 \
+            --output_dir ${OUTPUT_DIR} \
             --wandb_project MiniOneRec \
             --wandb_run_name sft_GenRecV2_Qwen3-1.7B_bs1024 \
             --category ${category} \

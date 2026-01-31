@@ -538,8 +538,8 @@ def train(
         logging_first_step=True,
         eval_strategy="steps" if val_data else "no",
         save_strategy="steps",
-        eval_steps=200 if val_data else None,
-        save_steps=200,
+        eval_steps=256 if val_data else None,
+        save_steps=512,
         output_dir=output_dir,
         save_total_limit=3,
         load_best_model_at_end=True if val_data else False,
@@ -559,7 +559,7 @@ def train(
         eval_dataset=val_data if val_data else None,
         args=training_args,
         data_collator=_TorchStackCollator(debug=bool(os.environ.get("DEBUG_SEQ", ""))),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)] if val_data else None,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=64)] if val_data else None,
     )
 
     model.config.use_cache = False

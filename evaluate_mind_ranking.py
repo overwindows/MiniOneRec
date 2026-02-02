@@ -23,6 +23,7 @@ Usage:
 import argparse
 import json
 import math
+import os
 import random
 from typing import List, Tuple
 
@@ -67,46 +68,69 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
     return news
 
 
-def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) -> str:
+def build_prompt_content(history: List[dict], candidates: List[dict]) -> str:
     """
-    Build OPTIMIZED multiple-choice ranking prompt matching training format.
+    Build prompt content (without final formatting).
 
-    Based on Prompt4NR research (arXiv:2304.05263):
-    - Concise format saves ~20 tokens
-    - Category in [brackets] at start for better visibility
-    - Natural language question
-    - Limit to last 30 history items for focus
-
-    Uses numeric options (1, 2, 3, ...) instead of letters to support unlimited candidates.
-
-    Returns the prompt with "Answer:" at the end.
+    Returns content that can be wrapped in chat template or used directly.
+    MUST match training format exactly!
     """
-    prompt = "A user read these news articles:\n"
+    lines = []
+    lines.append("A user read these news articles:")
 
     # User history - limit to last 30 for token efficiency
     if history:
         recent_history = history[-30:] if len(history) > 30 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get('category', 'General')
-            prompt += f"{i}. [{cat}] {h['text']}\n"
+            lines.append(f"{i}. [{cat}] {h['text']}")
     else:
-        prompt += "(No reading history)\n"
+        lines.append("(No reading history)")
 
-    prompt += "\n"
+    lines.append("")
 
     # Candidate articles - category first in brackets
-    prompt += "Candidate articles:\n"
+    lines.append("Candidate articles:")
     for i, cand in enumerate(candidates):
         option_num = i + 1  # 1-indexed
         cat = cand.get('category', 'General')
-        prompt += f"{option_num}. [{cat}] {cand['text']}\n"
+        lines.append(f"{option_num}. [{cat}] {cand['text']}")
 
-    prompt += "\n"
-    # Simple, direct question
-    prompt += "Which article will this user read? Answer with the number.\n\n"
-    prompt += "Answer:"
+    lines.append("")
+    lines.append("Which article will this user read? Answer with the number.")
+
+    return "\n".join(lines)
+
+
+def format_prompt_for_eval(content: str, tokenizer, use_chat_template: bool) -> str:
+    """
+    Format content for evaluation.
+
+    If use_chat_template is True, applies chat template.
+    Otherwise, uses raw text format with "Answer:" suffix.
+    """
+    if use_chat_template:
+        messages = [{"role": "user", "content": content}]
+        prompt = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+    else:
+        prompt = content + "\n\nAnswer:"
 
     return prompt
+
+
+def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) -> str:
+    """
+    Build multiple-choice ranking prompt (backwards compatible).
+
+    Returns the prompt with "Answer:" at the end.
+    For chat template support, use build_prompt_content() + format_prompt_for_eval().
+    """
+    content = build_prompt_content(history, candidates)
+    return content + "\n\nAnswer:"
 
 
 def score_candidates_multiple_choice(
@@ -341,7 +365,38 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
     parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2 for faster inference")
+    parser.add_argument("--use_chat_template", action="store_true", help="Use chat template (must match training)")
+    parser.add_argument("--load_training_config", action="store_true", help="Load config from training_config.json in model_path")
     args = parser.parse_args()
+
+    # Load training config if requested
+    if args.load_training_config:
+        import json
+        config_path = os.path.join(args.model_path, "training_config.json")
+        if os.path.exists(config_path):
+            print(f"Loading training config from: {config_path}")
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            # Override args with training config (but keep command line overrides if explicitly set)
+            if args.max_history == 0:
+                args.max_history = config.get('max_history', 0)
+            if args.max_candidates == 0:
+                args.max_candidates = config.get('max_candidates', 0)
+            if args.neg_ratio == 0:
+                args.neg_ratio = config.get('neg_ratio', 0)
+            if not args.use_abstract:
+                args.use_abstract = config.get('use_abstract', False)
+            if not args.use_chat_template:
+                args.use_chat_template = config.get('use_chat_template', False)
+            if args.seed == 42:
+                args.seed = config.get('seed', 42)
+            print(f"  max_history: {args.max_history}")
+            print(f"  max_candidates: {args.max_candidates}")
+            print(f"  neg_ratio: {args.neg_ratio}")
+            print(f"  use_chat_template: {args.use_chat_template}")
+            print(f"  seed: {args.seed}")
+        else:
+            print(f"Warning: No training config found at {config_path}")
 
     set_seed(args.seed)
 
@@ -394,7 +449,8 @@ def main():
     print(f"Use abstract: {args.use_abstract}")
     print(f"Max candidates: {'unlimited' if args.max_candidates <= 0 else args.max_candidates}")
     print(f"Neg ratio: {'unlimited' if args.neg_ratio <= 0 else args.neg_ratio}")
-    print(f"Format: Candidate News Articles:\\n1. [Title] {'Title Abstract' if args.use_abstract else 'Title'} (Category)\\n...\\nAnswer: N")
+    print(f"Chat template: {args.use_chat_template}")
+    print(f"Max history: {args.max_history if args.max_history > 0 else 'unlimited'}")
     print()
 
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
@@ -448,8 +504,9 @@ def main():
             # Build history (pass full news objects to include category)
             history_objs = [news[nid] for nid in history_ids if nid in news]
 
-            # Build multiple-choice prompt and score
-            prompt = build_multiple_choice_prompt(history_objs, candidate_objs)
+            # Build prompt (with chat template if enabled)
+            content = build_prompt_content(history_objs, candidate_objs)
+            prompt = format_prompt_for_eval(content, tokenizer, args.use_chat_template)
             scores = score_candidates_multiple_choice(
                 model, tokenizer, prompt, len(candidate_objs), device
             )

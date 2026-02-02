@@ -1,5 +1,5 @@
 """
-Train a model on MIND dataset using Ranking-Aware SFT.
+Train a model on MIND dataset using Ranking-Aware SFT with DeepSpeed support.
 
 This script uses a multiple-choice format to teach the model to select
 the most relevant news from a list of candidates, aligning training with evaluation.
@@ -484,10 +484,18 @@ def train(
     use_chat_template: bool = False,  # Whether to use chat template for instruction-tuned models
     wandb_project: str = "",
     wandb_run_name: str = "",
+    wandb_run_id: str = "",
+    deepspeed_config: str = "",
 ):
-    """Train with ranking-aware SFT format (list-wise)"""
+    """Train with ranking-aware SFT format (list-wise) using DeepSpeed"""
 
     set_seed(seed)
+
+    # Resume existing WandB run if run_id is provided
+    if wandb_run_id:
+        os.environ['WANDB_RUN_ID'] = wandb_run_id
+        os.environ['WANDB_RESUME'] = 'allow'
+        print(f"Resuming WandB run: {wandb_run_id}")
 
     if not base_model:
         raise ValueError("Please specify --base_model")
@@ -556,32 +564,39 @@ def train(
     print(f"  Chat template: {use_chat_template}")
     print(f"  Format: Multiple-choice (1/2/3/...)")
 
-    # Training arguments
-    training_args = transformers.TrainingArguments(
-        per_device_train_batch_size=micro_batch_size,
-        per_device_eval_batch_size=micro_batch_size,
-        gradient_accumulation_steps=gradient_accumulation_steps,
-        warmup_steps=100,  # FIXED: Reduced to match point-wise (was 500)
-        num_train_epochs=num_epochs,
-        learning_rate=learning_rate,
-        bf16=True,
-        logging_steps=10,
-        logging_first_step=True,
-        eval_strategy="steps" if val_data else "no",
-        save_strategy="steps",
-        eval_steps=256 if val_data else None,
-        save_steps=512,
-        output_dir=output_dir,
-        save_total_limit=3,
-        load_best_model_at_end=True if val_data else False,
-        ddp_find_unused_parameters=False if ddp else None,
-        group_by_length=group_by_length,
-        report_to="wandb" if wandb_project else "none",
-        run_name=wandb_run_name if wandb_run_name else None,
-        metric_for_best_model="eval_loss" if val_data else None,
-        greater_is_better=False,
-        disable_tqdm=False,
-    )
+    # Prepare training arguments with optional DeepSpeed
+    training_args_dict = {
+        "per_device_train_batch_size": micro_batch_size,
+        "per_device_eval_batch_size": micro_batch_size,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "warmup_steps": 100,  # FIXED: Reduced to match point-wise (was 500)
+        "num_train_epochs": num_epochs,
+        "learning_rate": learning_rate,
+        "bf16": True,
+        "logging_steps": 10,
+        "logging_first_step": True,
+        "eval_strategy": "steps" if val_data else "no",
+        "save_strategy": "steps",
+        "eval_steps": 256 if val_data else None,
+        "save_steps": 512,
+        "output_dir": output_dir,
+        "save_total_limit": 3,
+        "load_best_model_at_end": True if val_data else False,
+        "ddp_find_unused_parameters": False if ddp else None,
+        "group_by_length": group_by_length,
+        "report_to": "wandb" if wandb_project else "none",
+        "run_name": wandb_run_name if wandb_run_name else None,
+        "metric_for_best_model": "eval_loss" if val_data else None,
+        "greater_is_better": False,
+        "disable_tqdm": False,
+    }
+
+    # Add DeepSpeed config if provided
+    if deepspeed_config and os.path.exists(deepspeed_config):
+        training_args_dict["deepspeed"] = deepspeed_config
+        print(f"Using DeepSpeed config: {deepspeed_config}")
+
+    training_args = transformers.TrainingArguments(**training_args_dict)
 
     # Initialize trainer
     trainer = transformers.Trainer(

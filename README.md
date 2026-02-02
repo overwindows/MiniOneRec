@@ -19,6 +19,8 @@ Scaling Generative Recommendation**
 
 ## 📢 Announcement
 
+- 2026-02-02 — Added **chat template support** for ranking-aware SFT. Use `--use_chat_template` for instruction-tuned models (Qwen3, etc.). Training now auto-saves config for evaluation consistency with `--load_training_config`.
+
 - 2025-12-04 — We update new scripts to support processing the Amazon23 dataset.
 
 - 2025-12-01 — We fix a bug in data.py that could cause the SID–item alignment task to see the answers in advance. This was because we had previously attempted to use partial trajectories to guide the full SID–item generation and does not affect the model performance.
@@ -348,6 +350,48 @@ Answer: 3
 **Configuration:** Uses same environment variables as standard SFT, plus:
 - `MAX_CANDIDATES=20` - Limit candidates per sample to fit in context
 
+##### 💬 Chat Template Support (Recommended for Instruction-Tuned Models)
+
+For instruction-tuned models like Qwen3, using the chat template can improve performance by aligning with the model's pre-training format.
+
+**Enable chat template:**
+```bash
+# Training with chat template (recommended for Qwen3, Llama-Instruct, etc.)
+USE_CHAT_TEMPLATE=True bash scripts/sft_mind_ranking_ds.sh
+
+# Or set directly in Python
+python src/sft_mind_ranking_ds.py \
+    --base_model Qwen/Qwen3-1.7B \
+    --use_chat_template True \
+    ...
+```
+
+**Training automatically saves config:** After training, a `training_config.json` is saved alongside the model checkpoint containing all training parameters (max_history, max_candidates, neg_ratio, use_chat_template, seed).
+
+**Evaluate with auto-loaded config:**
+```bash
+# Automatically load settings from training_config.json
+python evaluate_mind_ranking.py \
+    --model_path output_dir/mind_ranking_ds/final_checkpoint \
+    --behaviors_path data/MIND/dev/behaviors.tsv \
+    --news_path data/MIND/dev/news.tsv \
+    --load_training_config
+
+# Or manually specify chat template
+python evaluate_mind_ranking.py \
+    --model_path output_dir/mind_ranking_ds/final_checkpoint \
+    --behaviors_path data/MIND/dev/behaviors.tsv \
+    --news_path data/MIND/dev/news.tsv \
+    --use_chat_template \
+    --max_history 30 \
+    --seed 42
+```
+
+**Key benefits:**
+- ✅ Aligns with instruction-tuned model's expected input format
+- ✅ Training config auto-saved for evaluation consistency
+- ✅ `--load_training_config` ensures train/eval alignment
+
 #### 🆕 Point-wise SFT (Yes/No Classification)
 
 **What's different?** Instead of showing all candidates in one prompt, this approach evaluates each candidate independently with a Yes/No question: "Is this article relevant to the user?"
@@ -493,9 +537,33 @@ bash scripts/eval_ranking_only.sh output_dir/sft_mind_ranking_*/final_checkpoint
 
 # Full evaluation
 bash scripts/eval_ranking_only.sh output_dir/sft_mind_ranking_*/final_checkpoint dev
+
+# NEW: Auto-load training config (ensures train/eval consistency)
+python evaluate_mind_ranking.py \
+    --model_path output_dir/mind_ranking_ds/final_checkpoint \
+    --behaviors_path data/MIND/dev/behaviors.tsv \
+    --news_path data/MIND/dev/news.tsv \
+    --load_training_config
+
+# With chat template (if trained with chat template)
+python evaluate_mind_ranking.py \
+    --model_path output_dir/mind_ranking_ds/final_checkpoint \
+    --behaviors_path data/MIND/dev/behaviors.tsv \
+    --news_path data/MIND/dev/news.tsv \
+    --use_chat_template \
+    --max_history 30
 ```
 
 **How it works:** Evaluates using the same multiple-choice format as training (scores P(1), P(2), P(3), ...).
+
+**Key flags:**
+| Flag | Description |
+|------|-------------|
+| `--load_training_config` | Auto-load settings from `training_config.json` saved during training |
+| `--use_chat_template` | Apply chat template (must match training) |
+| `--max_history N` | Limit history items (0=unlimited) |
+| `--max_candidates N` | Limit candidates (0=unlimited) |
+| `--neg_ratio F` | Negative ratio (0=unlimited) |
 
 **Metrics:** All metrics match the [official MIND evaluation script](https://github.com/msnews/MIND/blob/master/evaluate.py) exactly:
 - AUC: Uses sklearn's `roc_auc_score`

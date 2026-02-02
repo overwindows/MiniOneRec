@@ -163,6 +163,259 @@ class SFTData(Dataset):
         return self.prepare_sample(idx)  # Lazy loading
 
 
+class MINDPointwiseSFTDataset:
+    """
+    MIND dataset for point-wise SFT training.
+
+    Each sample is a (history, single_candidate, label) tuple.
+    Model learns to predict Yes/No for relevance.
+    """
+
+    def __init__(
+        self,
+        behaviors_path: str,
+        news_path: str,
+        tokenizer,
+        max_len: int = 2048,
+        sample: int = -1,
+        seed: int = 42,
+        max_history: int = 0,  # 0 = no limit
+        neg_ratio: float = 1.0,  # Ratio of negatives to positives per impression
+        use_abstract: bool = False,
+    ):
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.max_history = max_history if max_history > 0 else None
+        self.neg_ratio = neg_ratio
+        self.use_abstract = use_abstract
+        self.seed = seed
+
+        # Load news articles
+        self.news = self._load_news(news_path)
+
+        # Load and expand behaviors into point-wise samples
+        self.samples = self._load_and_expand_behaviors(behaviors_path, sample)
+
+        print(f"Loaded {len(self.samples)} point-wise samples")
+        pos_count = sum(1 for s in self.samples if s['label'] == 1)
+        neg_count = len(self.samples) - pos_count
+        print(f"  Positives: {pos_count}, Negatives: {neg_count}, Ratio: {neg_count/max(pos_count,1):.2f}")
+
+    def _load_news(self, news_path: str):
+        """Load news articles from news.tsv"""
+        news = {}
+        with open(news_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) < 4:
+                    continue
+                news_id = parts[0]
+                category = parts[1] if len(parts) > 1 else ""
+                title = parts[3]
+                abstract = parts[4] if len(parts) > 4 else ""
+
+                if self.use_abstract and abstract:
+                    text = f"{title} {abstract}"
+                else:
+                    text = title
+
+                news[news_id] = {
+                    'text': text,
+                    'category': category
+                }
+        return news
+
+    def _load_and_expand_behaviors(self, behaviors_path: str, sample_limit: int):
+        """Load behaviors and expand into point-wise samples."""
+        all_samples = []
+        rng = random.Random(self.seed)
+
+        with open(behaviors_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) < 5:
+                    continue
+
+                impression_id = parts[0]
+                history_ids = parts[3].split()
+                impressions = parts[4].split()
+
+                # Limit history
+                if self.max_history is not None:
+                    history_ids = history_ids[-self.max_history:]
+
+                # Build history objects
+                history = [self.news[nid] for nid in history_ids if nid in self.news]
+
+                # Parse candidates
+                positives = []
+                negatives = []
+                for imp in impressions:
+                    if '-' not in imp:
+                        continue
+                    news_id, label = imp.rsplit('-', 1)
+                    if news_id not in self.news:
+                        continue
+                    if int(label) == 1:
+                        positives.append(news_id)
+                    else:
+                        negatives.append(news_id)
+
+                # Skip if no positives
+                if not positives:
+                    continue
+
+                # Add all positive samples
+                for pos_id in positives:
+                    all_samples.append({
+                        'impression_id': impression_id,
+                        'history': history,
+                        'candidate_id': pos_id,
+                        'candidate': self.news[pos_id],
+                        'label': 1
+                    })
+
+                # IMPROVED: Hard negative sampling (50% same category, 50% different)
+                num_neg_to_sample = int(len(positives) * self.neg_ratio)
+                if num_neg_to_sample > 0 and negatives:
+                    # Get categories of positive items
+                    pos_categories = set([self.news[pid].get('category', '') for pid in positives])
+
+                    # Split negatives by category match
+                    hard_negs = []  # Same category
+                    easy_negs = []  # Different category
+                    for neg_id in negatives:
+                        neg_cat = self.news[neg_id].get('category', '')
+                        if neg_cat in pos_categories:
+                            hard_negs.append(neg_id)
+                        else:
+                            easy_negs.append(neg_id)
+
+                    # Sample 50/50 mix of hard and easy negatives
+                    num_hard = num_neg_to_sample // 2
+                    num_easy = num_neg_to_sample - num_hard
+
+                    sampled_negs = []
+                    if hard_negs:
+                        sampled_negs.extend(rng.sample(hard_negs, min(num_hard, len(hard_negs))))
+                    if easy_negs and len(sampled_negs) < num_neg_to_sample:
+                        remaining = num_neg_to_sample - len(sampled_negs)
+                        sampled_negs.extend(rng.sample(easy_negs, min(remaining, len(easy_negs))))
+
+                    for neg_id in sampled_negs:
+                        all_samples.append({
+                            'impression_id': impression_id,
+                            'history': history,
+                            'candidate_id': neg_id,
+                            'candidate': self.news[neg_id],
+                            'label': 0
+                        })
+
+        # Shuffle all samples
+        rng.shuffle(all_samples)
+
+        # Sample if requested
+        if sample_limit > 0 and sample_limit < len(all_samples):
+            all_samples = all_samples[:sample_limit]
+
+        return all_samples
+
+    def _build_pointwise_prompt(self, history, candidate, label):
+        """
+        Build OPTIMIZED point-wise prompt for binary classification.
+
+        Based on Prompt4NR research (arXiv:2304.05263):
+        - Concise format saves ~20 tokens (removes verbose "Role/Task")
+        - Category in [brackets] at start for better visibility
+        - Natural language question
+        - Limit to last 30 history items for focus
+
+        Format:
+        A user read these news articles:
+        1. [Category] Title...
+        2. [Category] Title...
+        ...
+
+        Candidate article:
+        [Category] Title...
+
+        Will this user read this article? Answer:
+        """
+        prompt = "A user read these news articles:\n"
+
+        # User history - limit to last 30 for token efficiency
+        if history:
+            recent_history = history[-30:] if len(history) > 30 else history
+            for i, h in enumerate(recent_history, 1):
+                cat = h.get('category', 'General')
+                prompt += f"{i}. [{cat}] {h['text']}\n"
+        else:
+            prompt += "(No reading history)\n"
+
+        prompt += "\n"
+
+        # Candidate article - category first in brackets
+        prompt += "Candidate article:\n"
+        cat = candidate.get('category', 'General')
+        prompt += f"[{cat}] {candidate['text']}\n"
+
+        prompt += "\n"
+        # Simple, natural question
+        prompt += "Will this user read this article? Answer:"
+
+        # Target
+        target = " Yes" if label == 1 else " No"
+
+        return prompt, target
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        sample = self.samples[idx]
+
+        # Build prompt
+        prompt, target = self._build_pointwise_prompt(
+            sample['history'],
+            sample['candidate'],
+            sample['label']
+        )
+
+        # Tokenize
+        full_text = prompt + target
+        input_ids = self.tokenizer.encode(
+            full_text,
+            max_length=self.max_len,
+            truncation=True,
+            add_special_tokens=True
+        )
+
+        # Create training labels (mask prompt, only train on Yes/No)
+        prompt_ids = self.tokenizer.encode(
+            prompt,
+            max_length=self.max_len,
+            truncation=True,
+            add_special_tokens=True
+        )
+
+        train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+
+        # Pad if needed
+        if len(input_ids) < self.max_len:
+            pad_len = self.max_len - len(input_ids)
+            input_ids = input_ids + [self.tokenizer.pad_token_id] * pad_len
+            train_labels = train_labels + [-100] * pad_len
+
+        return {
+            'input_ids': torch.tensor(input_ids[:self.max_len], dtype=torch.long),
+            'labels': torch.tensor(train_labels[:self.max_len], dtype=torch.long),
+            'attention_mask': torch.tensor(
+                [1 if id != self.tokenizer.pad_token_id else 0 for id in input_ids[:self.max_len]],
+                dtype=torch.long
+            )
+        }
+
+
 class InstructionJSONLDataset(Dataset):
     def __init__(self, jsonl_path, tokenizer, max_len=4096, sample=-1, seed=0):
         random.seed(seed)

@@ -1,5 +1,5 @@
 """
-Train a model on MIND dataset using Point-wise SFT.
+Train a model on MIND dataset using Point-wise SFT with DeepSpeed support.
 
 This script uses a point-wise approach where each (history, candidate) pair
 is scored independently with a Yes/No classification.
@@ -16,13 +16,14 @@ Training format:
     Target: " Yes" or " No"
 
 Usage:
-    torchrun --nproc_per_node 4 src/sft_mind_pointwise.py \
+    deepspeed --hostfile=hostfile src/sft_mind_pointwise_ds.py \
         --base_model Qwen/Qwen3-1.7B \
         --train_behaviors_path ../data/MIND/train/behaviors.tsv \
         --train_news_path ../data/MIND/train/news.tsv \
         --eval_behaviors_path ../data/MIND/dev/behaviors.tsv \
         --eval_news_path ../data/MIND/dev/news.tsv \
-        --output_dir output_dir/sft_mind_pointwise
+        --output_dir output_dir/sft_mind_pointwise \
+        --deepspeed_config ds_config_zero2.json
 """
 
 import os
@@ -77,10 +78,18 @@ def train(
     train_from_scratch: bool = False,
     wandb_project: str = "",
     wandb_run_name: str = "",
+    wandb_run_id: str = "",
+    deepspeed_config: str = "",
 ):
-    """Train with point-wise SFT format (Yes/No classification)"""
+    """Train with point-wise SFT format (Yes/No classification) using DeepSpeed"""
 
     set_seed(seed)
+
+    # Resume existing WandB run if run_id is provided
+    if wandb_run_id:
+        os.environ['WANDB_RUN_ID'] = wandb_run_id
+        os.environ['WANDB_RESUME'] = 'allow'
+        print(f"Resuming WandB run: {wandb_run_id}")
 
     if not base_model:
         raise ValueError("Please specify --base_model")
@@ -140,32 +149,39 @@ def train(
     print(f"  Cutoff length: {cutoff_len}")
     print(f"  Format: Yes/No classification")
 
-    # Training arguments
-    training_args = transformers.TrainingArguments(
-        per_device_train_batch_size=micro_batch_size,
-        per_device_eval_batch_size=micro_batch_size,
-        gradient_accumulation_steps=gradient_accumulation_steps,
-        warmup_steps=100,
-        num_train_epochs=num_epochs,
-        learning_rate=learning_rate,
-        bf16=True,
-        logging_steps=10,
-        logging_first_step=True,
-        eval_strategy="steps" if val_data else "no",
-        save_strategy="steps",
-        eval_steps=256 if val_data else None,
-        save_steps=512,
-        output_dir=output_dir,
-        save_total_limit=3,
-        load_best_model_at_end=True if val_data else False,
-        ddp_find_unused_parameters=False if ddp else None,
-        group_by_length=group_by_length,
-        report_to="wandb" if wandb_project else "none",
-        run_name=wandb_run_name if wandb_run_name else None,
-        metric_for_best_model="eval_loss" if val_data else None,
-        greater_is_better=False,
-        disable_tqdm=False,
-    )
+    # Prepare training arguments with optional DeepSpeed
+    training_args_dict = {
+        "per_device_train_batch_size": micro_batch_size,
+        "per_device_eval_batch_size": micro_batch_size,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "warmup_steps": 100,
+        "num_train_epochs": num_epochs,
+        "learning_rate": learning_rate,
+        "bf16": True,
+        "logging_steps": 10,
+        "logging_first_step": True,
+        "eval_strategy": "steps" if val_data else "no",
+        "save_strategy": "steps",
+        "eval_steps": 256 if val_data else None,
+        "save_steps": 512,
+        "output_dir": output_dir,
+        "save_total_limit": 3,
+        "load_best_model_at_end": True if val_data else False,
+        "ddp_find_unused_parameters": False if ddp else None,
+        "group_by_length": group_by_length,
+        "report_to": "wandb" if wandb_project else "none",
+        "run_name": wandb_run_name if wandb_run_name else None,
+        "metric_for_best_model": "eval_loss" if val_data else None,
+        "greater_is_better": False,
+        "disable_tqdm": False,
+    }
+
+    # Add DeepSpeed config if provided
+    if deepspeed_config and os.path.exists(deepspeed_config):
+        training_args_dict["deepspeed"] = deepspeed_config
+        print(f"Using DeepSpeed config: {deepspeed_config}")
+
+    training_args = transformers.TrainingArguments(**training_args_dict)
 
     # Initialize trainer
     trainer = transformers.Trainer(

@@ -46,6 +46,7 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 
 
 def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) -> str:
+    """Standard prompt for ranking (asks for full ranking)."""
     prompt = "A user read these news articles:\n"
 
     if history:
@@ -66,6 +67,74 @@ def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) ->
     prompt += "\n"
     prompt += "Which article will this user read? Answer with the number.\n\n"
     prompt += "Answer:"
+
+    return prompt
+
+
+def build_cot_prompt(history: List[dict], candidates: List[dict]) -> str:
+    """
+    Chain-of-Thought prompt that asks for reasoning before the answer.
+    Typically produces better results with cloud LLMs.
+    """
+    lines = []
+
+    lines.append("You are a news recommendation assistant.")
+    lines.append("Your task is to predict which article a user will click based on their reading history.")
+    lines.append("")
+
+    # User history
+    lines.append("=== User Reading History ===")
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = f"[{h.get('category', 'General')}]" if h.get('category') else ""
+            lines.append(f"{i}. {cat} {h['text']}")
+    else:
+        lines.append("(No reading history available)")
+    lines.append("")
+
+    # Candidates
+    lines.append("=== Candidate Articles ===")
+    for i, cand in enumerate(candidates, 1):
+        cat = f"[{cand.get('category', 'General')}]" if cand.get('category') else ""
+        lines.append(f"{i}. {cat} {cand['text']}")
+    lines.append("")
+
+    # CoT instruction
+    lines.append("=== Instructions ===")
+    lines.append("Think step by step:")
+    lines.append("1. What topics/categories does this user seem interested in?")
+    lines.append("2. Which candidate articles match these interests?")
+    lines.append("3. Which ONE article is the user most likely to click?")
+    lines.append("")
+    lines.append("After your analysis, provide your final answer in this exact format:")
+    lines.append("Answer: <number>")
+
+    return "\n".join(lines)
+
+
+def build_top1_prompt(history: List[dict], candidates: List[dict]) -> str:
+    """
+    Simple prompt that just asks for the top-1 choice.
+    Easier task than full ranking.
+    """
+    prompt = "A user has read these news articles:\n"
+
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get("category", "General")
+            prompt += f"{i}. [{cat}] {h['text']}\n"
+    else:
+        prompt += "(No reading history)\n"
+
+    prompt += "\nNow, given these candidate articles:\n"
+    for i, cand in enumerate(candidates, 1):
+        cat = cand.get("category", "General")
+        prompt += f"{i}. [{cat}] {cand['text']}\n"
+
+    prompt += "\nWhich ONE article (number only) will this user most likely click?\n"
+    prompt += "Just respond with the number, nothing else."
 
     return prompt
 
@@ -106,6 +175,7 @@ def score_candidates_multiple_choice_sambanova(
     top_p: float,
     max_tokens: int,
 ) -> List[float]:
+    """Original: asks for full ranking."""
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -129,6 +199,108 @@ def score_candidates_multiple_choice_sambanova(
     scores = [0.0] * num_candidates
     for rank, option in enumerate(order):
         scores[option - 1] = float(num_candidates - rank)
+    return scores
+
+
+def _extract_answer_number(text: str, num_candidates: int) -> int:
+    """Extract the answer number from CoT or top-1 response."""
+    # Pattern 1: "Answer: X"
+    match = re.search(r'[Aa]nswer\s*:\s*(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 2: "The answer is X"
+    match = re.search(r'[Tt]he\s+answer\s+is\s+(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 3: Just a number (for top-1 mode)
+    match = re.search(r'^(\d+)$', text.strip())
+    if match:
+        ans = int(match.group(1))
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 4: Last number in text
+    numbers = re.findall(r'\b(\d+)\b', text)
+    if numbers:
+        ans = int(numbers[-1])
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Fallback: return 1
+    return 1
+
+
+def score_candidates_cot_sambanova(
+    client,
+    model: str,
+    prompt: str,
+    num_candidates: int,
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+) -> Tuple[List[float], str]:
+    """
+    CoT mode: asks for reasoning, then extracts top-1 answer.
+    Returns (scores, generated_text) for debugging.
+    """
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are a helpful news recommendation assistant. Think step by step before giving your answer."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
+    )
+    content = response.choices[0].message.content.strip()
+
+    # Extract the answer
+    answer = _extract_answer_number(content, num_candidates)
+
+    # Create scores: answer gets 1.0, rest get 0.0
+    scores = [0.0] * num_candidates
+    scores[answer - 1] = 1.0
+
+    return scores, content
+
+
+def score_candidates_top1_sambanova(
+    client,
+    model: str,
+    prompt: str,
+    num_candidates: int,
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+) -> List[float]:
+    """
+    Top-1 mode: just asks for the single best choice.
+    Simpler task than full ranking.
+    """
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant. Be concise."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=16,  # Only need a number
+    )
+    content = response.choices[0].message.content.strip()
+
+    answer = _extract_answer_number(content, num_candidates)
+
+    scores = [0.0] * num_candidates
+    scores[answer - 1] = 1.0
+
     return scores
 
 
@@ -164,7 +336,7 @@ def main():
     parser.add_argument("--behaviors_path", required=True)
     parser.add_argument("--news_path", required=True)
     parser.add_argument("--use_abstract", action="store_true")
-    parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
+    parser.add_argument("--max_history", type=int, default=30, help="Max history items (default: 30)")
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
@@ -173,6 +345,10 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument("--top_p", type=float, default=0.1)
     parser.add_argument("--max_tokens", type=int, default=128)
+    # New options for different evaluation modes
+    parser.add_argument("--mode", choices=["ranking", "cot", "top1"], default="cot",
+                        help="Evaluation mode: 'ranking' (full ranking), 'cot' (chain-of-thought), 'top1' (simple top-1)")
+    parser.add_argument("--save_responses", help="Save model responses to this file (for debugging)")
     args = parser.parse_args()
 
     api_key = args.api_key or os.getenv("SAMBANOVA_API_KEY")
@@ -209,10 +385,20 @@ def main():
     count = 0
     skipped_malformed = 0
 
-    print("\nEvaluating with multiple-choice ranking via SambaNova...")
+    print(f"\nEvaluating with mode: {args.mode}")
+    print(f"Model: {args.model}")
     print(f"Use abstract: {args.use_abstract}")
-    print("Format: Candidate News Articles:\n1. [Title] Title (Category)\n...\nAnswer: N")
+    print(f"Max history: {args.max_history}")
+    if args.mode == "cot":
+        print("Mode: Chain-of-Thought (reasoning before answer)")
+    elif args.mode == "top1":
+        print("Mode: Top-1 only (simple single choice)")
+    else:
+        print("Mode: Full ranking (asks for ordered list)")
     print()
+
+    # For saving responses (debugging)
+    saved_responses = []
 
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
         pbar = tqdm(total=total_to_process, desc="Evaluating impressions", unit="impression")
@@ -250,16 +436,47 @@ def main():
 
             history_objs = [news[nid] for nid in history_ids if nid in news]
 
-            prompt = build_multiple_choice_prompt(history_objs, candidate_objs)
-            scores = score_candidates_multiple_choice_sambanova(
-                client,
-                args.model,
-                prompt,
-                len(candidate_objs),
-                temperature=args.temperature,
-                top_p=args.top_p,
-                max_tokens=args.max_tokens,
-            )
+            # Build prompt based on mode
+            if args.mode == "cot":
+                prompt = build_cot_prompt(history_objs, candidate_objs)
+                scores, response_text = score_candidates_cot_sambanova(
+                    client,
+                    args.model,
+                    prompt,
+                    len(candidate_objs),
+                    temperature=args.temperature,
+                    top_p=args.top_p,
+                    max_tokens=args.max_tokens,
+                )
+                if args.save_responses:
+                    saved_responses.append({
+                        "impression_id": impression_id,
+                        "response": response_text,
+                        "predicted": int(scores.index(max(scores)) + 1),
+                        "labels": labels
+                    })
+            elif args.mode == "top1":
+                prompt = build_top1_prompt(history_objs, candidate_objs)
+                scores = score_candidates_top1_sambanova(
+                    client,
+                    args.model,
+                    prompt,
+                    len(candidate_objs),
+                    temperature=args.temperature,
+                    top_p=args.top_p,
+                    max_tokens=args.max_tokens,
+                )
+            else:  # ranking mode
+                prompt = build_multiple_choice_prompt(history_objs, candidate_objs)
+                scores = score_candidates_multiple_choice_sambanova(
+                    client,
+                    args.model,
+                    prompt,
+                    len(candidate_objs),
+                    temperature=args.temperature,
+                    top_p=args.top_p,
+                    max_tokens=args.max_tokens,
+                )
 
             if sum(labels) > 0:
                 aucs.append(auc_score(labels, scores))

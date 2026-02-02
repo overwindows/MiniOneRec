@@ -569,3 +569,186 @@ def compute_score_mind_auc_rank(data_source, solution_str, ground_truth, extra_i
     reward = 1.0 / math.log2(click_rank + 1)
 
     return reward
+
+
+# =============================================================================
+# POINTWISE REWARD FUNCTIONS
+# =============================================================================
+# These rewards are for pointwise RL where model outputs "Yes" or "No"
+# for each (history, candidate) pair.
+
+
+def compute_score_pointwise_binary(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Simple binary reward for pointwise Yes/No prediction.
+
+    Args:
+        data_source: Not used (kept for API compatibility)
+        solution_str: Model's prediction ("Yes" or "No")
+        ground_truth: Expected answer ("Yes" or "No")
+        extra_info: Optional dict (not used for binary reward)
+
+    Returns:
+        float: 1.0 if prediction matches ground truth, 0.0 otherwise
+
+    Example:
+        >>> compute_score_pointwise_binary(None, "Yes", "Yes", None)
+        1.0
+        >>> compute_score_pointwise_binary(None, "No", "Yes", None)
+        0.0
+    """
+    if not solution_str or not ground_truth:
+        return 0.0
+
+    # Normalize predictions
+    pred_str = str(solution_str).strip().lower()
+    target_str = str(ground_truth).strip().lower()
+
+    # Check for Yes/No
+    pred_yes = "yes" in pred_str
+    target_yes = "yes" in target_str
+
+    return 1.0 if pred_yes == target_yes else 0.0
+
+
+def compute_score_pointwise_weighted(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Weighted reward for pointwise prediction that approximates AUC optimization.
+
+    This reward gives higher weight to correctly predicting "Yes" for positive
+    samples (clicked items) than correctly predicting "No" for negative samples.
+    This aligns with AUC optimization where we care most about ranking positives
+    above negatives.
+
+    Args:
+        data_source: Not used (kept for API compatibility)
+        solution_str: Model's prediction ("Yes" or "No")
+        ground_truth: Expected answer ("Yes" or "No")
+        extra_info: Dict containing:
+            - 'label': int (1 for clicked/positive, 0 for not clicked/negative)
+
+    Returns:
+        float: Weighted reward
+            - Correct Yes on positive: 1.0
+            - Correct No on negative: 0.5
+            - Incorrect prediction: 0.0
+
+    Rationale:
+        - In AUC, we want P(Yes|positive) > P(Yes|negative)
+        - Giving full reward (1.0) for correct positives encourages high P(Yes) for positives
+        - Giving partial reward (0.5) for correct negatives encourages low P(Yes) for negatives
+        - This asymmetry helps optimize ranking
+    """
+    if not solution_str or not ground_truth:
+        return 0.0
+
+    # Normalize prediction
+    pred_str = str(solution_str).strip().lower()
+    pred_yes = "yes" in pred_str
+
+    # Get ground truth label from extra_info
+    label = 0
+    if extra_info:
+        label = extra_info.get('label', 0)
+    else:
+        # Fallback: infer from ground_truth string
+        target_str = str(ground_truth).strip().lower()
+        label = 1 if "yes" in target_str else 0
+
+    if label == 1:  # Positive sample (clicked item)
+        return 1.0 if pred_yes else 0.0
+    else:  # Negative sample (not clicked)
+        return 0.5 if not pred_yes else 0.0
+
+
+def compute_score_pointwise_auc_proxy(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    AUC-proxy reward for pointwise prediction.
+
+    This reward is designed to more directly optimize AUC by considering
+    the confidence of the prediction. It rewards:
+    - High confidence "Yes" for positives
+    - High confidence "No" for negatives
+
+    Args:
+        data_source: Not used
+        solution_str: Model's prediction ("Yes" or "No")
+        ground_truth: Expected answer
+        extra_info: Dict containing:
+            - 'label': int (1=positive, 0=negative)
+            - 'confidence': float (optional, 0-1 confidence score)
+
+    Returns:
+        float: Reward in [0, 1] range
+    """
+    if not solution_str:
+        return 0.0
+
+    pred_str = str(solution_str).strip().lower()
+    pred_yes = "yes" in pred_str
+
+    # Get label
+    label = 0
+    if extra_info:
+        label = extra_info.get('label', 0)
+    else:
+        target_str = str(ground_truth).strip().lower()
+        label = 1 if "yes" in target_str else 0
+
+    # Get confidence if available (default to 1.0 for deterministic predictions)
+    confidence = 1.0
+    if extra_info:
+        confidence = extra_info.get('confidence', 1.0)
+
+    if label == 1:  # Positive sample
+        if pred_yes:
+            return confidence  # Reward proportional to confidence
+        else:
+            return 0.0  # Wrong prediction on positive = no reward
+    else:  # Negative sample
+        if not pred_yes:
+            return 0.5 * confidence  # Partial reward for correct negative
+        else:
+            return 0.0  # Wrong prediction on negative = no reward
+
+
+def compute_score_pointwise_margin(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Margin-based reward for pointwise prediction.
+
+    This reward penalizes wrong predictions more than it rewards correct ones,
+    creating a margin that encourages confident correct predictions.
+
+    Args:
+        Same as compute_score_pointwise_weighted
+
+    Returns:
+        float: Reward in [-0.5, 1.0] range
+            - Correct Yes on positive: 1.0
+            - Correct No on negative: 0.3
+            - Wrong Yes on negative: -0.5 (penalty for false positive)
+            - Wrong No on positive: -0.3 (penalty for false negative)
+    """
+    if not solution_str:
+        return -0.5  # Penalty for no prediction
+
+    pred_str = str(solution_str).strip().lower()
+    pred_yes = "yes" in pred_str
+
+    label = 0
+    if extra_info:
+        label = extra_info.get('label', 0)
+    else:
+        target_str = str(ground_truth).strip().lower()
+        label = 1 if "yes" in target_str else 0
+
+    if label == 1:  # Positive sample
+        if pred_yes:
+            return 1.0  # Correct: predicted Yes for clicked item
+        else:
+            return -0.3  # Wrong: missed a clicked item
+    else:  # Negative sample
+        if not pred_yes:
+            return 0.3  # Correct: predicted No for non-clicked item
+        else:
+            return -0.5  # Wrong: false positive (predicted Yes for non-clicked)

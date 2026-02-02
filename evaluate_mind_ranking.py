@@ -25,7 +25,8 @@ import json
 import math
 import os
 import random
-from typing import List, Tuple
+import re
+from typing import List, Tuple, Optional
 
 import numpy as np
 import torch
@@ -131,6 +132,157 @@ def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) ->
     """
     content = build_prompt_content(history, candidates)
     return content + "\n\nAnswer:"
+
+
+def build_cot_prompt_content(history: List[dict], candidates: List[dict]) -> str:
+    """
+    Build Chain-of-Thought prompt content for evaluation.
+
+    This prompt encourages the model to reason before answering.
+    """
+    lines = []
+
+    lines.append("You are a news recommendation assistant.")
+    lines.append("Your task is to predict which article a user will click based on their reading history.")
+    lines.append("")
+
+    # User history
+    lines.append("=== User Reading History ===")
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = f"[{h.get('category', 'General')}]" if h.get('category') else ""
+            lines.append(f"{i}. {cat} {h['text']}")
+    else:
+        lines.append("(No reading history available)")
+    lines.append("")
+
+    # Candidates
+    lines.append("=== Candidate Articles ===")
+    for i, cand in enumerate(candidates, 1):
+        cat = f"[{cand.get('category', 'General')}]" if cand.get('category') else ""
+        lines.append(f"{i}. {cat} {cand['text']}")
+    lines.append("")
+
+    # CoT instruction
+    lines.append("=== Instructions ===")
+    lines.append("Think step by step about what topics interest this user based on their history.")
+    lines.append("Then select the article they are most likely to click.")
+    lines.append("")
+    lines.append("Provide your reasoning, then give your final answer as: Answer: <number>")
+
+    return "\n".join(lines)
+
+
+def extract_cot_answer(generated_text: str, num_candidates: int) -> Optional[int]:
+    """
+    Extract answer number from CoT output.
+
+    Tries multiple patterns:
+    - "Answer: X"
+    - "The answer is X"
+    - Last number in text
+
+    Returns:
+        1-indexed answer number or None if not found
+    """
+    if not generated_text:
+        return None
+
+    text = generated_text.strip()
+
+    # Pattern 1: "Answer: X"
+    match = re.search(r'[Aa]nswer\s*:\s*(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 2: "The answer is X"
+    match = re.search(r'[Tt]he\s+answer\s+is\s+(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 3: "I choose X" or similar
+    match = re.search(r'[Ii]\s+(?:choose|select|pick)\s+(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 4: Last number in text
+    numbers = re.findall(r'\b(\d+)\b', text)
+    if numbers:
+        ans = int(numbers[-1])
+        if 1 <= ans <= num_candidates:
+            return ans
+
+    return None
+
+
+def generate_cot_response(
+    model,
+    tokenizer,
+    prompt: str,
+    num_candidates: int,
+    device,
+    max_new_tokens: int = 256
+) -> Tuple[int, str]:
+    """
+    Generate CoT response and extract answer.
+
+    Args:
+        model: The LLM model
+        tokenizer: Tokenizer
+        prompt: The CoT prompt
+        num_candidates: Number of candidates (for validation)
+        device: Torch device
+        max_new_tokens: Maximum tokens to generate
+
+    Returns:
+        Tuple of (predicted_index_0_based, generated_text)
+        predicted_index is 0-based (for use with labels array)
+    """
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096)
+    input_ids = inputs["input_ids"].to(device)
+    attention_mask = inputs["attention_mask"].to(device)
+
+    with torch.no_grad():
+        outputs = model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,  # Greedy decoding for reproducibility
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+
+    # Decode only new tokens
+    generated_ids = outputs[0, input_ids.shape[1]:]
+    generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+    # Extract answer
+    answer = extract_cot_answer(generated_text, num_candidates)
+
+    # Convert to 0-indexed (for labels array)
+    predicted_idx = (answer - 1) if answer is not None else 0
+
+    return predicted_idx, generated_text
+
+
+def cot_scores_from_prediction(predicted_idx: int, num_candidates: int) -> List[float]:
+    """
+    Convert CoT prediction to scores array.
+
+    The predicted candidate gets score 1.0, all others get 0.0.
+    This allows using existing metric functions.
+    """
+    scores = [0.0] * num_candidates
+    if 0 <= predicted_idx < num_candidates:
+        scores[predicted_idx] = 1.0
+    return scores
 
 
 def score_candidates_multiple_choice(
@@ -367,6 +519,8 @@ def main():
     parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2 for faster inference")
     parser.add_argument("--use_chat_template", action="store_true", help="Use chat template (must match training)")
     parser.add_argument("--load_training_config", action="store_true", help="Load config from training_config.json in model_path")
+    parser.add_argument("--use_cot", action="store_true", help="Use Chain-of-Thought generation (slower but may be more accurate)")
+    parser.add_argument("--cot_max_tokens", type=int, default=256, help="Max tokens for CoT generation (default: 256)")
     args = parser.parse_args()
 
     # Load training config if requested
@@ -445,12 +599,15 @@ def main():
     count = 0
     skipped_malformed = 0
 
-    print(f"\nEvaluating with multiple-choice format (numeric options)...")
+    eval_mode = "CoT generation" if args.use_cot else "multiple-choice scoring"
+    print(f"\nEvaluating with {eval_mode}...")
     print(f"Use abstract: {args.use_abstract}")
     print(f"Max candidates: {'unlimited' if args.max_candidates <= 0 else args.max_candidates}")
     print(f"Neg ratio: {'unlimited' if args.neg_ratio <= 0 else args.neg_ratio}")
     print(f"Chat template: {args.use_chat_template}")
     print(f"Max history: {args.max_history if args.max_history > 0 else 'unlimited'}")
+    if args.use_cot:
+        print(f"CoT max tokens: {args.cot_max_tokens}")
     print()
 
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
@@ -504,12 +661,22 @@ def main():
             # Build history (pass full news objects to include category)
             history_objs = [news[nid] for nid in history_ids if nid in news]
 
-            # Build prompt (with chat template if enabled)
-            content = build_prompt_content(history_objs, candidate_objs)
-            prompt = format_prompt_for_eval(content, tokenizer, args.use_chat_template)
-            scores = score_candidates_multiple_choice(
-                model, tokenizer, prompt, len(candidate_objs), device
-            )
+            # Build prompt and get scores
+            if args.use_cot:
+                # Chain-of-Thought: generate reasoning and extract answer
+                content = build_cot_prompt_content(history_objs, candidate_objs)
+                prompt = format_prompt_for_eval(content, tokenizer, args.use_chat_template)
+                predicted_idx, _ = generate_cot_response(
+                    model, tokenizer, prompt, len(candidate_objs), device, args.cot_max_tokens
+                )
+                scores = cot_scores_from_prediction(predicted_idx, len(candidate_objs))
+            else:
+                # Standard: score each option by probability
+                content = build_prompt_content(history_objs, candidate_objs)
+                prompt = format_prompt_for_eval(content, tokenizer, args.use_chat_template)
+                scores = score_candidates_multiple_choice(
+                    model, tokenizer, prompt, len(candidate_objs), device
+                )
 
             # Compute metrics (only if we have positive labels)
             if sum(labels) > 0:
@@ -540,7 +707,8 @@ def main():
 
         pbar.close()
 
-    print("\nMIND Evaluation (Ranking-Aware, Numeric Options)")
+    eval_type = "CoT Generation" if args.use_cot else "Numeric Options"
+    print(f"\nMIND Evaluation (Ranking-Aware, {eval_type})")
     print(f"Impressions processed: {count}")
     if skipped_malformed > 0:
         print(f"⚠️  Skipped malformed lines: {skipped_malformed}")

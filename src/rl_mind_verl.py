@@ -29,12 +29,12 @@ def main(
     output_dir: str = "output_dir/rl_mind_auc",
 
     # Reward configuration
-    reward_type: str = "mind_auc",  # Options: mind_auc, mind_auc_rank, mind_ndcg, mind_mrr
+    reward_type: str = "mind_auc",  # Options: mind_auc, mind_auc_rank, mind_ndcg, mind_mrr, mind_cot_*
 
     # Generation parameters
     num_generations: int = 8,  # Number of generations per prompt (reduced for memory)
     max_prompt_length: int = 2048,  # For letter format (up to 26 candidates), use 4096 for numeric
-    max_response_length: int = 4,  # Single letter output (A, B, C...) or short number
+    max_response_length: int = 4,  # Single letter output (A, B, C...) or short number; use 256+ for CoT
 
     # Training hyperparameters
     train_batch_size: int = 64,  # Further reduced for memory with larger prompts
@@ -70,15 +70,28 @@ def main(
 
     Args:
         model_path: Path to SFT checkpoint (starting point for RL)
-        train_parquet: Path to training parquet file (from prepare_mind_rl.py)
+        train_parquet: Path to training parquet file (from prepare_mind_rl.py or prepare_mind_rl_cot.py)
         eval_parquet: Path to evaluation parquet file
         output_dir: Directory to save checkpoints and logs
         reward_type: Reward function type
+            Standard (short output - just answer number):
+            - 'mind_auc': Binary reward for selecting clicked item
+            - 'mind_auc_rank': AUC reward with ranking consideration
             - 'mind_ndcg': nDCG-style reward (1/log2(rank+1))
             - 'mind_mrr': MRR-style reward (1/rank)
+
+            Chain-of-Thought (reasoning + answer):
+            - 'mind_cot_binary': Binary reward for CoT output
+            - 'mind_cot_ndcg': nDCG-style reward with partial credit for category match
+            - 'mind_cot_auc': AUC reward for CoT (any clicked item = reward)
+            - 'mind_cot_margin': Margin-based reward with penalties for wrong answers
+            - 'mind_cot_format': Reward that includes bonus for proper formatting
+
         num_generations: Number of generations per prompt for GRPO
         max_prompt_length: Maximum prompt length (include full history)
-        max_response_length: Maximum response length (ranking letter)
+        max_response_length: Maximum response length
+            - For standard: 4-8 (just a number)
+            - For CoT: 256-512 (reasoning + answer)
         train_batch_size: Training batch size
         learning_rate: Learning rate (use low value for stability)
         total_epochs: Number of training epochs
@@ -95,29 +108,38 @@ def main(
         n_gpus_per_node: Number of GPUs per node
 
     Example:
-        # Quick test with MINDsmall
+        # Standard RL (short output)
         python src/rl_mind_verl.py \\
-            --model_path output_dir/sft_mind_small_Qwen3-1.7B_bs1024/final_checkpoint \\
+            --model_path output_dir/sft_mind_ranking/final_checkpoint \\
             --train_parquet ../data/MIND/train/rl_train.parquet \\
             --eval_parquet ../data/MIND/dev/rl_dev.parquet \\
-            --output_dir output_dir/rl_mind_test \\
-            --reward_type mind_ndcg \\
-            --total_epochs 1 \\
-            --train_batch_size 64 \\
-            --n_gpus_per_node 4
+            --output_dir output_dir/rl_mind_auc \\
+            --reward_type mind_auc \\
+            --max_response_length 8 \\
+            --total_epochs 1
 
-        # Full training with MINDlarge
+        # Chain-of-Thought RL (reasoning + answer)
         python src/rl_mind_verl.py \\
-            --model_path output_dir/sft_mind_large_Qwen3-4B_bs4096/final_checkpoint \\
-            --train_parquet ../data/MIND_large/train/rl_train.parquet \\
-            --eval_parquet ../data/MIND_large/dev/rl_dev.parquet \\
-            --output_dir output_dir/rl_mind_large_4b \\
-            --reward_type mind_ndcg \\
-            --total_epochs 2 \\
-            --train_batch_size 256 \\
-            --learning_rate 5e-7 \\
-            --kl_loss_coef 0.01 \\
+            --model_path output_dir/sft_mind_ranking/final_checkpoint \\
+            --train_parquet ../data/MIND/train/rl_cot_train.parquet \\
+            --eval_parquet ../data/MIND/dev/rl_cot_dev.parquet \\
+            --output_dir output_dir/rl_mind_cot \\
+            --reward_type mind_cot_binary \\
+            --max_response_length 256 \\
+            --total_epochs 1 \\
+            --train_batch_size 32 \\
             --n_gpus_per_node 8
+
+        # CoT with margin-based reward (encourages confident correct answers)
+        python src/rl_mind_verl.py \\
+            --model_path output_dir/sft_mind_ranking/final_checkpoint \\
+            --train_parquet ../data/MIND/train/rl_cot_train.parquet \\
+            --eval_parquet ../data/MIND/dev/rl_cot_dev.parquet \\
+            --output_dir output_dir/rl_mind_cot_margin \\
+            --reward_type mind_cot_margin \\
+            --max_response_length 256 \\
+            --kl_loss_coef 0.1 \\
+            --total_epochs 2
     """
     print("=" * 70)
     print("MIND RL Training with VERL")
@@ -136,11 +158,20 @@ def main(
     print()
 
     # Validate reward type
-    valid_reward_types = ['mind_auc', 'mind_auc_rank', 'mind_ndcg', 'mind_mrr']
+    valid_reward_types = [
+        # Standard (short output)
+        'mind_auc', 'mind_auc_rank', 'mind_ndcg', 'mind_mrr',
+        # Chain-of-Thought (reasoning + answer)
+        'mind_cot_binary', 'mind_cot_ndcg', 'mind_cot_auc', 'mind_cot_margin', 'mind_cot_format'
+    ]
     if reward_type not in valid_reward_types:
         print(f"WARNING: reward_type '{reward_type}' not in {valid_reward_types}")
         print("Using default: mind_auc")
         reward_type = 'mind_auc'
+
+    # Auto-adjust max_response_length for CoT if not explicitly set
+    if 'cot' in reward_type and max_response_length < 64:
+        print(f"NOTE: CoT reward detected. Consider using --max_response_length 256 or higher for reasoning output.")
 
     # Call VERL trainer
     train_verl(

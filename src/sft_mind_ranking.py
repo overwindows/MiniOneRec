@@ -350,7 +350,10 @@ class MINDRankingSFTDataset:
         If use_chat_template is True, applies chat template.
         Otherwise, uses raw text format.
 
-        Returns (full_text, prompt_for_masking)
+        Returns (full_text, prompt_text, target_start_char)
+        - full_text: complete text for tokenization
+        - prompt_text: just the prompt part (for reference)
+        - target_start_char: character index where target begins in full_text
         """
         if self.use_chat_template:
             # Apply chat template
@@ -360,6 +363,8 @@ class MINDRankingSFTDataset:
                 tokenize=False,
                 add_generation_prompt=True
             )
+            # Record where target starts
+            target_start_char = len(prompt)
             # Full text includes target and EOS
             full_text = prompt + target
             if hasattr(self.tokenizer, 'eos_token') and self.tokenizer.eos_token:
@@ -367,12 +372,76 @@ class MINDRankingSFTDataset:
         else:
             # Raw text format
             prompt = content + "\n\nAnswer:"
+            # Target has a leading space in non-chat mode
+            target_start_char = len(prompt)
             full_text = prompt + " " + target
 
-        return full_text, prompt
+        return full_text, prompt, target_start_char
 
     def __len__(self):
         return len(self.samples)
+
+    def debug_tokenization(self, idx=0):
+        """
+        Debug method to verify tokenization and label masking.
+        Call this to check if the fix is working correctly.
+
+        Usage:
+            dataset = MINDRankingSFTDataset(...)
+            dataset.debug_tokenization(0)
+        """
+        sample = self.samples[idx]
+        content = self._build_prompt_content(sample['history'], sample['candidates'])
+        target = str(sample['clicked_idx'] + 1)
+
+        full_text, prompt, target_start_char = self._format_for_training(content, target)
+
+        encoding = self.tokenizer(
+            full_text,
+            max_length=self.max_len,
+            truncation=True,
+            return_offsets_mapping=True,
+            add_special_tokens=not self.use_chat_template
+        )
+
+        input_ids = encoding['input_ids']
+        offset_mapping = encoding['offset_mapping']
+
+        # Find prompt_len
+        prompt_len = len(input_ids)
+        for i, (char_start, char_end) in enumerate(offset_mapping):
+            if char_start == 0 and char_end == 0 and i > 0:
+                continue
+            if char_start >= target_start_char:
+                prompt_len = i
+                break
+
+        print("=" * 70)
+        print("TOKENIZATION DEBUG")
+        print("=" * 70)
+        print(f"Target answer: {target}")
+        print(f"Chat template: {self.use_chat_template}")
+        print(f"Full text length: {len(full_text)} chars")
+        print(f"Target starts at char: {target_start_char}")
+        print(f"Total tokens: {len(input_ids)}")
+        print(f"Prompt tokens: {prompt_len}")
+        print(f"Target tokens: {len(input_ids) - prompt_len}")
+        print()
+        print("Last 10 tokens of prompt:")
+        for i in range(max(0, prompt_len - 10), prompt_len):
+            token = self.tokenizer.decode([input_ids[i]])
+            char_range = offset_mapping[i]
+            print(f"  [{i}] id={input_ids[i]:6d} '{token}' chars={char_range}")
+        print()
+        print("Target tokens (what model learns to predict):")
+        for i in range(prompt_len, len(input_ids)):
+            token = self.tokenizer.decode([input_ids[i]])
+            char_range = offset_mapping[i]
+            print(f"  [{i}] id={input_ids[i]:6d} '{token}' chars={char_range}")
+        print()
+        print(f"Text around target start (chars {target_start_char-20}:{target_start_char+20}):")
+        print(f"  ...{repr(full_text[max(0,target_start_char-20):target_start_char])}|{repr(full_text[target_start_char:target_start_char+20])}...")
+        print("=" * 70)
 
     def __getitem__(self, idx):
         sample = self.samples[idx]
@@ -385,27 +454,51 @@ class MINDRankingSFTDataset:
         target = str(clicked_idx + 1)  # 1-indexed
 
         # Format for training (handles chat template if enabled)
-        full_text, prompt = self._format_for_training(content, target)
+        full_text, prompt, target_start_char = self._format_for_training(content, target)
 
-        # Tokenize full text
-        input_ids = self.tokenizer.encode(
+        # ============================================================
+        # ROBUST TOKENIZATION WITH OFFSET MAPPING
+        # ============================================================
+        # Use offset_mapping to precisely find where target starts in tokens.
+        # This avoids all tokenization boundary issues.
+
+        # Tokenize with offset mapping
+        encoding = self.tokenizer(
             full_text,
             max_length=self.max_len,
             truncation=True,
-            add_special_tokens=not self.use_chat_template  # Chat template already has special tokens
-        )
-
-        # Tokenize prompt only (for label masking)
-        prompt_ids = self.tokenizer.encode(
-            prompt,
-            max_length=self.max_len,
-            truncation=True,
+            return_offsets_mapping=True,
             add_special_tokens=not self.use_chat_template
         )
 
+        input_ids = encoding['input_ids']
+        offset_mapping = encoding['offset_mapping']
+
+        # Find the first token that starts at or after target_start_char
+        # This is the first token of the target (what we want to train on)
+        prompt_len = len(input_ids)  # default: all tokens are prompt (shouldn't happen)
+        for i, (char_start, char_end) in enumerate(offset_mapping):
+            # Skip special tokens (they have offset (0, 0))
+            if char_start == 0 and char_end == 0 and i > 0:
+                continue
+            if char_start >= target_start_char:
+                prompt_len = i
+                break
+
+        # Sanity check: ensure we have at least 1 target token
+        if prompt_len >= len(input_ids):
+            # Fallback: use last token as target (shouldn't happen with valid data)
+            prompt_len = max(1, len(input_ids) - 1)
+
         # Create training labels: mask prompt tokens with -100, only train on target
-        train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
-        train_labels = train_labels[:len(input_ids)]  # Ensure same length
+        train_labels = [-100] * prompt_len + input_ids[prompt_len:]
+        train_labels = train_labels[:len(input_ids)]
+
+        # Verify: count how many tokens we're training on
+        num_target_tokens = sum(1 for l in train_labels if l != -100)
+        if num_target_tokens == 0:
+            # Emergency fallback: train on last token
+            train_labels[-1] = input_ids[-1]
 
         # Pad if needed
         if len(input_ids) < self.max_len:

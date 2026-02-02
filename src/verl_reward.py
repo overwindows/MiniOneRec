@@ -752,3 +752,326 @@ def compute_score_pointwise_margin(data_source, solution_str, ground_truth, extr
             return 0.3  # Correct: predicted No for non-clicked item
         else:
             return -0.5  # Wrong: false positive (predicted Yes for non-clicked)
+
+
+# =============================================================================
+# CHAIN-OF-THOUGHT (COT) REWARD FUNCTIONS FOR LIST-WISE RANKING
+# =============================================================================
+# These rewards support models that generate reasoning before providing an answer.
+# The model output format expected: <reasoning> ... Answer: <number>
+
+
+def extract_cot_answer(solution_str, num_candidates=None):
+    """
+    Extract the final answer number from Chain-of-Thought output.
+
+    Supports multiple formats:
+    - "Answer: 3"
+    - "The answer is 3"
+    - "I choose 3"
+    - "3" (just the number at the end)
+
+    Args:
+        solution_str: The full model output including reasoning
+        num_candidates: Optional max number to validate against
+
+    Returns:
+        int or None: The extracted answer (1-indexed) or None if not found
+    """
+    if not solution_str:
+        return None
+
+    text = str(solution_str).strip()
+
+    # Pattern 1: "Answer: X" or "Answer:X" (most explicit)
+    match = re.search(r'[Aa]nswer\s*:\s*(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if num_candidates is None or 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 2: "The answer is X"
+    match = re.search(r'[Tt]he\s+answer\s+is\s+(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if num_candidates is None or 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 3: "I choose X" or "I select X" or "I pick X"
+    match = re.search(r'[Ii]\s+(?:choose|select|pick)\s+(\d+)', text)
+    if match:
+        ans = int(match.group(1))
+        if num_candidates is None or 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 4: "Article X" or "Candidate X" or "Option X" at the end
+    match = re.search(r'(?:[Aa]rticle|[Cc]andidate|[Oo]ption)\s+(\d+)\s*$', text)
+    if match:
+        ans = int(match.group(1))
+        if num_candidates is None or 1 <= ans <= num_candidates:
+            return ans
+
+    # Pattern 5: Last number in the text (fallback)
+    numbers = re.findall(r'\b(\d+)\b', text)
+    if numbers:
+        # Take the last number
+        ans = int(numbers[-1])
+        if num_candidates is None or 1 <= ans <= num_candidates:
+            return ans
+
+    return None
+
+
+def compute_score_mind_cot_binary(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Binary reward for Chain-of-Thought list-wise ranking.
+
+    The model generates reasoning followed by an answer number.
+    Reward is 1.0 if the answer matches the clicked item, 0.0 otherwise.
+
+    Args:
+        data_source: Not used (kept for API compatibility)
+        solution_str: Full model output with reasoning + answer
+        ground_truth: Ground truth clicked index (1-indexed, as string or int)
+        extra_info: Optional dict containing:
+            - 'num_candidates': int - total number of candidates
+            - 'clicked_idx': int - 1-indexed position of clicked item
+
+    Returns:
+        float: 1.0 if correct, 0.0 if incorrect
+
+    Example:
+        Model output: "The user likes sports. Candidate 2 is about NBA. Answer: 2"
+        Ground truth: "2" (or clicked_idx=2 in extra_info)
+        Returns: 1.0
+    """
+    # Get number of candidates for validation
+    num_candidates = None
+    if extra_info:
+        num_candidates = extra_info.get('num_candidates')
+
+    # Extract predicted answer
+    predicted = extract_cot_answer(solution_str, num_candidates)
+    if predicted is None:
+        return 0.0
+
+    # Get ground truth
+    target = None
+    if extra_info and 'clicked_idx' in extra_info:
+        target = extra_info.get('clicked_idx')
+    elif ground_truth:
+        # Parse ground truth as number
+        try:
+            target = int(str(ground_truth).strip())
+        except ValueError:
+            # Try to extract number from ground truth
+            match = re.search(r'(\d+)', str(ground_truth))
+            if match:
+                target = int(match.group(1))
+
+    if target is None:
+        return 0.0
+
+    return 1.0 if predicted == target else 0.0
+
+
+def compute_score_mind_cot_ndcg(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    nDCG-style reward for Chain-of-Thought list-wise ranking.
+
+    Gives partial credit based on how "close" the prediction is to correct:
+    - Correct answer: 1.0
+    - Same category as correct: 0.3 (if category info available)
+    - Wrong answer: 0.0
+
+    Args:
+        data_source: Not used
+        solution_str: Full model output with reasoning + answer
+        ground_truth: Ground truth clicked index (1-indexed)
+        extra_info: Optional dict containing:
+            - 'num_candidates': int - total number of candidates
+            - 'clicked_idx': int - 1-indexed position of clicked item
+            - 'categories': List[str] - category of each candidate (optional)
+            - 'labels': List[int] - binary labels for all candidates (optional)
+
+    Returns:
+        float: Reward in [0, 1] range
+    """
+    num_candidates = None
+    if extra_info:
+        num_candidates = extra_info.get('num_candidates')
+
+    # Extract predicted answer
+    predicted = extract_cot_answer(solution_str, num_candidates)
+    if predicted is None:
+        return 0.0
+
+    # Get ground truth
+    target = None
+    if extra_info and 'clicked_idx' in extra_info:
+        target = extra_info.get('clicked_idx')
+    elif ground_truth:
+        try:
+            target = int(str(ground_truth).strip())
+        except ValueError:
+            match = re.search(r'(\d+)', str(ground_truth))
+            if match:
+                target = int(match.group(1))
+
+    if target is None:
+        return 0.0
+
+    # Exact match - full reward
+    if predicted == target:
+        return 1.0
+
+    # Check if prediction is still a clicked item (for multi-click scenarios)
+    if extra_info and 'labels' in extra_info:
+        labels = extra_info.get('labels', [])
+        if 0 < predicted <= len(labels) and labels[predicted - 1] == 1:
+            # Predicted a different clicked item - partial reward
+            return 0.5
+
+    # Check category match for partial credit
+    if extra_info and 'categories' in extra_info:
+        categories = extra_info.get('categories', [])
+        if (0 < predicted <= len(categories) and
+            0 < target <= len(categories)):
+            pred_cat = categories[predicted - 1]
+            target_cat = categories[target - 1]
+            if pred_cat and target_cat and pred_cat == target_cat:
+                # Same category - small partial credit
+                return 0.3
+
+    # Wrong answer
+    return 0.0
+
+
+def compute_score_mind_cot_auc(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    AUC-optimized reward for Chain-of-Thought list-wise ranking.
+
+    This reward is designed to optimize AUC metric:
+    - Selecting any clicked item: 1.0
+    - Selecting non-clicked item: 0.0
+
+    Args:
+        data_source: Not used
+        solution_str: Full model output with reasoning + answer
+        ground_truth: Ground truth (can be clicked_idx or any reference)
+        extra_info: Dict containing:
+            - 'labels': List[int] - binary labels (1=clicked, 0=not clicked)
+            - 'num_candidates': int - total candidates (optional)
+
+    Returns:
+        float: 1.0 if selected a clicked item, 0.0 otherwise
+    """
+    if not extra_info or 'labels' not in extra_info:
+        # Fall back to binary reward if no labels
+        return compute_score_mind_cot_binary(data_source, solution_str, ground_truth, extra_info)
+
+    labels = extra_info.get('labels', [])
+    num_candidates = extra_info.get('num_candidates', len(labels))
+
+    # Extract predicted answer
+    predicted = extract_cot_answer(solution_str, num_candidates)
+    if predicted is None:
+        return 0.0
+
+    # Check if predicted item is clicked
+    if 0 < predicted <= len(labels):
+        if labels[predicted - 1] == 1:
+            return 1.0  # Selected a clicked item
+
+    return 0.0  # Selected non-clicked or invalid
+
+
+def compute_score_mind_cot_margin(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Margin-based reward for Chain-of-Thought ranking with penalties.
+
+    Encourages confident correct predictions by penalizing wrong answers.
+
+    Args:
+        Same as compute_score_mind_cot_auc
+
+    Returns:
+        float: Reward in [-0.5, 1.0] range
+            - Correct (matches ground truth clicked_idx): 1.0
+            - Selected other clicked item: 0.5
+            - Selected non-clicked item: -0.3
+            - No valid answer extracted: -0.5
+    """
+    num_candidates = None
+    labels = []
+    if extra_info:
+        num_candidates = extra_info.get('num_candidates')
+        labels = extra_info.get('labels', [])
+
+    # Extract predicted answer
+    predicted = extract_cot_answer(solution_str, num_candidates)
+    if predicted is None:
+        return -0.5  # Penalty for not providing valid answer
+
+    # Get ground truth target
+    target = None
+    if extra_info and 'clicked_idx' in extra_info:
+        target = extra_info.get('clicked_idx')
+    elif ground_truth:
+        try:
+            target = int(str(ground_truth).strip())
+        except ValueError:
+            match = re.search(r'(\d+)', str(ground_truth))
+            if match:
+                target = int(match.group(1))
+
+    # Exact match - full reward
+    if target and predicted == target:
+        return 1.0
+
+    # Check if predicted is still a clicked item
+    if labels and 0 < predicted <= len(labels):
+        if labels[predicted - 1] == 1:
+            return 0.5  # Selected different clicked item - partial reward
+        else:
+            return -0.3  # Selected non-clicked item - penalty
+
+    # No label info, but wrong answer
+    return 0.0
+
+
+def compute_score_mind_cot_format(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Reward that includes bonus for proper formatting.
+
+    Encourages the model to follow the expected output format:
+    - Provides reasoning
+    - Ends with "Answer: X"
+
+    Args:
+        Same as compute_score_mind_cot_binary
+
+    Returns:
+        float: Reward with format bonus
+            - Correct + good format: 1.0
+            - Correct + bad format: 0.8
+            - Wrong + good format: 0.1 (small bonus for following instructions)
+            - Wrong + bad format: 0.0
+    """
+    if not solution_str:
+        return 0.0
+
+    text = str(solution_str).strip()
+
+    # Check format quality
+    has_reasoning = len(text) > 20  # More than just a number
+    has_explicit_answer = bool(re.search(r'[Aa]nswer\s*:\s*\d+', text))
+    good_format = has_reasoning and has_explicit_answer
+
+    # Get correctness reward
+    base_reward = compute_score_mind_cot_binary(data_source, solution_str, ground_truth, extra_info)
+
+    if base_reward == 1.0:
+        return 1.0 if good_format else 0.8
+    else:
+        return 0.1 if good_format else 0.0

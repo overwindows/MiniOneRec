@@ -247,6 +247,87 @@ def ndcg_score(labels: List[int], scores: List[float], k: int) -> float:
     return dcg / ideal if ideal > 0 else 0.0
 
 
+def limit_candidates(candidate_ids: List[str], labels: List[int], news: dict,
+                     neg_ratio: float, max_candidates: int, seed: int, impression_id: str) -> Tuple[List[str], List[int]]:
+    """
+    Limit candidates to match training distribution.
+    Uses same hard negative sampling strategy as training.
+    """
+    import random
+
+    if neg_ratio <= 0 and max_candidates <= 0:
+        return candidate_ids, labels
+
+    clicked_indices = [i for i, l in enumerate(labels) if l == 1]
+    non_clicked_indices = [i for i, l in enumerate(labels) if l == 0]
+    rng = random.Random(f"{impression_id}-{seed}")
+
+    # Determine number of negatives to use
+    if neg_ratio > 0:
+        num_negatives = int(len(clicked_indices) * neg_ratio)
+        num_negatives = min(num_negatives, len(non_clicked_indices))
+    elif max_candidates > 0 and len(candidate_ids) > max_candidates:
+        num_negatives = max_candidates - len(clicked_indices)
+        num_negatives = max(0, min(num_negatives, len(non_clicked_indices)))
+    else:
+        num_negatives = len(non_clicked_indices)
+
+    # Hard negative sampling (50% same category, 50% different)
+    if num_negatives > 0 and num_negatives < len(non_clicked_indices):
+        clicked_categories = set()
+        for idx in clicked_indices:
+            if candidate_ids[idx] in news:
+                cat = news[candidate_ids[idx]].get('category', '')
+                clicked_categories.add(cat)
+
+        hard_neg_indices = []
+        easy_neg_indices = []
+
+        for idx in non_clicked_indices:
+            if candidate_ids[idx] in news:
+                neg_cat = news[candidate_ids[idx]].get('category', '')
+                if neg_cat in clicked_categories:
+                    hard_neg_indices.append(idx)
+                else:
+                    easy_neg_indices.append(idx)
+            else:
+                easy_neg_indices.append(idx)
+
+        num_hard = num_negatives // 2
+        num_easy = num_negatives - num_hard
+
+        sampled_neg_indices = []
+        if hard_neg_indices:
+            sampled_neg_indices.extend(rng.sample(hard_neg_indices, min(num_hard, len(hard_neg_indices))))
+        if len(sampled_neg_indices) < num_negatives and easy_neg_indices:
+            remaining = num_negatives - len(sampled_neg_indices)
+            sampled_neg_indices.extend(rng.sample(easy_neg_indices, min(remaining, len(easy_neg_indices))))
+        if len(sampled_neg_indices) < num_negatives and hard_neg_indices:
+            remaining = num_negatives - len(sampled_neg_indices)
+            available = [idx for idx in hard_neg_indices if idx not in sampled_neg_indices]
+            if available:
+                sampled_neg_indices.extend(rng.sample(available, min(remaining, len(available))))
+    else:
+        sampled_neg_indices = non_clicked_indices[:num_negatives]
+
+    # Combine positives + sampled negatives
+    selected_indices = clicked_indices + sampled_neg_indices
+
+    # Apply max_candidates cap
+    if max_candidates > 0 and len(selected_indices) > max_candidates:
+        if len(clicked_indices) >= max_candidates:
+            selected_indices = rng.sample(clicked_indices, max_candidates)
+        else:
+            remaining = max_candidates - len(clicked_indices)
+            selected_indices = clicked_indices + sampled_neg_indices[:remaining]
+
+    rng.shuffle(selected_indices)
+
+    new_candidate_ids = [candidate_ids[i] for i in selected_indices]
+    new_labels = [labels[i] for i in selected_indices]
+    return new_candidate_ids, new_labels
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", required=True)
@@ -254,6 +335,8 @@ def main():
     parser.add_argument("--news_path", required=True)
     parser.add_argument("--use_abstract", action="store_true")
     parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
+    parser.add_argument("--max_candidates", type=int, default=0, help="Max candidates per impression (0=unlimited). Set to match training.")
+    parser.add_argument("--neg_ratio", type=float, default=0, help="Neg ratio to match training (e.g., 4.0 = 4 negs per pos). 0=unlimited.")
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
@@ -309,6 +392,8 @@ def main():
 
     print(f"\nEvaluating with multiple-choice format (numeric options)...")
     print(f"Use abstract: {args.use_abstract}")
+    print(f"Max candidates: {'unlimited' if args.max_candidates <= 0 else args.max_candidates}")
+    print(f"Neg ratio: {'unlimited' if args.neg_ratio <= 0 else args.neg_ratio}")
     print(f"Format: Candidate News Articles:\\n1. [Title] {'Title Abstract' if args.use_abstract else 'Title'} (Category)\\n...\\nAnswer: N")
     print()
 
@@ -328,26 +413,35 @@ def main():
             impressions = parts[4].split()
 
             labels = []
-            candidate_objs = []
             candidate_ids = []
-            missing_count = 0
 
             for imp in impressions:
                 if "-" not in imp:
                     continue
                 nid, label = imp.rsplit("-", 1)
-
-                # Use placeholder for missing news
-                if nid not in news:
-                    candidate_objs.append({'text': '[MISSING_NEWS]', 'category': ''})
-                    missing_count += 1
-                else:
-                    candidate_objs.append(news[nid])
-
                 candidate_ids.append(nid)
                 labels.append(int(label))
 
-            # Skip if no candidates
+            # Skip if no candidates or no positives
+            if not candidate_ids or sum(labels) == 0:
+                continue
+
+            # Limit candidates to match training distribution (if specified)
+            if args.neg_ratio > 0 or args.max_candidates > 0:
+                candidate_ids, labels = limit_candidates(
+                    candidate_ids, labels, news,
+                    args.neg_ratio, args.max_candidates, args.seed, impression_id
+                )
+
+            # Build candidate objects
+            candidate_objs = []
+            for nid in candidate_ids:
+                if nid not in news:
+                    candidate_objs.append({'text': '[MISSING_NEWS]', 'category': ''})
+                else:
+                    candidate_objs.append(news[nid])
+
+            # Skip if no candidates after filtering
             if not candidate_objs:
                 continue
 

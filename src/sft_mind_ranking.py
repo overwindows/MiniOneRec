@@ -451,8 +451,8 @@ def train(
     seed: int = 42,
     batch_size: int = 256,  # OPTIMIZED: Increased for stability (was 128)
     micro_batch_size: int = 2,  # OPTIMIZED: For 8B model memory (was 4)
-    num_epochs: int = 5,  # OPTIMIZED: More epochs for MIND-large (was 3)
-    learning_rate: float = 2e-5,  # CRITICAL: For fine-tuning 8B pretrained (was 3e-4)
+    num_epochs: int = 3,  # Reduced to match point-wise (was 5)
+    learning_rate: float = 1e-4,  # FIXED: Increased from 2e-5 to match point-wise scale better
     cutoff_len: int = 6144,  # Increased to avoid skipping samples with many candidates (was 4096)
     group_by_length: bool = False,
     resume_from_checkpoint: str = None,
@@ -478,7 +478,7 @@ def train(
     if not train_from_scratch:
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
-            dtype=torch.bfloat16,
+            torch_dtype=torch.bfloat16,
         )
     else:
         config = AutoConfig.from_pretrained(base_model)
@@ -530,7 +530,7 @@ def train(
         per_device_train_batch_size=micro_batch_size,
         per_device_eval_batch_size=micro_batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
-        warmup_steps=500,  # OPTIMIZED: Increased for better stability (was 100)
+        warmup_steps=100,  # FIXED: Reduced to match point-wise (was 500)
         num_train_epochs=num_epochs,
         learning_rate=learning_rate,
         bf16=True,

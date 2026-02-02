@@ -64,7 +64,8 @@ if [[ -z "${MIND_ROOT:-}" ]]; then
   fi
 fi
 USE_ABSTRACT="${USE_ABSTRACT:-0}"
-MAX_HISTORY="${MAX_HISTORY:-0}"  # 0 = no limit (use all history)
+MAX_HISTORY="${MAX_HISTORY:-30}"  # Default to 30 to match training
+NEG_RATIO="${NEG_RATIO:-4.0}"  # Default to 4.0 to match training (set to 0 for full evaluation)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 FLASH_ATTN="${FLASH_ATTN:-1}"  # Use Flash Attention 2 by default for speed
 
@@ -92,6 +93,7 @@ echo ""
 echo "Configuration:"
 echo "  Use abstract: ${USE_ABSTRACT}"
 echo "  Max history: ${MAX_HISTORY:-unlimited}"
+echo "  Neg ratio: ${NEG_RATIO} (set NEG_RATIO=0 for full evaluation)"
 echo "  Max impressions: ${MAX_IMPRESSIONS:-all}"
 echo "  Flash Attention: ${FLASH_ATTN}"
 echo "========================================="
@@ -147,6 +149,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       --behaviors_path \"${TEMP_DIR}/${gpu_id}.tsv\" \
       --news_path \"${NEWS_PATH}\" \
       --max_history ${MAX_HISTORY} \
+      --neg_ratio ${NEG_RATIO} \
       --output_file \"${TEMP_DIR}/${gpu_id}.txt\""
 
     if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
@@ -241,7 +244,8 @@ else
     --model_path ${MODEL_PATH} \
     --behaviors_path ${BEHAVIORS_PATH} \
     --news_path ${NEWS_PATH} \
-    --max_history ${MAX_HISTORY}"
+    --max_history ${MAX_HISTORY} \
+    --neg_ratio ${NEG_RATIO}"
 
   if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
     CMD="${CMD} --use_abstract"

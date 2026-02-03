@@ -44,6 +44,10 @@ export TORCH_DISTRIBUTED_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=7200
 export TORCH_CUDA_ARCH_LIST="8.0"
+# Increase distributed init timeout (default is 30 min, set to 60 min)
+export TORCH_DISTRIBUTED_TIMEOUT_SEC=${TORCH_DISTRIBUTED_TIMEOUT_SEC:-3600}
+# Rendezvous timeout for multi-node
+export NCCL_LAUNCH_MODE=PARALLEL
 
 # =========================
 # CPU / Threading (important!)
@@ -98,6 +102,11 @@ NEG_RATIO=${NEG_RATIO:-2.0}
 USE_ABSTRACT=${USE_ABSTRACT:-False}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-mind_pointwise_$(basename ${MODEL_PATH})_bs${BATCH_SIZE}}
 DS_CONFIG=${DS_CONFIG:-ds_configs/ds_config_zero2.json}
+# Convert to absolute path for multi-node compatibility
+if [[ ! "$DS_CONFIG" = /* ]]; then
+    DS_CONFIG="$(pwd)/$DS_CONFIG"
+fi
+DS_LAUNCHER=${DS_LAUNCHER:-pdsh}  # pdsh or openmpi
 
 # Create default hostfile if it doesn't exist (single node with 8 GPUs)
 if [ ! -f "$HOSTFILE" ]; then
@@ -128,8 +137,8 @@ WANDB_RUN_ID="${WANDB_RUN_ID:-}"  # Set WandB run ID to continue same run
 
 deepspeed --hostfile=$HOSTFILE \
         --master_port=${MASTER_PORT} \
-        --launcher=pdsh \
-        --launcher_args="-S" \
+        --launcher=${DS_LAUNCHER} \
+        ${DS_LAUNCHER_ARGS:+--launcher_args="$DS_LAUNCHER_ARGS"} \
         src/sft_mind_pointwise_ds.py \
         --base_model ${MODEL_PATH} \
         --train_behaviors_path ${TRAIN_BEHAVIORS} \

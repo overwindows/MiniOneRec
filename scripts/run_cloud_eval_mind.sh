@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Get the directory of this script and the repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 # Usage:
 #   ./run_cloud_eval.sh pointwise
 #   ./run_cloud_eval.sh listwise
@@ -68,4 +72,4 @@ if [[ -n "$OUTPUT_FILE" ]]; then
   ARGS+=(--output_file "$OUTPUT_FILE")
 fi
 
-python evaluate_mind_cloud.py "${ARGS[@]}"
+python "$REPO_ROOT/src/evaluate_mind_cloud.py" "${ARGS[@]}"

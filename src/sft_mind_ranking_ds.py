@@ -261,12 +261,11 @@ class MINDRankingSFTDataset:
             candidates, labels = self._limit_candidates(behavior)
             clicked_indices = [i for i, l in enumerate(labels) if l == 1]
             for clicked_idx in clicked_indices:
-                prompt, target = self._build_multiple_choice_prompt(
-                    behavior['history'], candidates, clicked_idx
-                )
-                full_text = prompt + target
+                content = self._build_prompt_content(behavior['history'], candidates)
+                target = str(clicked_idx + 1)
+                full_text, _, _ = self._format_for_training(content, target)
                 input_ids = self.tokenizer.encode(
-                    full_text, add_special_tokens=True, truncation=False
+                    full_text, add_special_tokens=not self.use_chat_template, truncation=False
                 )
                 if len(input_ids) > self.max_len:
                     skipped_overlength += 1
@@ -356,7 +355,7 @@ class MINDRankingSFTDataset:
         - target_start_char: character index where target begins in full_text
         """
         if self.use_chat_template:
-            # Apply chat template
+            # Apply chat template (chat template already adds its own control tokens)
             messages = [{"role": "user", "content": content}]
             prompt = self.tokenizer.apply_chat_template(
                 messages,
@@ -365,10 +364,8 @@ class MINDRankingSFTDataset:
             )
             # Record where target starts
             target_start_char = len(prompt)
-            # Full text includes target and EOS
+            # Full text includes target (do not append extra EOS in chat-template mode)
             full_text = prompt + target
-            if hasattr(self.tokenizer, 'eos_token') and self.tokenizer.eos_token:
-                full_text += self.tokenizer.eos_token
         else:
             # Raw text format
             prompt = content + "\n\nAnswer:"
@@ -516,6 +513,102 @@ class MINDRankingSFTDataset:
         }
 
 
+def verify_tokenization(dataset, num_samples=3, abort_on_error=True):
+    """
+    Verify tokenization and label masking is correct before training.
+
+    This function checks that:
+    1. Target tokens are correctly identified (1-3 tokens for answer number + EOS)
+    2. Labels are properly masked (-100 for prompt, actual IDs for target)
+    3. No samples have zero target tokens (would cause NaN loss)
+
+    Args:
+        dataset: MINDRankingSFTDataset instance
+        num_samples: Number of samples to verify
+        abort_on_error: If True, raise error on critical issues
+
+    Returns:
+        bool: True if verification passed, False if warnings were found
+    """
+    print("\n" + "=" * 70)
+    print("TOKENIZATION VERIFICATION (Pre-training Check)")
+    print("=" * 70)
+    print(f"Chat template: {dataset.use_chat_template}")
+    print(f"Checking {num_samples} samples...")
+    print()
+
+    all_good = True
+    total_target_tokens = 0
+    issues = []
+
+    for i in range(min(num_samples, len(dataset))):
+        # Get the item
+        item = dataset[i]
+        labels = item['labels'].tolist()
+        input_ids = item['input_ids'].tolist()
+
+        # Count target tokens (non -100 labels)
+        num_target = sum(1 for l in labels if l != -100)
+        total_target_tokens += num_target
+
+        # Get expected answer from sample
+        sample = dataset.samples[i]
+        expected_answer = str(sample['clicked_idx'] + 1)
+
+        # Check for issues
+        if num_target == 0:
+            issues.append(f"Sample {i}: ERROR - No target tokens! Will cause NaN loss.")
+            all_good = False
+        elif num_target > 10:
+            issues.append(f"Sample {i}: WARNING - {num_target} target tokens (expected 1-3 for answer '{expected_answer}')")
+            all_good = False
+        else:
+            # Decode target tokens to verify
+            target_token_ids = [input_ids[j] for j, l in enumerate(zip(input_ids, labels)) if labels[j] != -100]
+            target_text = dataset.tokenizer.decode(target_token_ids).strip()
+
+            # Check if expected answer is in target
+            if expected_answer not in target_text:
+                issues.append(f"Sample {i}: WARNING - Expected '{expected_answer}' but got '{target_text}'")
+                all_good = False
+            else:
+                print(f"  Sample {i}: ✓ {num_target} target tokens, answer='{target_text}'")
+
+    avg_target_tokens = total_target_tokens / num_samples if num_samples > 0 else 0
+
+    print()
+    if issues:
+        print("ISSUES FOUND:")
+        for issue in issues:
+            print(f"  ❌ {issue}")
+        print()
+
+    print(f"Average target tokens per sample: {avg_target_tokens:.1f}")
+    print(f"Expected: 1-3 tokens (answer number + optional EOS)")
+    print()
+
+    if all_good:
+        print("✓ Tokenization verification PASSED!")
+        print("  Target tokens are correctly identified.")
+        print("  Training should have normal initial loss (3-6 range).")
+    else:
+        print("⚠ Tokenization verification found issues!")
+        print("  Review the warnings above.")
+        if abort_on_error and any("ERROR" in issue for issue in issues):
+            print()
+            print("=" * 70)
+            raise ValueError(
+                "Critical tokenization error detected! "
+                "Training would fail with NaN loss. "
+                "Set abort_on_error=False to skip this check."
+            )
+
+    print("=" * 70)
+    print()
+
+    return all_good
+
+
 class _TorchStackCollator:
     def __init__(self, debug=False, max_logs=5):
         self.debug = debug
@@ -656,6 +749,15 @@ def train(
     print(f"  Cutoff length: {cutoff_len}")
     print(f"  Chat template: {use_chat_template}")
     print(f"  Format: Multiple-choice (1/2/3/...)")
+
+    # ============================================================
+    # AUTOMATIC TOKENIZATION VERIFICATION
+    # ============================================================
+    # Run verification on train dataset to catch tokenization issues
+    # BEFORE training starts. This prevents wasted compute on bad data.
+    is_main_process = int(os.environ.get("LOCAL_RANK", 0)) == 0
+    if is_main_process:
+        verify_tokenization(train_data, num_samples=5, abort_on_error=True)
 
     # Prepare training arguments with optional DeepSpeed
     training_args_dict = {

@@ -1,24 +1,41 @@
 #!/bin/bash
 
 # =========================
-# NCCL (STABILITY FIRST)
+# NCCL Configuration
 # =========================
-export NCCL_DEBUG=INFO
+export NCCL_DEBUG=${NCCL_DEBUG:-WARN}
 export NCCL_DEBUG_SUBSYS=INIT,NET
 
-# Disable RDMA / IB (AML-safe)
-export NCCL_IB_DISABLE=1
-export NCCL_P2P_DISABLE=1
+# Network interface - auto-detect if not specified
+# Common interfaces: eth0, ib0, bond0, enp (AzureML often uses eth0 or ib0)
+if [ -n "$NCCL_SOCKET_IFNAME" ]; then
+    echo "Using specified NCCL_SOCKET_IFNAME: $NCCL_SOCKET_IFNAME"
+else
+    # Try to auto-detect the correct interface
+    if ip link show ib0 &>/dev/null; then
+        export NCCL_SOCKET_IFNAME=ib0
+        export NCCL_IB_DISABLE=0
+        echo "Detected InfiniBand interface: ib0"
+    elif ip link show eth0 &>/dev/null; then
+        export NCCL_SOCKET_IFNAME=eth0
+        export NCCL_IB_DISABLE=1
+        echo "Using ethernet interface: eth0"
+    else
+        # Let NCCL auto-detect
+        echo "No specific interface found, letting NCCL auto-detect"
+        export NCCL_IB_DISABLE=1
+    fi
+fi
 
-# Force TCP and correct NIC
-export NCCL_SOCKET_IFNAME=eth0
+# P2P settings (disable if having issues across nodes)
+export NCCL_P2P_DISABLE=${NCCL_P2P_DISABLE:-0}
 
 # Prevent silent hangs
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_BLOCKING_WAIT=1
 
-# Increase timeout for large allreduces
-export NCCL_TIMEOUT=7200
+# Increase timeout for large allreduces (in seconds)
+export NCCL_TIMEOUT=${NCCL_TIMEOUT:-7200}
 
 # =========================
 # PyTorch Distributed
@@ -80,6 +97,7 @@ MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-2.0}
 USE_ABSTRACT=${USE_ABSTRACT:-False}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-mind_pointwise_$(basename ${MODEL_PATH})_bs${BATCH_SIZE}}
+DS_CONFIG=${DS_CONFIG:-ds_configs/ds_config_zero2.json}
 
 # Create default hostfile if it doesn't exist (single node with 8 GPUs)
 if [ ! -f "$HOSTFILE" ]; then
@@ -131,7 +149,7 @@ deepspeed --hostfile=$HOSTFILE \
         --wandb_run_name ${WANDB_RUN_NAME} \
         --train_from_scratch False \
         --seed 42 \
-        --deepspeed_config ds_configs/ds_config_zero2.json \
+        --deepspeed_config ${DS_CONFIG} \
         ${RESUME_CHECKPOINT:+--resume_from_checkpoint $RESUME_CHECKPOINT} \
         ${WANDB_RUN_ID:+--wandb_run_id $WANDB_RUN_ID}
 

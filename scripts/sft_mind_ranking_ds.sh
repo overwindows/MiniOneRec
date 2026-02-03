@@ -122,7 +122,7 @@ deepspeed --hostfile=$HOSTFILE \
         --wandb_run_name mind_ranking_Qwen3-1.7B_bs256 \
         --train_from_scratch False \
         --seed 42 \
-        --deepspeed_config ds_config_zero2.json \
+        --deepspeed_config ds_configs/ds_config_zero2.json \
         ${RESUME_CHECKPOINT:+--resume_from_checkpoint $RESUME_CHECKPOINT} \
         ${WANDB_RUN_ID:+--wandb_run_id $WANDB_RUN_ID}
 

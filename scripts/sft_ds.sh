@@ -82,5 +82,5 @@ for category in "Industrial_and_Scientific"; do
             --sid_index_path ./data/Amazon/index/Industrial_and_Scientific.index.json \
             --item_meta_path ./data/Amazon/index//Industrial_and_Scientific.item.json \
             --freeze_LLM False \
-            --deepspeed_config ds_config_zero2.json
+            --deepspeed_config ds_configs/ds_config_zero2.json
 done

@@ -1409,7 +1409,8 @@ Reward options: `rule`, `ranking`, `ranking_only`, `semantic`, `sasrec`. For `se
 | `sft.py`                  | Python implementation of the SFT training loop                                                            |
 | `sft_ds.sh`               | Shell script for memory-optimized SFT with DeepSpeed launcher (for 8B+ models)                           |
 | `sft_ds.py`               | Python implementation of SFT with DeepSpeed, Flash Attention 2, and gradient checkpointing               |
-| `ds_config_zero3.json`    | DeepSpeed ZeRO-3 configuration with CPU offloading                                                       |
+| `ds_configs/ds_config_zero2.json` | DeepSpeed ZeRO-2 configuration (standard) |
+| `ds_configs/ds_config_zero3.json` | DeepSpeed ZeRO-3 configuration |
 | `hostfile.example`        | Example hostfile for multi-node DeepSpeed training                                                       |
 | `rl.sh`                   | Shell script to start the Reinforcement Learning (RL) stage                             |
 | `rl.py`                   | Python implementation of the RL training loop                                              |
@@ -2236,7 +2237,7 @@ torchrun \
     --seed 42 \
     --sid_index_path ./data/Amazon/index/Industrial_and_Scientific.index.json \
     --item_meta_path ./data/Amazon/index/Industrial_and_Scientific.item.json \
-    --deepspeed_config ds_config_zero3.json
+    --deepspeed_config ds_configs/ds_config_zero3.json
 ```
 
 On Worker Node (rank 1):

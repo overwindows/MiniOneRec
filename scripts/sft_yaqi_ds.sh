@@ -114,7 +114,7 @@ for category in "GenRecDatasetV2_1"; do
             --sid_index_path ${DATA_ROOT}/index/GenRecDatasetV2_1.index.json \
             --item_meta_path ${DATA_ROOT}/index/GenRecDatasetV2_1.item.json \
             --freeze_LLM False \
-            --deepspeed_config ds_config_zero2.json \
+            --deepspeed_config ds_configs/ds_config_zero2.json \
             ${RESUME_CHECKPOINT:+--resume_from_checkpoint $RESUME_CHECKPOINT} \
             ${WANDB_RUN_ID:+--wandb_run_id $WANDB_RUN_ID}
 

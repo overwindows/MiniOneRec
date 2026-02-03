@@ -65,15 +65,20 @@ if [ -z "$HOSTFILE" ]; then
 fi
 
 # Model and data paths
-MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-1.7B}
+# Model and data paths
+MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-8B-Instruct}
 DATA_ROOT=${DATA_ROOT:-/home/aiscuser/MiniOneRec/data/MIND}
 
 # Training hyperparameters (configurable via environment variables)
+# SOTA defaults (8B model, 30 history, 2.0 negs)
 BATCH_SIZE=${BATCH_SIZE:-256}
-MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-8}
-LEARNING_RATE=${LEARNING_RATE:-3e-4}
+MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-2}  # 2 for 8B model
+LEARNING_RATE=${LEARNING_RATE:-2e-5}     # 2e-5 for 8B model
 CUTOFF_LEN=${CUTOFF_LEN:-2048}
-NUM_EPOCHS=${NUM_EPOCHS:-3}
+NUM_EPOCHS=${NUM_EPOCHS:-5}
+MAX_HISTORY=${MAX_HISTORY:-30}
+NEG_RATIO=${NEG_RATIO:-2.0}
+USE_ABSTRACT=${USE_ABSTRACT:-False}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-mind_pointwise_$(basename ${MODEL_PATH})_bs${BATCH_SIZE}}
 
 # Create default hostfile if it doesn't exist (single node with 8 GPUs)
@@ -119,14 +124,14 @@ deepspeed --hostfile=$HOSTFILE \
         --num_epochs ${NUM_EPOCHS} \
         --learning_rate ${LEARNING_RATE} \
         --cutoff_len ${CUTOFF_LEN} \
-        --max_history 0 \
-        --neg_ratio 1.0 \
-        --use_abstract False \
+        --max_history ${MAX_HISTORY} \
+        --neg_ratio ${NEG_RATIO} \
+        --use_abstract ${USE_ABSTRACT} \
         --wandb_project MiniOneRec_MIND \
         --wandb_run_name ${WANDB_RUN_NAME} \
         --train_from_scratch False \
         --seed 42 \
-        --deepspeed_config ds_config_zero2.json \
+        --deepspeed_config ds_configs/ds_config_zero2.json \
         ${RESUME_CHECKPOINT:+--resume_from_checkpoint $RESUME_CHECKPOINT} \
         ${WANDB_RUN_ID:+--wandb_run_id $WANDB_RUN_ID}
 

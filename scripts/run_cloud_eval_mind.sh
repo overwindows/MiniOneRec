@@ -11,8 +11,7 @@ set -euo pipefail
 # Optional env vars (defaults shown):
 #   SAMBANOVA_BASE_URL="https://api.sambanova.ai/v1"
 #   SAMBANOVA_MODEL="DeepSeek-V3.1"
-#   BEHAVIORS_PATH="../data/MIND/dev/behaviors.tsv"
-#   NEWS_PATH="../data/MIND/dev/news.tsv"
+#   ROOT_PATH="../data/MIND/dev"
 #   USE_ABSTRACT="false"   # true/false
 #   MAX_HISTORY=0
 #   MAX_IMPRESSIONS=0
@@ -36,8 +35,9 @@ fi
 
 SAMBANOVA_BASE_URL="${SAMBANOVA_BASE_URL:-https://api.sambanova.ai/v1}"
 SAMBANOVA_MODEL="${SAMBANOVA_MODEL:-DeepSeek-V3.1}"
-BEHAVIORS_PATH="${BEHAVIORS_PATH:-../data/MIND/dev/behaviors.tsv}"
-NEWS_PATH="${NEWS_PATH:-../data/MIND/dev/news.tsv}"
+ROOT_PATH="${ROOT_PATH:-../data/MIND}"
+BEHAVIORS_PATH="${ROOT_PATH}/dev/behaviors.tsv"
+NEWS_PATH="${ROOT_PATH}/dev/news.tsv"
 USE_ABSTRACT="${USE_ABSTRACT:-false}"
 MAX_HISTORY="${MAX_HISTORY:-0}"
 MAX_IMPRESSIONS="${MAX_IMPRESSIONS:-0}"

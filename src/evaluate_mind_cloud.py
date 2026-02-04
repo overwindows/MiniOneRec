@@ -64,7 +64,9 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     prompt += f"[{cat}] {candidate['text']}\n"
 
     prompt += "\n"
-    prompt += "Will this user read this article? Answer:"
+    prompt += "Think step by step about the user's interests based on their reading history, "
+    prompt += "then determine if they would read this candidate article.\n\n"
+    prompt += "Analysis: Let me analyze the user's preferences. "
     return prompt
 
 
@@ -79,15 +81,19 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
         prompt += "(No reading history)\n"
 
     prompt += "\n"
-    prompt += "Candidate articles:\n"
+    prompt += "Candidate articles to rank:\n"
     for i, cand in enumerate(candidates):
         option_num = i + 1
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
     prompt += "\n"
-    prompt += "Rank ALL candidate articles from most to least likely to be read by this user.\n\n"
-    prompt += "Answer:"
+    prompt += f"Task: Rank ALL {len(candidates)} candidate articles from most to least likely to be read.\n\n"
+    prompt += "Think step by step:\n"
+    prompt += "1. Analyze the user's interests from their reading history\n"
+    prompt += "2. Compare each candidate against these interests\n"
+    prompt += "3. Rank them from best to worst match\n\n"
+    prompt += "Reasoning:"
     return prompt
 
 
@@ -144,17 +150,25 @@ def score_candidate_pointwise(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt + "\nAnswer with Yes or No only."},
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that analyzes user preferences in news articles."
+            },
+            {
+                "role": "user",
+                "content": prompt + "\n\nFinal Answer (Yes or No):"
+            },
         ],
         temperature=temperature,
         top_p=top_p,
         max_tokens=max_tokens,
     )
     content = response.choices[0].message.content.strip().lower()
-    if content.startswith("yes"):
+
+    # Look for Yes/No anywhere in the response
+    if "yes" in content:
         return 1.0
-    if content.startswith("no"):
+    if "no" in content:
         return 0.0
     print(f"Warning: unexpected response: {content}", file=sys.stderr)
     return 0.0
@@ -199,18 +213,19 @@ def score_candidates_listwise(
             {
                 "role": "system",
                 "content": (
-                    "You are a helpful assistant that ranks news articles for users. "
-                    "Always respond with valid JSON in the exact format: {\"ranking\":[...]} "
-                    "where the list contains ALL option numbers ranked from most to least relevant."
+                    "You are a helpful assistant that analyzes user preferences and ranks news articles. "
+                    "First think through the problem, then provide your ranking as JSON."
                 )
             },
             {
                 "role": "user",
                 "content": (
                     prompt
-                    + f"\n\nYou MUST return valid JSON containing exactly {num_candidates} numbers (1 to {num_candidates}). "
-                    "Format: {\"ranking\":[3,1,5,2,4,...]} where the first number is the BEST article. "
-                    "Include every option number exactly once. Return ONLY the JSON, no explanations."
+                    + f"\n\nAfter your analysis, provide the final ranking as valid JSON.\n"
+                    f"CRITICAL: You MUST rank ALL {num_candidates} articles (numbered 1 to {num_candidates}).\n"
+                    f"Format: {{\"ranking\": [3, 1, 5, 2, 4, ...]}} where the first number is the BEST match.\n"
+                    f"The ranking list must contain exactly {num_candidates} unique numbers from 1 to {num_candidates}.\n\n"
+                    "Final Ranking (JSON):"
                 ),
             },
         ],
@@ -285,7 +300,8 @@ def main():
         raise SystemExit("Missing SambaNova API key. Set SAMBANOVA_API_KEY or pass --api_key.")
 
     if args.max_tokens == 0:
-        args.max_tokens = 1 if args.mode == "pointwise" else 512
+        # Increased defaults to allow for reasoning + answer
+        args.max_tokens = 128 if args.mode == "pointwise" else 1024
 
     set_seed(args.seed)
 

@@ -64,9 +64,13 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     prompt += f"[{cat}] {candidate['text']}\n"
 
     prompt += "\n"
-    prompt += "Think step by step about the user's interests based on their reading history, "
-    prompt += "then determine if they would read this candidate article.\n\n"
-    prompt += "Analysis: Let me analyze the user's preferences. "
+    prompt += "Task: Determine if this user would read the candidate article.\n\n"
+    prompt += "You must provide your response in this exact format:\n\n"
+    prompt += "ANALYSIS:\n"
+    prompt += "[Your step-by-step analysis of the user's interests and the candidate]\n\n"
+    prompt += "ANSWER:\n"
+    prompt += "[Yes or No]\n\n"
+    prompt += "Begin your analysis:"
     return prompt
 
 
@@ -89,11 +93,12 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
 
     prompt += "\n"
     prompt += f"Task: Rank ALL {len(candidates)} candidate articles from most to least likely to be read.\n\n"
-    prompt += "Think step by step:\n"
-    prompt += "1. Analyze the user's interests from their reading history\n"
-    prompt += "2. Compare each candidate against these interests\n"
-    prompt += "3. Rank them from best to worst match\n\n"
-    prompt += "Reasoning:"
+    prompt += "You must provide your response in this exact format:\n\n"
+    prompt += "ANALYSIS:\n"
+    prompt += "[Analyze the user's interests and compare each candidate]\n\n"
+    prompt += f"RANKING:\n"
+    prompt += f"{{\"ranking\": [list of all {len(candidates)} numbers from 1 to {len(candidates)}]}}\n\n"
+    prompt += "Begin your analysis:"
     return prompt
 
 
@@ -108,20 +113,31 @@ def _get_sambanova_client(api_key: str, base_url: str):
 
 def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
     order = []
+
+    # First, try to find the RANKING: section
+    ranking_section = text
+    if "RANKING:" in text.upper():
+        # Extract text after "RANKING:"
+        idx = text.upper().find("RANKING:")
+        ranking_section = text[idx + 8:]  # Skip "RANKING:"
+
+    # Try to parse JSON
     try:
-        start = text.find("{")
-        end = text.rfind("}")
+        start = ranking_section.find("{")
+        end = ranking_section.rfind("}")
         if start != -1 and end != -1 and end > start:
-            text = text[start : end + 1]
-        payload = json.loads(text)
-        if isinstance(payload, dict) and isinstance(payload.get("ranking"), list):
-            order = [int(n) for n in payload["ranking"]]
+            json_str = ranking_section[start : end + 1]
+            payload = json.loads(json_str)
+            if isinstance(payload, dict) and isinstance(payload.get("ranking"), list):
+                order = [int(n) for n in payload["ranking"]]
     except Exception:
         order = []
 
+    # Fallback: extract all numbers from the ranking section
     if not order:
-        order = [int(n) for n in re.findall(r"\d+", text)]
+        order = [int(n) for n in re.findall(r"\d+", ranking_section)]
 
+    # Filter valid numbers and remove duplicates
     parsed = order
     order = []
     seen = set()
@@ -129,6 +145,8 @@ def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
         if 1 <= n <= num_candidates and n not in seen:
             order.append(n)
             seen.add(n)
+
+    # Add missing candidates at the end
     missing = [i for i in range(1, num_candidates + 1) if i not in seen]
     if missing:
         print(
@@ -152,25 +170,40 @@ def score_candidate_pointwise(
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant that analyzes user preferences in news articles."
+                "content": "You are a helpful assistant that analyzes user preferences in news articles. "
+                "You MUST provide both analysis and answer in your response."
             },
             {
                 "role": "user",
-                "content": prompt + "\n\nFinal Answer (Yes or No):"
+                "content": prompt
             },
         ],
         temperature=temperature,
         top_p=top_p,
         max_tokens=max_tokens,
     )
-    content = response.choices[0].message.content.strip().lower()
+    content = response.choices[0].message.content.strip()
 
-    # Look for Yes/No anywhere in the response
-    if "yes" in content:
+    # Look for the ANSWER: section
+    answer_text = content.lower()
+    if "answer:" in answer_text:
+        # Extract text after "answer:"
+        idx = answer_text.find("answer:")
+        answer_text = answer_text[idx + 7:]  # Skip "answer:"
+
+    # Look for Yes/No in the answer section
+    if "yes" in answer_text:
         return 1.0
-    if "no" in content:
+    if "no" in answer_text:
         return 0.0
-    print(f"Warning: unexpected response: {content}", file=sys.stderr)
+
+    # Fallback: check entire response
+    if "yes" in content.lower():
+        return 1.0
+    if "no" in content.lower():
+        return 0.0
+
+    print(f"Warning: unexpected response: {content[:100]}", file=sys.stderr)
     return 0.0
 
 
@@ -214,19 +247,12 @@ def score_candidates_listwise(
                 "role": "system",
                 "content": (
                     "You are a helpful assistant that analyzes user preferences and ranks news articles. "
-                    "First think through the problem, then provide your ranking as JSON."
+                    "You MUST provide both analysis and ranking in your response."
                 )
             },
             {
                 "role": "user",
-                "content": (
-                    prompt
-                    + f"\n\nAfter your analysis, provide the final ranking as valid JSON.\n"
-                    f"CRITICAL: You MUST rank ALL {num_candidates} articles (numbered 1 to {num_candidates}).\n"
-                    f"Format: {{\"ranking\": [3, 1, 5, 2, 4, ...]}} where the first number is the BEST match.\n"
-                    f"The ranking list must contain exactly {num_candidates} unique numbers from 1 to {num_candidates}.\n\n"
-                    "Final Ranking (JSON):"
-                ),
+                "content": prompt,
             },
         ],
         temperature=temperature,

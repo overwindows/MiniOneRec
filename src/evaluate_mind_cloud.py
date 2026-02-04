@@ -75,50 +75,37 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
 
 
 def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
-    prompt = "You are an expert at analyzing user preferences and predicting news reading behavior.\n\n"
-
     # User history section
-    prompt += "## User's Reading History\n"
+    prompt = "User's reading history:\n"
     if history:
         recent_history = history[-30:] if len(history) > 30 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
-        prompt += "(This user has no reading history)\n"
+        prompt += "(No history)\n"
 
     # Candidates section
-    prompt += f"\n## Candidate Articles ({len(candidates)} total)\n"
+    prompt += f"\nRank these {len(candidates)} articles (most to least likely to be read):\n"
     for i, cand in enumerate(candidates):
         option_num = i + 1
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    # Task instructions with reasoning guidance
-    prompt += "\n## Task\n"
-    prompt += f"Rank ALL {len(candidates)} candidate articles from most to least likely to be read by this user.\n\n"
-    prompt += "Consider:\n"
-    prompt += "- Topic relevance: Does the article match the user's demonstrated interests?\n"
-    prompt += "- Category preferences: Which categories does the user engage with?\n"
-    prompt += "- Content diversity: Does the user prefer variety or consistency?\n"
-    prompt += "- Recency and trends: Are there emerging patterns in their history?\n\n"
+    # Concise instructions
+    prompt += "\nBriefly identify key user interests, then provide ranking as JSON.\n"
+    prompt += f"CRITICAL: Rank ALL {len(candidates)} articles (numbers 1-{len(candidates)}).\n\n"
 
-    # Output format with concrete example
-    prompt += "## Required Output Format\n\n"
-    prompt += "ANALYSIS:\n"
-    prompt += "[Your detailed reasoning about the user's preferences and why each article might appeal to them]\n\n"
-    prompt += "RANKING:\n"
+    # Format
+    prompt += "Format:\n"
+    prompt += "ANALYSIS: [2-3 sentences on user interests]\n"
+    prompt += "RANKING: "
     if len(candidates) <= 5:
-        # Show concrete example for small sets
         example_ranking = list(range(1, len(candidates) + 1))
-        prompt += f'{{\"ranking\": {example_ranking}}}  <- Replace with your actual ranking\n'
-        prompt += f"(List must contain exactly {len(candidates)} numbers: {', '.join(map(str, example_ranking))})\n\n"
+        prompt += f'{{\"ranking\": {example_ranking}}} <- your ranking here\n'
     else:
-        prompt += f'{{\"ranking\": [3, 1, 5, 2, 4, ...]}}  <- Example format\n'
-        prompt += f"CRITICAL: Your ranking array must contain ALL {len(candidates)} unique numbers from 1 to {len(candidates)}.\n"
-        prompt += f"The first number is the BEST match, the last is the WORST match.\n\n"
+        prompt += f'{{\"ranking\": [3,1,5,2,4,...]}} <- all {len(candidates)} numbers\n'
 
-    prompt += "Now provide your analysis and ranking:"
     return prompt
 
 
@@ -137,11 +124,11 @@ def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
     # First, try to find the RANKING: section
     ranking_section = text
     if "RANKING:" in text.upper():
-        # Extract text after "RANKING:"
         idx = text.upper().find("RANKING:")
-        ranking_section = text[idx + 8:]  # Skip "RANKING:"
+        ranking_section = text[idx + 8:]
 
-    # Try to parse JSON
+    # Try multiple parsing strategies
+    # 1. Try to parse JSON with "ranking" key
     try:
         start = ranking_section.find("{")
         end = ranking_section.rfind("}")
@@ -151,19 +138,33 @@ def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
             if isinstance(payload, dict) and isinstance(payload.get("ranking"), list):
                 order = [int(n) for n in payload["ranking"]]
     except Exception:
-        order = []
+        pass
 
-    # Fallback: extract all numbers from the ranking section
+    # 2. Try to parse array directly [1,2,3,...]
     if not order:
-        order = [int(n) for n in re.findall(r"\d+", ranking_section)]
+        try:
+            start = ranking_section.find("[")
+            end = ranking_section.rfind("]")
+            if start != -1 and end != -1 and end > start:
+                array_str = ranking_section[start : end + 1]
+                parsed = json.loads(array_str)
+                if isinstance(parsed, list):
+                    order = [int(n) for n in parsed]
+        except Exception:
+            pass
+
+    # 3. Fallback: extract numbers (limit to reasonable range to avoid parsing history)
+    if not order:
+        # Only look at first 500 chars of ranking section to avoid picking up history numbers
+        sample = ranking_section[:500]
+        order = [int(n) for n in re.findall(r"\b\d+\b", sample)]
 
     # Filter valid numbers and remove duplicates
-    parsed = order
-    order = []
+    filtered = []
     seen = set()
-    for n in parsed:
+    for n in order:
         if 1 <= n <= num_candidates and n not in seen:
-            order.append(n)
+            filtered.append(n)
             seen.add(n)
 
     # Add missing candidates at the end
@@ -173,8 +174,8 @@ def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
             f"Warning: {len(missing)} candidates missing from ranking; appending at end.",
             file=sys.stderr,
         )
-    order.extend(missing)
-    return order
+    filtered.extend(missing)
+    return filtered
 
 
 def score_candidate_pointwise(
@@ -265,10 +266,7 @@ def score_candidates_listwise(
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "You are a helpful assistant that analyzes user preferences and ranks news articles. "
-                    "You MUST provide both analysis and ranking in your response."
-                )
+                "content": "You rank news articles based on user preferences. Be concise."
             },
             {
                 "role": "user",

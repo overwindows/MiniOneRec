@@ -75,30 +75,50 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
 
 
 def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
-    prompt = "A user read these news articles:\n"
+    prompt = "You are an expert at analyzing user preferences and predicting news reading behavior.\n\n"
+
+    # User history section
+    prompt += "## User's Reading History\n"
     if history:
         recent_history = history[-30:] if len(history) > 30 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
-        prompt += "(No reading history)\n"
+        prompt += "(This user has no reading history)\n"
 
-    prompt += "\n"
-    prompt += "Candidate articles to rank:\n"
+    # Candidates section
+    prompt += f"\n## Candidate Articles ({len(candidates)} total)\n"
     for i, cand in enumerate(candidates):
         option_num = i + 1
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    prompt += "\n"
-    prompt += f"Task: Rank ALL {len(candidates)} candidate articles from most to least likely to be read.\n\n"
-    prompt += "You must provide your response in this exact format:\n\n"
+    # Task instructions with reasoning guidance
+    prompt += "\n## Task\n"
+    prompt += f"Rank ALL {len(candidates)} candidate articles from most to least likely to be read by this user.\n\n"
+    prompt += "Consider:\n"
+    prompt += "- Topic relevance: Does the article match the user's demonstrated interests?\n"
+    prompt += "- Category preferences: Which categories does the user engage with?\n"
+    prompt += "- Content diversity: Does the user prefer variety or consistency?\n"
+    prompt += "- Recency and trends: Are there emerging patterns in their history?\n\n"
+
+    # Output format with concrete example
+    prompt += "## Required Output Format\n\n"
     prompt += "ANALYSIS:\n"
-    prompt += "[Analyze the user's interests and compare each candidate]\n\n"
-    prompt += f"RANKING:\n"
-    prompt += f"{{\"ranking\": [list of all {len(candidates)} numbers from 1 to {len(candidates)}]}}\n\n"
-    prompt += "Begin your analysis:"
+    prompt += "[Your detailed reasoning about the user's preferences and why each article might appeal to them]\n\n"
+    prompt += "RANKING:\n"
+    if len(candidates) <= 5:
+        # Show concrete example for small sets
+        example_ranking = list(range(1, len(candidates) + 1))
+        prompt += f'{{\"ranking\": {example_ranking}}}  <- Replace with your actual ranking\n'
+        prompt += f"(List must contain exactly {len(candidates)} numbers: {', '.join(map(str, example_ranking))})\n\n"
+    else:
+        prompt += f'{{\"ranking\": [3, 1, 5, 2, 4, ...]}}  <- Example format\n'
+        prompt += f"CRITICAL: Your ranking array must contain ALL {len(candidates)} unique numbers from 1 to {len(candidates)}.\n"
+        prompt += f"The first number is the BEST match, the last is the WORST match.\n\n"
+
+    prompt += "Now provide your analysis and ranking:"
     return prompt
 
 
@@ -285,12 +305,12 @@ def auc_score(labels: List[int], scores: List[float]) -> float:
 
 
 def mrr_score(labels: List[int], scores: List[float]) -> float:
+    """Mean Reciprocal Rank: 1 / rank of first relevant item."""
     sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    rr_scores = []
     for rank, idx in enumerate(sorted_idx, start=1):
         if labels[idx] == 1:
-            rr_scores.append(1.0 / rank)
-    return float(np.mean(rr_scores)) if rr_scores else 0.0
+            return 1.0 / rank
+    return 0.0
 
 
 def ndcg_score(labels: List[int], scores: List[float], k: int) -> float:

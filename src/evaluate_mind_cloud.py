@@ -327,7 +327,8 @@ def main():
 
     if args.max_tokens == 0:
         # Increased defaults to allow for reasoning + answer
-        args.max_tokens = 128 if args.mode == "pointwise" else 1024
+        # 4096 for listwise to handle large candidate sets (up to ~80 items)
+        args.max_tokens = 128 if args.mode == "pointwise" else 4096
 
     set_seed(args.seed)
 

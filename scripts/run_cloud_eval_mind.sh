@@ -24,6 +24,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 #   TOP_P=0.1
 #   MAX_TOKENS=0            # 0=auto (128 for pointwise, 512 for selection, 4096 for listwise)
 #   TOP_K=5                 # Top-K for listwise (5=default, 0=rank all candidates)
+#   USE_FEWSHOT="true"      # Use few-shot examples in listwise mode (true/false, default=true)
 #   OUTPUT_FILE=""          # e.g. outputs/preds.tsv
 
 MODE="${1:-}"  # pointwise | listwise | selection
@@ -51,6 +52,7 @@ TEMPERATURE="${TEMPERATURE:-0.1}"
 TOP_P="${TOP_P:-0.1}"
 MAX_TOKENS="${MAX_TOKENS:-0}"  # 0=auto (128 for pointwise, 512 for selection, 4096 for listwise)
 TOP_K="${TOP_K:-5}"  # Top-K for listwise (5=default, 0=rank all)
+USE_FEWSHOT="${USE_FEWSHOT:-true}"  # Few-shot examples for listwise mode
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 
 ARGS=(
@@ -70,6 +72,10 @@ ARGS=(
 
 if [[ "$USE_ABSTRACT" == "true" ]]; then
   ARGS+=(--use_abstract)
+fi
+
+if [[ "$USE_FEWSHOT" == "false" ]]; then
+  ARGS+=(--no_fewshot)
 fi
 
 if [[ -n "$OUTPUT_FILE" ]]; then

@@ -23,6 +23,44 @@ from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 
+# Few-shot examples for improved performance (research shows 3-10 examples help significantly)
+FEWSHOT_EXAMPLES = [
+    {
+        "history_cats": {"finance": 8, "tech": 2},
+        "candidates": [
+            {"id": 1, "cat": "finance", "title": "Bitcoin Hits New High"},
+            {"id": 2, "cat": "sports", "title": "NFL Playoffs Begin"},
+            {"id": 3, "cat": "finance", "title": "Tesla Stock Soars"},
+            {"id": 4, "cat": "health", "title": "New Covid Variant"},
+        ],
+        "reasoning": "User heavily prefers finance (8x) over tech (2x). Candidates #1 and #3 are finance (STRONG match). #2 is sports (NO match). #4 is health (NO match).",
+        "ranking": [1, 3]
+    },
+    {
+        "history_cats": {"sports": 10, "health": 3, "tech": 1},
+        "candidates": [
+            {"id": 1, "cat": "tech", "title": "New AI Model Released"},
+            {"id": 2, "cat": "sports", "title": "NBA Finals Update"},
+            {"id": 3, "cat": "health", "title": "Diet Tips"},
+            {"id": 4, "cat": "finance", "title": "Market Analysis"},
+        ],
+        "reasoning": "User prefers sports (10x) >> health (3x) >> tech (1x). #2 is sports (STRONG). #3 is health (MEDIUM). #1 is tech (WEAK). #4 is finance (NO match).",
+        "ranking": [2, 3]
+    },
+    {
+        "history_cats": {"tech": 6, "finance": 4},
+        "candidates": [
+            {"id": 1, "cat": "health", "title": "Fitness Guide"},
+            {"id": 2, "cat": "tech", "title": "Apple Product Launch"},
+            {"id": 3, "cat": "finance", "title": "Investment Strategy"},
+            {"id": 4, "cat": "tech", "title": "Startup Funding News"},
+        ],
+        "reasoning": "User reads tech (6x) and finance (4x) frequently. #2 and #4 are tech (STRONG). #3 is finance (STRONG). #1 is health (NO match).",
+        "ranking": [2, 4, 3]
+    },
+]
+
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -77,13 +115,14 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     return prompt
 
 
-def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: int = 5) -> str:
+def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: int = 5, use_fewshot: bool = True) -> str:
     """Build optimized listwise ranking prompt with detailed instructions.
 
     Args:
         history: User's reading history
         candidates: Candidate articles to rank
         top_k: Number of top articles to identify (default=5, 0=all candidates)
+        use_fewshot: Whether to include few-shot examples (default=True)
     """
     # Pre-compute category statistics from history
     from collections import Counter
@@ -94,8 +133,26 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
             cat = h.get("category", "General")
             category_counts[cat] += 1
 
+    # Start with few-shot examples if enabled
+    prompt = ""
+    if use_fewshot:
+        prompt += "=== LEARN FROM EXAMPLES ===\n"
+        prompt += "Study these examples to understand the pattern:\n\n"
+
+        # Add 3 few-shot examples
+        for i, ex in enumerate(FEWSHOT_EXAMPLES[:3], 1):
+            prompt += f"Example {i}:\n"
+            prompt += f"User reads: {', '.join(f'{k}({v})' for k, v in ex['history_cats'].items())}\n"
+            prompt += "Candidates:\n"
+            for cand in ex['candidates']:
+                prompt += f"  {cand['id']}. [{cand['cat']}] {cand['title']}\n"
+            prompt += f"THINKING: {ex['reasoning']}\n"
+            prompt += f'RANKING: {{\"ranking\": {ex["ranking"]}}}\n\n'
+
+        prompt += "=== NOW YOUR TURN ===\n\n"
+
     # User history section with pre-computed stats
-    prompt = "You are analyzing a user's news reading preferences.\n\n"
+    prompt += "You are analyzing a user's news reading preferences.\n\n"
 
     # Show category summary FIRST (most important signal)
     prompt += "=== USER'S CATEGORY PREFERENCES (Pre-computed) ===\n"
@@ -740,6 +797,8 @@ def main():
     parser.add_argument("--top_p", type=float, default=0.1)
     parser.add_argument("--max_tokens", type=int, default=0, help="0=auto by mode")
     parser.add_argument("--top_k", type=int, default=5, help="Top-K for listwise ranking (0=rank all, default=5)")
+    parser.add_argument("--use_fewshot", action="store_true", default=True, help="Use few-shot examples in listwise mode (default=True)")
+    parser.add_argument("--no_fewshot", action="store_false", dest="use_fewshot", help="Disable few-shot examples")
     args = parser.parse_args()
 
     api_key = args.api_key or os.getenv("SAMBANOVA_API_KEY")
@@ -791,6 +850,8 @@ def main():
     print(f"\nEvaluating in {args.mode} mode via SambaNova...")
     print(f"Use abstract: {args.use_abstract}")
     print(f"Max history: {'unlimited' if args.max_history == 0 else args.max_history}")
+    if args.mode == "listwise":
+        print(f"Few-shot examples: {'enabled' if args.use_fewshot else 'disabled'}")
     print()
 
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
@@ -854,7 +915,7 @@ def main():
                 num_picked = sum(1 for s in scores if s > min(scores))
                 selection_stats.append(num_picked)
             else:  # listwise
-                prompt = build_listwise_prompt(history_objs, candidate_objs, top_k=args.top_k)
+                prompt = build_listwise_prompt(history_objs, candidate_objs, top_k=args.top_k, use_fewshot=args.use_fewshot)
                 scores = score_candidates_listwise(
                     client,
                     args.model,

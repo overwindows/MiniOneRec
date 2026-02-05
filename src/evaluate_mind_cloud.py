@@ -77,8 +77,14 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     return prompt
 
 
-def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
-    """Build optimized listwise ranking prompt with detailed instructions."""
+def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: int = 5) -> str:
+    """Build optimized listwise ranking prompt with detailed instructions.
+
+    Args:
+        history: User's reading history
+        candidates: Candidate articles to rank
+        top_k: Number of top articles to identify (default=5, 0=all candidates)
+    """
     # User history section
     prompt = "You are analyzing a user's news reading preferences.\n\n"
     prompt += "=== USER'S RECENT READING HISTORY ===\n"
@@ -100,14 +106,20 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
 
     # Task and instructions
     prompt += f"\n=== TASK ===\n"
-    num_to_rank = min(5, len(candidates))
-    prompt += f"Identify the TOP {num_to_rank} articles (from {len(candidates)} candidates) that the user is most likely to click.\n"
-    prompt += "Rank only these top articles by likelihood. The rest will remain in original order.\n"
+    # If top_k=0, rank all candidates; otherwise use specified top_k
+    num_to_rank = len(candidates) if top_k == 0 else min(top_k, len(candidates))
+
+    # Adjust task description based on whether ranking all or top-K
+    if num_to_rank == len(candidates):
+        prompt += f"Rank ALL {num_to_rank} articles by click likelihood (most likely first).\n"
+    else:
+        prompt += f"Identify the TOP {num_to_rank} articles (from {len(candidates)} candidates) that the user is most likely to click.\n"
+        prompt += "Rank only these top articles by likelihood. The rest will remain in original order.\n"
     prompt += "Consider topic relevance, category alignment, and content similarity to the user's reading patterns.\n\n"
 
     # Structured reasoning process
     prompt += "=== INSTRUCTIONS ===\n"
-    prompt += "FIRST, reason through the selection step-by-step:\n\n"
+    prompt += "FIRST, reason through the ranking step-by-step:\n\n"
     prompt += "THINKING:\n"
     prompt += "Step 1 - Identify User Interests:\n"
     prompt += "  - What are the main topics/categories in the user's history?\n"
@@ -117,28 +129,39 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
     prompt += "Step 2 - Evaluate Candidates:\n"
     prompt += "  - Scan through candidates and identify which ones strongly match user interests\n"
     prompt += "  - Focus on topic/category match and content similarity\n"
-    prompt += f"  - Select the top {num_to_rank} most relevant candidates\n\n"
+    if num_to_rank == len(candidates):
+        prompt += f"  - Assess all {num_to_rank} candidates for ranking\n\n"
+    else:
+        prompt += f"  - Select the top {num_to_rank} most relevant candidates\n\n"
 
-    prompt += "Step 3 - Rank Top Candidates:\n"
-    prompt += f"  - Order your top {num_to_rank} picks from most to least likely to be clicked\n"
+    prompt += "Step 3 - Create Ranking:\n"
+    prompt += f"  - Order your {"top " if num_to_rank < len(candidates) else ""}{num_to_rank} picks from most to least likely to be clicked\n"
     prompt += "  - Consider strength of match when ordering\n\n"
 
     # Output format - VERY EXPLICIT
-    prompt += f"THEN, provide your TOP {num_to_rank} ranked article numbers in EXACT format:\n\n"
+    if num_to_rank == len(candidates):
+        prompt += f"THEN, provide your complete ranking of ALL {num_to_rank} articles in EXACT format:\n\n"
+    else:
+        prompt += f"THEN, provide your TOP {num_to_rank} ranked article numbers in EXACT format:\n\n"
     prompt += "RANKING: "
-    if len(candidates) <= 5:
-        example_ranking = list(range(1, len(candidates) + 1))
+    if num_to_rank <= 5:
+        example_ranking = list(range(1, num_to_rank + 1))
         prompt += f'{{\"ranking\": {example_ranking}}}\n\n'
     else:
-        prompt += f'{{\"ranking\": [12, 3, 8, 15, 22]}} (only top {num_to_rank} numbers)\n\n'
+        prompt += f'{{\"ranking\": [3, 1, 5, 2, 4, ...]}} (all {num_to_rank} numbers)\n\n'
 
     prompt += "CRITICAL FORMAT REQUIREMENTS:\n"
     prompt += f"- Must start with exactly: RANKING: {{\"ranking\": [...]}}\n"
-    prompt += f"- Include ONLY {num_to_rank} article numbers (your top picks)\n"
+    if num_to_rank == len(candidates):
+        prompt += f"- Include ALL {num_to_rank} article numbers (complete ranking)\n"
+    else:
+        prompt += f"- Include ONLY {num_to_rank} article numbers (your top picks)\n"
     prompt += "- Use plain JSON - NO markdown code blocks, NO ```json tags\n"
     prompt += "- Do NOT add explanations after RANKING: - just the JSON\n"
-    prompt += "- Order: most likely click first, 5th most likely last\n"
+    prompt += f"- Order: most likely click first, {num_to_rank}th most likely last\n"
     prompt += f"- Each number must be in range 1-{len(candidates)}\n"
+    if num_to_rank == len(candidates):
+        prompt += f"- Each number 1-{len(candidates)} must appear exactly once\n"
 
     return prompt
 
@@ -344,14 +367,21 @@ def score_candidates_listwise(
     temperature: float,
     top_p: float,
     max_tokens: int,
+    top_k: int = 5,
 ) -> List[float]:
+    # Build dynamic system message based on top_k
+    if top_k == 0 or top_k >= num_candidates:
+        system_msg = f"You are an expert news recommendation system that ranks articles based on user preferences. Your task is to analyze reading history to identify user interests, then rank ALL {num_candidates} candidate articles by relevance. CRITICAL: After your analysis, you MUST output exactly {num_candidates} article numbers in JSON format: RANKING: {{\"ranking\": [...]}}, with NO markdown code blocks, NO additional explanations after the JSON. Follow the output format precisely."
+    else:
+        system_msg = f"You are an expert news recommendation system that identifies top articles based on user preferences. Your task is to analyze reading history to identify user interests, then select and rank the TOP {top_k} most relevant candidate articles. CRITICAL: After your analysis, you MUST output exactly {top_k} article numbers in JSON format: RANKING: {{\"ranking\": [...]}}, with NO markdown code blocks, NO additional explanations after the JSON. Follow the output format precisely."
+
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert news recommendation system that identifies top articles based on user preferences. Your task is to analyze reading history to identify user interests, then select and rank the TOP 5 most relevant candidate articles. CRITICAL: After your analysis, you MUST output exactly 5 article numbers in JSON format: RANKING: {\"ranking\": [...]}, with NO markdown code blocks, NO additional explanations after the JSON. Follow the output format precisely."
+                    "content": system_msg
                 },
                 {
                     "role": "user",
@@ -378,26 +408,30 @@ def score_candidates_listwise(
             debug_content = content[idx:]
         print(f"[Listwise] {debug_content[:200].strip()}")
 
-    # Parse top-K ranking (expecting up to 5 items)
-    top_k = _parse_ranked_numbers(content, num_candidates)
+    # Parse top-K ranking
+    ranked_items = _parse_ranked_numbers(content, num_candidates)
 
-    # Limit to top 5 as specified in prompt
-    top_k = top_k[:5] if len(top_k) > 5 else top_k
+    # Determine expected count based on top_k parameter
+    expected_k = num_candidates if (top_k == 0 or top_k >= num_candidates) else top_k
 
-    # Build scores: top-K get highest scores, rest get lower scores in original order
+    # Limit parsed items to expected count
+    ranked_items = ranked_items[:expected_k] if len(ranked_items) > expected_k else ranked_items
+
+    # Build scores
     scores = [0.0] * num_candidates
-    top_k_set = set(top_k)
+    ranked_set = set(ranked_items)
 
-    # Assign scores to top-K items based on their rank
-    for rank, option in enumerate(top_k):
+    # Assign scores to ranked items based on their position
+    for rank, option in enumerate(ranked_items):
         scores[option - 1] = float(num_candidates - rank)
 
-    # Assign remaining items scores based on original order (decreasing from where top-K left off)
-    remaining_score = float(num_candidates - len(top_k))
-    for i in range(num_candidates):
-        if (i + 1) not in top_k_set:
-            scores[i] = remaining_score
-            remaining_score -= 1
+    # If not all candidates were ranked (top-K < N), assign remaining scores in original order
+    if len(ranked_items) < num_candidates:
+        remaining_score = float(num_candidates - len(ranked_items))
+        for i in range(num_candidates):
+            if (i + 1) not in ranked_set:
+                scores[i] = remaining_score
+                remaining_score -= 1
 
     return scores
 
@@ -558,6 +592,7 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument("--top_p", type=float, default=0.1)
     parser.add_argument("--max_tokens", type=int, default=0, help="0=auto by mode")
+    parser.add_argument("--top_k", type=int, default=5, help="Top-K for listwise ranking (0=rank all, default=5)")
     args = parser.parse_args()
 
     api_key = args.api_key or os.getenv("SAMBANOVA_API_KEY")
@@ -672,12 +707,13 @@ def main():
                 num_picked = sum(1 for s in scores if s > min(scores))
                 selection_stats.append(num_picked)
             else:  # listwise
-                prompt = build_listwise_prompt(history_objs, candidate_objs)
+                prompt = build_listwise_prompt(history_objs, candidate_objs, top_k=args.top_k)
                 scores = score_candidates_listwise(
                     client,
                     args.model,
                     prompt,
                     len(candidate_objs),
+                    top_k=args.top_k,
                     temperature=args.temperature,
                     top_p=args.top_p,
                     max_tokens=args.max_tokens,

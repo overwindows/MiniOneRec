@@ -23,6 +23,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 #   TEMPERATURE=0.1
 #   TOP_P=0.1
 #   MAX_TOKENS=0            # 0=auto (128 for pointwise, 512 for selection, 4096 for listwise)
+#   TOP_K=5                 # Top-K for listwise (5=default, 0=rank all candidates)
 #   OUTPUT_FILE=""          # e.g. outputs/preds.tsv
 
 MODE="${1:-}"  # pointwise | listwise | selection
@@ -49,6 +50,7 @@ MAX_IMPRESSIONS="${MAX_IMPRESSIONS:-0}"
 TEMPERATURE="${TEMPERATURE:-0.1}"
 TOP_P="${TOP_P:-0.1}"
 MAX_TOKENS="${MAX_TOKENS:-0}"  # 0=auto (128 for pointwise, 512 for selection, 4096 for listwise)
+TOP_K="${TOP_K:-5}"  # Top-K for listwise (5=default, 0=rank all)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 
 ARGS=(
@@ -61,6 +63,7 @@ ARGS=(
   --temperature "$TEMPERATURE"
   --top_p "$TOP_P"
   --max_tokens "$MAX_TOKENS"
+  --top_k "$TOP_K"
   --max_history "$MAX_HISTORY"
   --max_impressions "$MAX_IMPRESSIONS"
 )

@@ -50,28 +50,24 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 
 
 def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
-    prompt = "A user read these news articles:\n"
+    prompt = "User's reading history:\n"
     if history:
         recent_history = history[-30:] if len(history) > 30 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
-        prompt += "(No reading history)\n"
+        prompt += "(No history)\n"
 
-    prompt += "\n"
-    prompt += "Candidate article:\n"
+    prompt += "\nCandidate article:\n"
     cat = candidate.get("category", "General")
     prompt += f"[{cat}] {candidate['text']}\n"
 
-    prompt += "\n"
-    prompt += "Task: Determine if this user would read the candidate article.\n\n"
-    prompt += "You must provide your response in this exact format:\n\n"
-    prompt += "ANALYSIS:\n"
-    prompt += "[Your step-by-step analysis of the user's interests and the candidate]\n\n"
-    prompt += "ANSWER:\n"
-    prompt += "[Yes or No]\n\n"
-    prompt += "Begin your analysis:"
+    prompt += "\nWould this user click the candidate article?\n\n"
+    prompt += "Format:\n"
+    prompt += "THINKING: [Analyze user interests, then match with candidate]\n"
+    prompt += "ANSWER: Yes or No\n"
+
     return prompt
 
 
@@ -87,25 +83,21 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
         prompt += "(No history)\n"
 
     # Candidates section
-    prompt += f"\nRank these {len(candidates)} articles (most to least likely to be read):\n"
+    prompt += f"\nCandidate articles:\n"
     for i, cand in enumerate(candidates):
         option_num = i + 1
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    # Concise instructions
-    prompt += "\nBriefly identify key user interests, then provide ranking as JSON.\n"
-    prompt += f"CRITICAL: Rank ALL {len(candidates)} articles (numbers 1-{len(candidates)}).\n\n"
-
-    # Format
+    prompt += f"\nRank ALL {len(candidates)} articles by likelihood the user would click (most likely first).\n\n"
     prompt += "Format:\n"
-    prompt += "ANALYSIS: [2-3 sentences on user interests]\n"
+    prompt += "THINKING: [Analyze user interests from history]\n"
     prompt += "RANKING: "
     if len(candidates) <= 5:
         example_ranking = list(range(1, len(candidates) + 1))
-        prompt += f'{{\"ranking\": {example_ranking}}} <- your ranking here\n'
+        prompt += f'{{\"ranking\": {example_ranking}}}\n'
     else:
-        prompt += f'{{\"ranking\": [3,1,5,2,4,...]}} <- all {len(candidates)} numbers\n'
+        prompt += f'{{\"ranking\": [3,1,5,2,4,...]}} (all {len(candidates)} numbers)\n'
 
     return prompt
 
@@ -127,9 +119,10 @@ def build_selection_prompt(history: List[dict], candidates: List[dict]) -> str:
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    prompt += "\nWhich article(s) would this user click? Pick 1-3 most likely articles.\n"
-    prompt += "Output format: PICKS: <number>, <number>, ... (1-3 numbers, most likely first)\n"
-    prompt += "Example: PICKS: 5, 2, 8\n"
+    prompt += "\nWhich article(s) would this user click? Pick 1-3 most likely articles.\n\n"
+    prompt += "Format:\n"
+    prompt += "THINKING: [Analyze user interests from history, then match with candidates]\n"
+    prompt += "PICKS: <number>, <number>, ... (1-3 numbers, most likely first)\n"
 
     return prompt
 
@@ -216,8 +209,7 @@ def score_candidate_pointwise(
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant that analyzes user preferences in news articles. "
-                "You MUST provide both analysis and answer in your response."
+                "content": "You predict whether a user would click a news article based on their reading history."
             },
             {
                 "role": "user",
@@ -230,12 +222,16 @@ def score_candidate_pointwise(
     )
     content = response.choices[0].message.content.strip()
 
+    if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+        print(f"\n{'='*60}")
+        print(f"Pointwise response: {content[:300]}")
+        print(f"{'='*60}\n")
+
     # Look for the ANSWER: section
     answer_text = content.lower()
     if "answer:" in answer_text:
-        # Extract text after "answer:"
         idx = answer_text.find("answer:")
-        answer_text = answer_text[idx + 7:]  # Skip "answer:"
+        answer_text = answer_text[idx + 7:]
 
     # Look for Yes/No in the answer section
     if "yes" in answer_text:
@@ -291,7 +287,7 @@ def score_candidates_listwise(
         messages=[
             {
                 "role": "system",
-                "content": "You rank news articles based on user preferences. Be concise."
+                "content": "You rank news articles based on user reading history."
             },
             {
                 "role": "user",
@@ -304,12 +300,9 @@ def score_candidates_listwise(
     )
     content = response.choices[0].message.content.strip()
 
-    # DEBUG: Print model responses to diagnose issues
-    import os
     if os.getenv("DEBUG_CLOUD_EVAL") == "1":
         print(f"\n{'='*60}")
-        print(f"Candidates: {num_candidates} | Response length: {len(content)}")
-        print(f"Response: {content[:800]}")  # First 800 chars
+        print(f"Listwise response ({num_candidates} candidates): {content[:800]}")
         print(f"{'='*60}\n")
 
     order = _parse_ranked_numbers(content, num_candidates)
@@ -467,11 +460,11 @@ def main():
     if args.max_tokens == 0:
         # Increased defaults to allow for reasoning + answer
         # 4096 for listwise to handle large candidate sets (up to ~80 items)
-        # 256 for selection (just need 1-3 numbers + brief analysis)
+        # 512 for selection (reasoning + 1-3 numbers)
         if args.mode == "pointwise":
             args.max_tokens = 128
         elif args.mode == "selection":
-            args.max_tokens = 256
+            args.max_tokens = 512
         else:
             args.max_tokens = 4096
 

@@ -204,28 +204,38 @@ def score_candidate_pointwise(
     top_p: float,
     max_tokens: int,
 ) -> float:
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You predict whether a user would click a news article based on their reading history."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            },
-        ],
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-    )
-    content = response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You predict whether a user would click a news article based on their reading history."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                },
+            ],
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+        )
+        if not response.choices or not response.choices[0].message.content:
+            print("Warning: Empty API response", file=sys.stderr)
+            return 0.0
+        content = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Warning: API error ({e})", file=sys.stderr)
+        return 0.0
 
     if os.getenv("DEBUG_CLOUD_EVAL") == "1":
-        print(f"\n{'='*60}")
-        print(f"Pointwise response: {content[:300]}")
-        print(f"{'='*60}\n")
+        # Truncate THINKING section, show only ANSWER
+        debug_content = content
+        if "ANSWER:" in content.upper():
+            idx = content.upper().find("ANSWER:")
+            debug_content = content[idx:]
+        print(f"[Pointwise] {debug_content[:100].strip()}")
 
     # Look for the ANSWER: section
     answer_text = content.lower()
@@ -282,28 +292,38 @@ def score_candidates_listwise(
     top_p: float,
     max_tokens: int,
 ) -> List[float]:
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You rank news articles based on user reading history."
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-    )
-    content = response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You rank news articles based on user reading history."
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+        )
+        if not response.choices or not response.choices[0].message.content:
+            print("Warning: Empty API response, using default order", file=sys.stderr)
+            return [float(num_candidates - i) for i in range(num_candidates)]
+        content = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Warning: API error ({e}), using default order", file=sys.stderr)
+        return [float(num_candidates - i) for i in range(num_candidates)]
 
     if os.getenv("DEBUG_CLOUD_EVAL") == "1":
-        print(f"\n{'='*60}")
-        print(f"Listwise response ({num_candidates} candidates): {content[:800]}")
-        print(f"{'='*60}\n")
+        # Truncate THINKING section, show only RANKING
+        debug_content = content
+        if "RANKING:" in content.upper():
+            idx = content.upper().find("RANKING:")
+            debug_content = content[idx:]
+        print(f"[Listwise] {debug_content[:200].strip()}")
 
     order = _parse_ranked_numbers(content, num_candidates)
 
@@ -364,28 +384,38 @@ def score_candidates_selection(
     max_tokens: int,
 ) -> List[float]:
     """Score candidates using selection mode (1-3 picks)."""
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You predict which news articles a user would click based on their reading history. Be selective."
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-    )
-    content = response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You predict which news articles a user would click based on their reading history. Be selective."
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+        )
+        if not response.choices or not response.choices[0].message.content:
+            print("Warning: Empty API response, using random scores", file=sys.stderr)
+            return [float(num_candidates - i) for i in range(num_candidates)]
+        content = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Warning: API error ({e}), using random scores", file=sys.stderr)
+        return [float(num_candidates - i) for i in range(num_candidates)]
 
     if os.getenv("DEBUG_CLOUD_EVAL") == "1":
-        print(f"\n{'='*60}")
-        print(f"Selection response: {content[:500]}")
-        print(f"{'='*60}\n")
+        # Truncate THINKING section, show only PICKS
+        debug_content = content
+        if "PICKS:" in content.upper():
+            idx = content.upper().find("PICKS:")
+            debug_content = content[idx:]
+        print(f"[Selection] {debug_content[:100].strip()}")
 
     picks = _parse_selection_picks(content, num_candidates)
 

@@ -52,8 +52,8 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     prompt = "User's reading history (most recent):\n"
     if history:
-        # Use last 15 articles - research shows this is optimal for news recommendation
-        recent_history = history[-15:] if len(history) > 15 else history
+        # Use last 25 articles for better category preference understanding
+        recent_history = history[-25:] if len(history) > 25 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
@@ -85,12 +85,31 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
         candidates: Candidate articles to rank
         top_k: Number of top articles to identify (default=5, 0=all candidates)
     """
-    # User history section
-    prompt = "You are analyzing a user's news reading preferences.\n\n"
-    prompt += "=== USER'S RECENT READING HISTORY ===\n"
+    # Pre-compute category statistics from history
+    from collections import Counter
+    category_counts = Counter()
     if history:
-        # Use last 15 articles - optimal for news recommendation
-        recent_history = history[-15:] if len(history) > 15 else history
+        recent_history = history[-25:] if len(history) > 25 else history
+        for h in recent_history:
+            cat = h.get("category", "General")
+            category_counts[cat] += 1
+
+    # User history section with pre-computed stats
+    prompt = "You are analyzing a user's news reading preferences.\n\n"
+
+    # Show category summary FIRST (most important signal)
+    prompt += "=== USER'S CATEGORY PREFERENCES (Pre-computed) ===\n"
+    if category_counts:
+        sorted_cats = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        for cat, count in sorted_cats[:5]:  # Show top 5 categories
+            prompt += f"  {cat}: {count} articles\n"
+        prompt += f"\nTop categories: {', '.join([c for c, _ in sorted_cats[:3]])}\n"
+    else:
+        prompt += "(No history)\n"
+
+    prompt += "\n=== USER'S RECENT READING HISTORY ===\n"
+    if history:
+        recent_history = history[-25:] if len(history) > 25 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
@@ -117,27 +136,32 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
         prompt += "Rank only these top articles by likelihood. The rest will remain in original order.\n"
     prompt += "Consider topic relevance, category alignment, and content similarity to the user's reading patterns.\n\n"
 
-    # Structured reasoning process
+    # Structured reasoning process - optimized for news recommendation
     prompt += "=== INSTRUCTIONS ===\n"
-    prompt += "FIRST, reason through the ranking step-by-step:\n\n"
+    prompt += "FIRST, reason through the ranking using this process:\n\n"
     prompt += "THINKING:\n"
-    prompt += "Step 1 - Identify User Interests:\n"
-    prompt += "  - What are the main topics/categories in the user's history?\n"
-    prompt += "  - What specific themes or subjects appear repeatedly?\n"
-    prompt += "  - Note any clear preferences (e.g., finance, sports, tech, etc.)\n\n"
+    prompt += "Step 1 - Use Pre-computed Category Preferences (ALREADY PROVIDED ABOVE):\n"
+    prompt += "  - The category counts are ALREADY computed for you\n"
+    prompt += "  - Focus on the top 2-3 categories from the summary\n"
+    prompt += "  - These are the user's strongest preferences\n\n"
 
-    prompt += "Step 2 - Evaluate Candidates:\n"
-    prompt += "  - Scan through candidates and identify which ones strongly match user interests\n"
-    prompt += "  - Focus on topic/category match and content similarity\n"
+    prompt += "Step 2 - Match Candidates to Top Categories:\n"
+    prompt += "  - For each candidate, check: does its category match user's top categories?\n"
+    prompt += "  - STRONG match = candidate category is #1 or #2 in user's preferences\n"
+    prompt += "  - MEDIUM match = candidate category is #3 in user's preferences\n"
+    prompt += "  - WEAK match = candidate category not in user's top 3\n"
     if num_to_rank == len(candidates):
-        prompt += f"  - Assess all {num_to_rank} candidates for ranking\n\n"
+        prompt += f"  - Rank all {num_to_rank} candidates by category match strength\n\n"
     else:
-        prompt += f"  - Select the top {num_to_rank} most relevant candidates\n\n"
+        prompt += f"  - SELECT ONLY candidates with strong category matches (top {num_to_rank})\n\n"
 
-    prompt += "Step 3 - Create Ranking:\n"
-    top_prefix = "top " if num_to_rank < len(candidates) else ""
-    prompt += f"  - Order your {top_prefix}{num_to_rank} picks from most to least likely to be clicked\n"
-    prompt += "  - Consider strength of match when ordering\n\n"
+    prompt += "Step 3 - Final Ranking:\n"
+    prompt += "  - PRIORITIZE: Candidates matching user's most frequent categories\n"
+    prompt += "  - Among same-category candidates, prefer those with more specific topic overlap\n"
+    if num_to_rank < len(candidates):
+        prompt += f"  - Output your top {num_to_rank} picks only\n\n"
+    else:
+        prompt += f"  - Output complete ranking of all {num_to_rank} candidates\n\n"
 
     # Output format - EXTREMELY EXPLICIT with example
     prompt += "THEN, output your ranking IMMEDIATELY:\n\n"
@@ -160,13 +184,13 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
 
     prompt += "EXAMPLE OUTPUT:\n"
     prompt += "THINKING:\n"
-    prompt += "Step 1 - User Interests: Finance, markets\n"
-    prompt += "Step 2 - Evaluate Candidates: #4 matches finance\n"
-    prompt += "Step 3 - Create Ranking: #4 is top pick\n\n"
+    prompt += "Step 1 - Top categories (from summary): finance (#1), tech (#2)\n"
+    prompt += "Step 2 - Candidate matches: #4=finance (STRONG), #7=tech (STRONG), #2=sports (WEAK)\n"
+    prompt += "Step 3 - Ranking: #4 first (matches #1 category), #7 second (matches #2 category)\n\n"
     if num_to_rank == 1:
         prompt += 'RANKING: {"ranking": [4]}\n\n'
     else:
-        prompt += 'RANKING: {"ranking": [4, 7, 2]}\n\n'
+        prompt += 'RANKING: {"ranking": [4, 7]}\n\n'
 
     # Add explicit WRONG vs RIGHT examples
     prompt += "WRONG OUTPUTS (DO NOT DO THIS):\n"
@@ -202,8 +226,8 @@ def build_selection_prompt(history: List[dict], candidates: List[dict]) -> str:
     """Build selection prompt: predict 1-3 articles the user would click."""
     prompt = "User's reading history (most recent):\n"
     if history:
-        # Use last 15 articles - optimal for news recommendation
-        recent_history = history[-15:] if len(history) > 15 else history
+        # Use last 25 articles for better category preference understanding
+        recent_history = history[-25:] if len(history) > 25 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
@@ -419,39 +443,33 @@ def score_candidates_pointwise(
 
 
 def _build_system_message_with_examples(top_k: int, num_candidates: int) -> str:
-    """Build system message with few-shot examples to enforce format compliance."""
-    # Base instruction
+    """Build system message optimized for news recommendation quality."""
     if top_k == 0 or top_k >= num_candidates:
-        base = f"You are an expert news recommendation system. Rank ALL {num_candidates} articles by click likelihood."
+        base = f"You are a news recommendation system. Match articles to user's category preferences."
         count = num_candidates
     else:
-        base = f"You are an expert news recommendation system. Select and rank the TOP {top_k} most relevant articles."
+        base = f"You are a news recommendation system. Find the TOP {top_k} articles that match user's top categories."
         count = top_k
 
-    # Few-shot examples showing EXACT correct format
     msg = base + "\n\n"
-    msg += "CRITICAL: Follow this EXACT format:\n\n"
+    msg += "KEY PRINCIPLE: Match candidates to user's TOP categories!\n"
+    msg += "- Category counts are PRE-COMPUTED for you (no need to count)\n"
+    msg += "- Simply match candidate categories to user's top 2-3 categories\n"
+    msg += "- Prioritize candidates matching category #1, then #2, then #3\n\n"
 
-    # Example 1: Correct format
-    msg += "USER: [history and candidates]\n"
-    msg += "ASSISTANT: THINKING:\n"
-    msg += "Step 1 - User Interests: Tech, AI\n"
-    msg += "Step 2 - Evaluate Candidates: #2 matches AI\n"
-    msg += "Step 3 - Create Ranking: #2 top pick\n\n"
+    # Concrete example with pre-computed stats
+    msg += "EXAMPLE:\n"
+    msg += "User category preferences: finance(8), tech(2)\n"
+    msg += "Candidates: 1=finance, 2=sports, 3=finance, 4=tech, 5=health\n"
+    msg += "THINKING:\n"
+    msg += "Top categories: finance (#1), tech (#2). Match: #1,#3=finance (STRONG), #4=tech (MEDIUM)\n\n"
     if count == 1:
-        msg += 'RANKING: {"ranking": [2]}\n\n'
+        msg += 'RANKING: {"ranking": [1]}\n\n'
     else:
-        msg += 'RANKING: {"ranking": [2, 5, 1]}\n\n'
+        msg += 'RANKING: {"ranking": [1, 3, 4]}\n\n'
 
-    # Emphasize what NOT to do
-    msg += "NEVER add text between THINKING and RANKING:\n"
-    msg += "❌ Ranking:\n  - Top 1: Candidate 2\nRANKING: {...}\n"
-    msg += "❌ RANKING: {\"ranking\": [2  (incomplete JSON)\n"
-    msg += "❌ Based on analysis, RANKING: {...}\n\n"
-
-    # Final strict instruction
-    msg += f"OUTPUT FORMAT: Complete your THINKING section, then output EXACTLY: RANKING: {{\"ranking\": [...]}} with {count} numbers. "
-    msg += "NO transition text between THINKING and RANKING. NO text after the JSON. NO markdown. NO bullets."
+    msg += f"OUTPUT: THINKING section, then RANKING: {{\"ranking\": [...]}} with {count} numbers. "
+    msg += "NO extra text after JSON."
 
     return msg
 

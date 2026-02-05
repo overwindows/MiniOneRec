@@ -142,10 +142,11 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
     # Output format - EXTREMELY EXPLICIT with example
     prompt += "THEN, output your ranking IMMEDIATELY:\n\n"
     prompt += "CRITICAL OUTPUT RULES:\n"
-    prompt += "1. After your THINKING section, the VERY NEXT LINE must be RANKING:\n"
-    prompt += "2. Do NOT add any extra text, explanations, or summaries\n"
-    prompt += "3. Do NOT add a separate 'Ranking:' section with explanations\n"
-    prompt += "4. Output ONLY the JSON on a single line\n\n"
+    prompt += "1. Complete your THINKING section (this is required reasoning)\n"
+    prompt += "2. After THINKING ends, the VERY NEXT LINE must be RANKING:\n"
+    prompt += "3. Do NOT add any transition text between THINKING and RANKING\n"
+    prompt += "4. Do NOT add a separate 'Ranking:' section with bullet points\n"
+    prompt += "5. Output ONLY the JSON on a single line, nothing after it\n\n"
 
     prompt += "EXACT FORMAT:\n"
     if num_to_rank == 1:
@@ -169,25 +170,29 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
 
     # Add explicit WRONG vs RIGHT examples
     prompt += "WRONG OUTPUTS (DO NOT DO THIS):\n"
-    prompt += "❌ Ranking:\n  - Top 1: Candidate 4\nRANKING: {...}\n"
-    prompt += "❌ RANKING: {\"ranking\": [4  (missing closing brackets)\n"
-    prompt += "❌ RANKING: ```json{\"ranking\": [4]}```\n"
-    prompt += "❌ Based on the analysis, RANKING: {\"ranking\": [4]}\n\n"
+    prompt += "❌ Adding bullet list before JSON:\n"
+    prompt += "   Ranking:\n   - Top 1: Candidate 4\n   RANKING: {...}\n\n"
+    prompt += "❌ Adding transition text:\n"
+    prompt += "   Based on the analysis, RANKING: {\"ranking\": [4]}\n\n"
+    prompt += "❌ Incomplete JSON:\n"
+    prompt += "   RANKING: {\"ranking\": [4\n\n"
 
-    prompt += "RIGHT OUTPUT:\n"
+    prompt += "RIGHT OUTPUT (Keep THINKING, then immediately output JSON):\n"
     if num_to_rank == 1:
         prompt += '✓ RANKING: {"ranking": [4]}\n\n'
     else:
         prompt += '✓ RANKING: {"ranking": [4, 7, 2]}\n\n'
 
     prompt += "REQUIREMENTS:\n"
-    prompt += f"- Must be exactly: RANKING: {{\"ranking\": [...]}}\n"
+    prompt += "- Complete your THINKING section first (required)\n"
+    prompt += f"- Then output exactly: RANKING: {{\"ranking\": [...]}}\n"
     if num_to_rank == len(candidates):
         prompt += f"- Include ALL {num_to_rank} numbers (complete ranking)\n"
     else:
         prompt += f"- Include exactly {num_to_rank} numbers\n"
     prompt += "- Valid JSON on ONE line\n"
-    prompt += "- NO text before or after the JSON\n"
+    prompt += "- NO transition text between THINKING and RANKING\n"
+    prompt += "- NO text after the JSON line\n"
     prompt += f"- Numbers must be in range 1-{len(candidates)}\n"
 
     return prompt
@@ -439,14 +444,14 @@ def _build_system_message_with_examples(top_k: int, num_candidates: int) -> str:
         msg += 'RANKING: {"ranking": [2, 5, 1]}\n\n'
 
     # Emphasize what NOT to do
-    msg += "NEVER do this:\n"
+    msg += "NEVER add text between THINKING and RANKING:\n"
     msg += "❌ Ranking:\n  - Top 1: Candidate 2\nRANKING: {...}\n"
     msg += "❌ RANKING: {\"ranking\": [2  (incomplete JSON)\n"
     msg += "❌ Based on analysis, RANKING: {...}\n\n"
 
     # Final strict instruction
-    msg += f"OUTPUT FORMAT: After THINKING section, output EXACTLY: RANKING: {{\"ranking\": [...]}} with {count} numbers. "
-    msg += "NO extra text, NO explanations, NO markdown, NO bullets. Just the JSON line."
+    msg += f"OUTPUT FORMAT: Complete your THINKING section, then output EXACTLY: RANKING: {{\"ranking\": [...]}} with {count} numbers. "
+    msg += "NO transition text between THINKING and RANKING. NO text after the JSON. NO markdown. NO bullets."
 
     return msg
 

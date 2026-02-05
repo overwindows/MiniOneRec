@@ -135,7 +135,8 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
         prompt += f"  - Select the top {num_to_rank} most relevant candidates\n\n"
 
     prompt += "Step 3 - Create Ranking:\n"
-    prompt += f"  - Order your {"top " if num_to_rank < len(candidates) else ""}{num_to_rank} picks from most to least likely to be clicked\n"
+    top_prefix = "top " if num_to_rank < len(candidates) else ""
+    prompt += f"  - Order your {top_prefix}{num_to_rank} picks from most to least likely to be clicked\n"
     prompt += "  - Consider strength of match when ordering\n\n"
 
     # Output format - VERY EXPLICIT

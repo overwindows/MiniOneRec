@@ -119,10 +119,11 @@ def build_selection_prompt(history: List[dict], candidates: List[dict]) -> str:
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    prompt += "\nWhich article(s) would this user click? Pick 1-3 most likely articles.\n\n"
+    prompt += "\nBased on the user's reading interests, which article(s) would they likely click?\n"
+    prompt += "Select 1-3 articles that clearly match the user's interests. Be selective - only pick articles with strong relevance.\n\n"
     prompt += "Format:\n"
-    prompt += "THINKING: [Analyze user interests from history, then match with candidates]\n"
-    prompt += "PICKS: <number>, <number>, ... (1-3 numbers, most likely first)\n"
+    prompt += "THINKING: [First identify user's main interests from history, then find matching candidates]\n"
+    prompt += "PICKS: <number>, <number>, ... (1-3 numbers ordered by likelihood, most likely first)\n"
 
     return prompt
 
@@ -390,7 +391,7 @@ def score_candidates_selection(
             messages=[
                 {
                     "role": "system",
-                    "content": "You predict which news articles a user would click based on their reading history. Be selective."
+                    "content": "You predict which news articles a user would click based on their reading history. Analyze the user's interests carefully and only recommend articles that clearly match. Be selective and confident in your picks."
                 },
                 {
                     "role": "user",
@@ -405,19 +406,28 @@ def score_candidates_selection(
             print("Warning: Empty API response, using random scores", file=sys.stderr)
             return [float(num_candidates - i) for i in range(num_candidates)]
         content = response.choices[0].message.content.strip()
+
+        # Check for potential truncation
+        if os.getenv("DEBUG_CLOUD_EVAL") == "1" and response.choices[0].finish_reason == "length":
+            print(f"[Selection] WARNING: Response truncated (finish_reason=length)", file=sys.stderr)
     except Exception as e:
         print(f"Warning: API error ({e}), using random scores", file=sys.stderr)
         return [float(num_candidates - i) for i in range(num_candidates)]
 
     if os.getenv("DEBUG_CLOUD_EVAL") == "1":
-        # Truncate THINKING section, show only PICKS
+        # Show PICKS section and parsing result
         debug_content = content
         if "PICKS:" in content.upper():
             idx = content.upper().find("PICKS:")
             debug_content = content[idx:]
-        print(f"[Selection] {debug_content[:100].strip()}")
+        print(f"[Selection] {debug_content[:200].strip()}")
 
     picks = _parse_selection_picks(content, num_candidates)
+
+    if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+        print(f"[Selection] Parsed picks: {picks} (from {num_candidates} candidates)")
+        if not picks:
+            print(f"[Selection] WARNING: No picks parsed! Full response:\n{content[:500]}", file=sys.stderr)
 
     # Convert picks to full ranking scores for MIND metrics
     # Picked items get highest scores in pick order
@@ -429,12 +439,11 @@ def score_candidates_selection(
     for rank, option in enumerate(picks):
         scores[option - 1] = float(num_candidates - rank)
 
-    # Unpicked items: assign remaining scores in original order
-    remaining_score = num_candidates - len(picks)
+    # Unpicked items: assign same low score (treat equally to avoid index bias)
+    remaining_score = float(num_candidates - len(picks))
     for i in range(num_candidates):
         if (i + 1) not in picked_set:
-            scores[i] = float(remaining_score)
-            remaining_score -= 1
+            scores[i] = remaining_score
 
     return scores
 
@@ -514,6 +523,7 @@ def main():
     ndcg5 = []
     ndcg10 = []
     predictions = []
+    selection_stats = []  # Track number of picks per impression (for selection mode)
 
     import subprocess
     total_lines = None
@@ -590,6 +600,9 @@ def main():
                     top_p=args.top_p,
                     max_tokens=args.max_tokens,
                 )
+                # Track how many items were picked (have score above minimum)
+                num_picked = sum(1 for s in scores if s > min(scores))
+                selection_stats.append(num_picked)
             else:  # listwise
                 prompt = build_listwise_prompt(history_objs, candidate_objs)
                 scores = score_candidates_listwise(
@@ -641,6 +654,13 @@ def main():
         print(f"nDCG@10: {_avg(ndcg10):.4f}")
     else:
         print("No metrics computed (test set has no labels)")
+
+    if selection_stats and args.mode == "selection":
+        print(f"\nSelection Statistics:")
+        print(f"Average picks per impression: {_avg(selection_stats):.2f}")
+        print(f"Min picks: {min(selection_stats)}, Max picks: {max(selection_stats)}")
+        if 0 in selection_stats:
+            print(f"WARNING: {selection_stats.count(0)} impressions had 0 picks (model too conservative)")
 
     if skipped_malformed > 0:
         print(f"Warning: Skipped {skipped_malformed} malformed lines")

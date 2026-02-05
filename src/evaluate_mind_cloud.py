@@ -50,9 +50,10 @@ def load_news(news_path: str, use_abstract: bool) -> dict:
 
 
 def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
-    prompt = "User's reading history:\n"
+    prompt = "User's reading history (most recent):\n"
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
+        # Use last 15 articles - research shows this is optimal for news recommendation
+        recent_history = history[-15:] if len(history) > 15 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
@@ -63,50 +64,89 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     cat = candidate.get("category", "General")
     prompt += f"[{cat}] {candidate['text']}\n"
 
-    prompt += "\nWould this user click the candidate article?\n\n"
-    prompt += "Format:\n"
-    prompt += "THINKING: [Analyze user interests, then match with candidate]\n"
+    prompt += "\nTask: Predict if the user would click this candidate article.\n\n"
+    prompt += "Instructions:\n"
+    prompt += "FIRST, analyze step-by-step in THINKING section:\n"
+    prompt += "THINKING:\n"
+    prompt += "1. User Interests: [What topics/themes does the user read about?]\n"
+    prompt += "2. Candidate Relevance: [How does this candidate match user interests?]\n"
+    prompt += "3. Decision: [Would they click? Why/why not?]\n\n"
+    prompt += "THEN, provide your final answer:\n"
     prompt += "ANSWER: Yes or No\n"
 
     return prompt
 
 
 def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
+    """Build optimized listwise ranking prompt with detailed instructions."""
     # User history section
-    prompt = "User's reading history:\n"
+    prompt = "You are analyzing a user's news reading preferences.\n\n"
+    prompt += "=== USER'S RECENT READING HISTORY ===\n"
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
+        # Use last 15 articles - optimal for news recommendation
+        recent_history = history[-15:] if len(history) > 15 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
-        prompt += "(No history)\n"
+        prompt += "(No history available)\n"
 
     # Candidates section
-    prompt += f"\nCandidate articles:\n"
+    prompt += f"\n=== CANDIDATE ARTICLES TO RANK ===\n"
     for i, cand in enumerate(candidates):
         option_num = i + 1
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    prompt += f"\nRank ALL {len(candidates)} articles by likelihood the user would click (most likely first).\n\n"
-    prompt += "Format:\n"
-    prompt += "THINKING: [Analyze user interests from history]\n"
+    # Task and instructions
+    prompt += f"\n=== TASK ===\n"
+    prompt += f"Rank ALL {len(candidates)} candidate articles from most likely to least likely that the user would click.\n"
+    prompt += "Consider topic relevance, category alignment, and content similarity to the user's reading patterns.\n\n"
+
+    # Structured reasoning process
+    prompt += "=== INSTRUCTIONS ===\n"
+    prompt += "FIRST, reason through the ranking step-by-step:\n\n"
+    prompt += "THINKING:\n"
+    prompt += "Step 1 - Identify User Interests:\n"
+    prompt += "  - What are the main topics/categories in the user's history?\n"
+    prompt += "  - What specific themes or subjects appear repeatedly?\n"
+    prompt += "  - Note any clear preferences (e.g., finance, sports, tech, etc.)\n\n"
+
+    prompt += "Step 2 - Evaluate Each Candidate:\n"
+    prompt += "  - For each candidate, assess:\n"
+    prompt += "    * Does the topic/category match user interests?\n"
+    prompt += "    * Is the content similar to what they've read before?\n"
+    prompt += "    * How strong is the relevance (strong/moderate/weak/none)?\n\n"
+
+    prompt += "Step 3 - Determine Ranking:\n"
+    prompt += "  - Group candidates by relevance level\n"
+    prompt += "  - Order within each group by strength of match\n"
+    prompt += "  - Create final ranking from most to least relevant\n\n"
+
+    # Output format
+    prompt += "THEN, provide your complete ranking:\n\n"
     prompt += "RANKING: "
     if len(candidates) <= 5:
         example_ranking = list(range(1, len(candidates) + 1))
-        prompt += f'{{\"ranking\": {example_ranking}}}\n'
+        prompt += f'{{\"ranking\": {example_ranking}}}\n\n'
     else:
-        prompt += f'{{\"ranking\": [3,1,5,2,4,...]}} (all {len(candidates)} numbers)\n'
+        prompt += f'{{\"ranking\": [3, 1, 5, 2, 4, ...]}} (include all {len(candidates)} article numbers)\n\n'
+
+    prompt += "Important:\n"
+    prompt += f"- Include ALL {len(candidates)} article numbers in your ranking\n"
+    prompt += "- Use JSON format with \"ranking\" key\n"
+    prompt += "- Order from most likely click (first) to least likely (last)\n"
+    prompt += "- Each number 1-" + f"{len(candidates)} must appear exactly once\n"
 
     return prompt
 
 
 def build_selection_prompt(history: List[dict], candidates: List[dict]) -> str:
     """Build selection prompt: predict 1-3 articles the user would click."""
-    prompt = "User's reading history:\n"
+    prompt = "User's reading history (most recent):\n"
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
+        # Use last 15 articles - optimal for news recommendation
+        recent_history = history[-15:] if len(history) > 15 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
@@ -119,11 +159,16 @@ def build_selection_prompt(history: List[dict], candidates: List[dict]) -> str:
         cat = cand.get("category", "General")
         prompt += f"{option_num}. [{cat}] {cand['text']}\n"
 
-    prompt += "\nBased on the user's reading interests, which article(s) would they likely click?\n"
-    prompt += "Select 1-3 articles that clearly match the user's interests. Be selective - only pick articles with strong relevance.\n\n"
-    prompt += "Format:\n"
-    prompt += "THINKING: [First identify user's main interests from history, then find matching candidates]\n"
-    prompt += "PICKS: <number>, <number>, ... (1-3 numbers ordered by likelihood, most likely first)\n"
+    prompt += "\nTask: Predict which article(s) the user would click based on their reading patterns.\n"
+    prompt += "Be selective - only pick articles with strong relevance to the user's demonstrated interests.\n\n"
+    prompt += "Instructions:\n"
+    prompt += "FIRST, analyze step-by-step in THINKING section:\n"
+    prompt += "THINKING:\n"
+    prompt += "1. User Interests: [Identify 2-3 main topics/themes from reading history]\n"
+    prompt += "2. Candidate Analysis: [For each candidate, assess relevance to user interests]\n"
+    prompt += "3. Final Selection: [Explain which 1-3 articles best match and why]\n\n"
+    prompt += "THEN, provide your picks:\n"
+    prompt += "PICKS: <number>, <number>, ... (1-3 numbers ordered by likelihood)\n"
 
     return prompt
 
@@ -211,7 +256,7 @@ def score_candidate_pointwise(
             messages=[
                 {
                     "role": "system",
-                    "content": "You predict whether a user would click a news article based on their reading history."
+                    "content": "You are an expert at predicting news article clicks. Analyze the user's reading patterns to identify their interests, then determine if the candidate article matches those interests well enough for them to click."
                 },
                 {
                     "role": "user",
@@ -299,7 +344,7 @@ def score_candidates_listwise(
             messages=[
                 {
                     "role": "system",
-                    "content": "You rank news articles based on user reading history."
+                    "content": "You are an expert news recommendation system that ranks articles based on user preferences. Your task is to analyze reading history to identify user interests, then rank candidate articles by relevance. Be thorough in your analysis, considering both topical alignment and content similarity. Always provide complete rankings with all candidates ordered from most to least relevant."
                 },
                 {
                     "role": "user",
@@ -391,7 +436,7 @@ def score_candidates_selection(
             messages=[
                 {
                     "role": "system",
-                    "content": "You predict which news articles a user would click based on their reading history. Analyze the user's interests carefully and only recommend articles that clearly match. Be selective and confident in your picks."
+                    "content": "You are an expert at predicting news article clicks based on user reading patterns. Follow a structured reasoning process: (1) identify the user's main interests from their history, (2) analyze how each candidate matches those interests, (3) select only the 1-3 most relevant articles. Be selective and precise."
                 },
                 {
                     "role": "user",

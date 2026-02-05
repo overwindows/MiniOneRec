@@ -4,6 +4,7 @@ Evaluate MIND via cloud LLM (SambaNova) with prompt-based scoring.
 Modes:
 - pointwise: ask Yes/No for each candidate; score Yes=1, No=0.
 - listwise: ask for a full ranked list of option numbers.
+- selection: ask LLM to pick 1-3 articles the user would click (LLM decides count).
 
 No logits/probs are used.
 """
@@ -105,6 +106,30 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
         prompt += f'{{\"ranking\": {example_ranking}}} <- your ranking here\n'
     else:
         prompt += f'{{\"ranking\": [3,1,5,2,4,...]}} <- all {len(candidates)} numbers\n'
+
+    return prompt
+
+
+def build_selection_prompt(history: List[dict], candidates: List[dict]) -> str:
+    """Build selection prompt: predict 1-3 articles the user would click."""
+    prompt = "User's reading history:\n"
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get("category", "General")
+            prompt += f"{i}. [{cat}] {h['text']}\n"
+    else:
+        prompt += "(No history)\n"
+
+    prompt += f"\nCandidate articles:\n"
+    for i, cand in enumerate(candidates):
+        option_num = i + 1
+        cat = cand.get("category", "General")
+        prompt += f"{option_num}. [{cat}] {cand['text']}\n"
+
+    prompt += "\nWhich article(s) would this user click? Pick 1-3 most likely articles.\n"
+    prompt += "Output format: PICKS: <number>, <number>, ... (1-3 numbers, most likely first)\n"
+    prompt += "Example: PICKS: 5, 2, 8\n"
 
     return prompt
 
@@ -295,6 +320,102 @@ def score_candidates_listwise(
     return scores
 
 
+def _parse_selection_picks(text: str, num_candidates: int) -> List[int]:
+    """Parse 1-3 picked numbers from selection response."""
+    picks = []
+
+    # Find PICKS: section
+    picks_section = text
+    if "PICKS:" in text.upper():
+        idx = text.upper().find("PICKS:")
+        picks_section = text[idx + 6:]
+
+    # Try to parse array [1,2,3]
+    try:
+        start = picks_section.find("[")
+        end = picks_section.find("]")
+        if start != -1 and end != -1 and end > start:
+            array_str = picks_section[start : end + 1]
+            parsed = json.loads(array_str)
+            if isinstance(parsed, list):
+                picks = [int(n) for n in parsed]
+    except Exception:
+        pass
+
+    # Fallback: extract numbers from first line after PICKS:
+    if not picks:
+        # Take first line or first 100 chars
+        first_line = picks_section.split("\n")[0][:100]
+        picks = [int(n) for n in re.findall(r"\b\d+\b", first_line)]
+
+    # Filter valid numbers, remove duplicates, limit to 3
+    filtered = []
+    seen = set()
+    for n in picks:
+        if 1 <= n <= num_candidates and n not in seen:
+            filtered.append(n)
+            seen.add(n)
+        if len(filtered) >= 3:
+            break
+
+    return filtered
+
+
+def score_candidates_selection(
+    client,
+    model: str,
+    prompt: str,
+    num_candidates: int,
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+) -> List[float]:
+    """Score candidates using selection mode (1-3 picks)."""
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You predict which news articles a user would click based on their reading history. Be selective."
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens,
+    )
+    content = response.choices[0].message.content.strip()
+
+    if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+        print(f"\n{'='*60}")
+        print(f"Selection response: {content[:500]}")
+        print(f"{'='*60}\n")
+
+    picks = _parse_selection_picks(content, num_candidates)
+
+    # Convert picks to full ranking scores for MIND metrics
+    # Picked items get highest scores in pick order
+    # Unpicked items get lower scores (random order among them)
+    scores = [0.0] * num_candidates
+    picked_set = set(picks)
+
+    # Picked items: highest scores (num_candidates, num_candidates-1, ...)
+    for rank, option in enumerate(picks):
+        scores[option - 1] = float(num_candidates - rank)
+
+    # Unpicked items: assign remaining scores in original order
+    remaining_score = num_candidates - len(picks)
+    for i in range(num_candidates):
+        if (i + 1) not in picked_set:
+            scores[i] = float(remaining_score)
+            remaining_score -= 1
+
+    return scores
+
+
 def auc_score(labels: List[int], scores: List[float]) -> float:
     pos = sum(labels)
     if pos == 0 or pos == len(labels):
@@ -323,7 +444,7 @@ def ndcg_score(labels: List[int], scores: List[float], k: int) -> float:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["pointwise", "listwise"], required=True)
+    parser.add_argument("--mode", choices=["pointwise", "listwise", "selection"], required=True)
     parser.add_argument("--model", required=True, help="SambaNova model name")
     parser.add_argument("--behaviors_path", required=True)
     parser.add_argument("--news_path", required=True)
@@ -346,7 +467,13 @@ def main():
     if args.max_tokens == 0:
         # Increased defaults to allow for reasoning + answer
         # 4096 for listwise to handle large candidate sets (up to ~80 items)
-        args.max_tokens = 128 if args.mode == "pointwise" else 4096
+        # 256 for selection (just need 1-3 numbers + brief analysis)
+        if args.mode == "pointwise":
+            args.max_tokens = 128
+        elif args.mode == "selection":
+            args.max_tokens = 256
+        else:
+            args.max_tokens = 4096
 
     set_seed(args.seed)
 
@@ -429,7 +556,18 @@ def main():
                     top_p=args.top_p,
                     max_tokens=args.max_tokens,
                 )
-            else:
+            elif args.mode == "selection":
+                prompt = build_selection_prompt(history_objs, candidate_objs)
+                scores = score_candidates_selection(
+                    client,
+                    args.model,
+                    prompt,
+                    len(candidate_objs),
+                    temperature=args.temperature,
+                    top_p=args.top_p,
+                    max_tokens=args.max_tokens,
+                )
+            else:  # listwise
                 prompt = build_listwise_prompt(history_objs, candidate_objs)
                 scores = score_candidates_listwise(
                     client,

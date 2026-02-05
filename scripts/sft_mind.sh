@@ -71,7 +71,8 @@ MAX_HISTORY=${MAX_HISTORY:-50}
 
 # Output directory
 MODEL_BASENAME=$(basename ${MODEL_PATH})
-OUTPUT_DIR="output_dir/sft_mind_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}"
+DEFAULT_OUTPUT_DIR="output_dir/sft_mind_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}"
+OUTPUT_DIR="${OUTPUT_DIR:-$DEFAULT_OUTPUT_DIR}"
 
 if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
     OUTPUT_DIR="${OUTPUT_DIR}_abstract"

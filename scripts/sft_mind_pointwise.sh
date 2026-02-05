@@ -82,7 +82,8 @@ fi
 if [[ "${USE_ABSTRACT}" == "1" ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_abs"
 fi
-OUTPUT_DIR="output_dir/${OUTPUT_NAME}"
+DEFAULT_OUTPUT_DIR="output_dir/${OUTPUT_NAME}"
+OUTPUT_DIR="${OUTPUT_DIR:-$DEFAULT_OUTPUT_DIR}"
 
 # Wandb
 WANDB_PROJECT=${WANDB_PROJECT:-"MiniOneRec"}

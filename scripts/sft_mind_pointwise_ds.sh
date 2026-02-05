@@ -123,6 +123,9 @@ TRAIN_NEWS=${DATA_ROOT}/train/news.tsv
 EVAL_BEHAVIORS=${DATA_ROOT}/dev/behaviors.tsv
 EVAL_NEWS=${DATA_ROOT}/dev/news.tsv
 
+# Output directory (configurable)
+OUTPUT_DIR=${OUTPUT_DIR:-output_dir/mind_pointwise_ds}
+
 echo "DATA_ROOT: ${DATA_ROOT}"
 echo "Train behaviors: ${TRAIN_BEHAVIORS}"
 echo "Train news: ${TRAIN_NEWS}"
@@ -145,7 +148,7 @@ deepspeed --hostfile=$HOSTFILE \
         --train_news_path ${TRAIN_NEWS} \
         --eval_behaviors_path ${EVAL_BEHAVIORS} \
         --eval_news_path ${EVAL_NEWS} \
-        --output_dir output_dir/mind_pointwise_ds \
+        --output_dir ${OUTPUT_DIR} \
         --batch_size ${BATCH_SIZE} \
         --micro_batch_size ${MICRO_BATCH_SIZE} \
         --num_epochs ${NUM_EPOCHS} \

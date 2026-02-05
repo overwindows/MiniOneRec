@@ -83,6 +83,9 @@ TRAIN_NEWS=${DATA_ROOT}/train/news.tsv
 EVAL_BEHAVIORS=${DATA_ROOT}/dev/behaviors.tsv
 EVAL_NEWS=${DATA_ROOT}/dev/news.tsv
 
+# Output directory (configurable)
+OUTPUT_DIR=${OUTPUT_DIR:-output_dir/mind_ranking_ds}
+
 echo "DATA_ROOT: ${DATA_ROOT}"
 echo "Train behaviors: ${TRAIN_BEHAVIORS}"
 echo "Train news: ${TRAIN_NEWS}"
@@ -108,7 +111,7 @@ deepspeed --hostfile=$HOSTFILE \
         --train_news_path ${TRAIN_NEWS} \
         --eval_behaviors_path ${EVAL_BEHAVIORS} \
         --eval_news_path ${EVAL_NEWS} \
-        --output_dir output_dir/mind_ranking_ds \
+        --output_dir ${OUTPUT_DIR} \
         --batch_size 256 \
         --micro_batch_size 2 \
         --num_epochs 3 \
@@ -130,7 +133,7 @@ echo "Training completed!"
 echo ""
 echo "To evaluate with matching settings:"
 echo "  python evaluate_mind_ranking.py \\"
-echo "      --model_path output_dir/mind_ranking_ds/final_checkpoint \\"
+echo "      --model_path ${OUTPUT_DIR}/final_checkpoint \\"
 echo "      --behaviors_path ${EVAL_BEHAVIORS} \\"
 echo "      --news_path ${EVAL_NEWS} \\"
 echo "      --load_training_config"

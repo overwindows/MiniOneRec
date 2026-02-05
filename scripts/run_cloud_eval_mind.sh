@@ -8,6 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Usage:
 #   ./run_cloud_eval.sh pointwise
 #   ./run_cloud_eval.sh listwise
+#   ./run_cloud_eval.sh selection
 #
 # Required env vars:
 #   SAMBANOVA_API_KEY
@@ -21,17 +22,17 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 #   MAX_IMPRESSIONS=0
 #   TEMPERATURE=0.1
 #   TOP_P=0.1
-#   MAX_TOKENS=0            # 0=auto (128 for pointwise, 4096 for listwise)
+#   MAX_TOKENS=0            # 0=auto (128 for pointwise, 256 for selection, 4096 for listwise)
 #   OUTPUT_FILE=""          # e.g. outputs/preds.tsv
 
-MODE="${1:-}"  # pointwise | listwise
+MODE="${1:-}"  # pointwise | listwise | selection
 if [[ -z "$MODE" ]]; then
-  echo "Usage: $0 pointwise|listwise" >&2
+  echo "Usage: $0 pointwise|listwise|selection" >&2
   exit 1
 fi
 
-if [[ "$MODE" != "pointwise" && "$MODE" != "listwise" ]]; then
-  echo "Mode must be 'pointwise' or 'listwise'" >&2
+if [[ "$MODE" != "pointwise" && "$MODE" != "listwise" && "$MODE" != "selection" ]]; then
+  echo "Mode must be 'pointwise', 'listwise', or 'selection'" >&2
   exit 1
 fi
 
@@ -47,7 +48,7 @@ MAX_HISTORY="${MAX_HISTORY:-0}"
 MAX_IMPRESSIONS="${MAX_IMPRESSIONS:-0}"
 TEMPERATURE="${TEMPERATURE:-0.1}"
 TOP_P="${TOP_P:-0.1}"
-MAX_TOKENS="${MAX_TOKENS:-0}"  # 0=auto (128 for pointwise, 4096 for listwise)
+MAX_TOKENS="${MAX_TOKENS:-0}"  # 0=auto (128 for pointwise, 256 for selection, 4096 for listwise)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 
 ARGS=(

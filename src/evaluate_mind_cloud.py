@@ -100,43 +100,45 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict]) -> str:
 
     # Task and instructions
     prompt += f"\n=== TASK ===\n"
-    prompt += f"Rank ALL {len(candidates)} candidate articles from most likely to least likely that the user would click.\n"
+    num_to_rank = min(5, len(candidates))
+    prompt += f"Identify the TOP {num_to_rank} articles (from {len(candidates)} candidates) that the user is most likely to click.\n"
+    prompt += "Rank only these top articles by likelihood. The rest will remain in original order.\n"
     prompt += "Consider topic relevance, category alignment, and content similarity to the user's reading patterns.\n\n"
 
     # Structured reasoning process
     prompt += "=== INSTRUCTIONS ===\n"
-    prompt += "FIRST, reason through the ranking step-by-step:\n\n"
+    prompt += "FIRST, reason through the selection step-by-step:\n\n"
     prompt += "THINKING:\n"
     prompt += "Step 1 - Identify User Interests:\n"
     prompt += "  - What are the main topics/categories in the user's history?\n"
     prompt += "  - What specific themes or subjects appear repeatedly?\n"
     prompt += "  - Note any clear preferences (e.g., finance, sports, tech, etc.)\n\n"
 
-    prompt += "Step 2 - Evaluate Each Candidate:\n"
-    prompt += "  - For each candidate, assess:\n"
-    prompt += "    * Does the topic/category match user interests?\n"
-    prompt += "    * Is the content similar to what they've read before?\n"
-    prompt += "    * How strong is the relevance (strong/moderate/weak/none)?\n\n"
+    prompt += "Step 2 - Evaluate Candidates:\n"
+    prompt += "  - Scan through candidates and identify which ones strongly match user interests\n"
+    prompt += "  - Focus on topic/category match and content similarity\n"
+    prompt += f"  - Select the top {num_to_rank} most relevant candidates\n\n"
 
-    prompt += "Step 3 - Determine Ranking:\n"
-    prompt += "  - Group candidates by relevance level\n"
-    prompt += "  - Order within each group by strength of match\n"
-    prompt += "  - Create final ranking from most to least relevant\n\n"
+    prompt += "Step 3 - Rank Top Candidates:\n"
+    prompt += f"  - Order your top {num_to_rank} picks from most to least likely to be clicked\n"
+    prompt += "  - Consider strength of match when ordering\n\n"
 
-    # Output format
-    prompt += "THEN, provide your complete ranking:\n\n"
+    # Output format - VERY EXPLICIT
+    prompt += f"THEN, provide your TOP {num_to_rank} ranked article numbers in EXACT format:\n\n"
     prompt += "RANKING: "
     if len(candidates) <= 5:
         example_ranking = list(range(1, len(candidates) + 1))
         prompt += f'{{\"ranking\": {example_ranking}}}\n\n'
     else:
-        prompt += f'{{\"ranking\": [3, 1, 5, 2, 4, ...]}} (include all {len(candidates)} article numbers)\n\n'
+        prompt += f'{{\"ranking\": [12, 3, 8, 15, 22]}} (only top {num_to_rank} numbers)\n\n'
 
-    prompt += "Important:\n"
-    prompt += f"- Include ALL {len(candidates)} article numbers in your ranking\n"
-    prompt += "- Use JSON format with \"ranking\" key\n"
-    prompt += "- Order from most likely click (first) to least likely (last)\n"
-    prompt += "- Each number 1-" + f"{len(candidates)} must appear exactly once\n"
+    prompt += "CRITICAL FORMAT REQUIREMENTS:\n"
+    prompt += f"- Must start with exactly: RANKING: {{\"ranking\": [...]}}\n"
+    prompt += f"- Include ONLY {num_to_rank} article numbers (your top picks)\n"
+    prompt += "- Use plain JSON - NO markdown code blocks, NO ```json tags\n"
+    prompt += "- Do NOT add explanations after RANKING: - just the JSON\n"
+    prompt += "- Order: most likely click first, 5th most likely last\n"
+    prompt += f"- Each number must be in range 1-{len(candidates)}\n"
 
     return prompt
 
@@ -185,11 +187,16 @@ def _get_sambanova_client(api_key: str, base_url: str):
 def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
     order = []
 
-    # First, try to find the RANKING: section
+    # First, try to find the RANKING: section (case-insensitive)
     ranking_section = text
     if "RANKING:" in text.upper():
         idx = text.upper().find("RANKING:")
         ranking_section = text[idx + 8:]
+
+    # Clean up markdown code blocks if present
+    ranking_section = re.sub(r'```json\s*', '', ranking_section)
+    ranking_section = re.sub(r'```\s*', '', ranking_section)
+    ranking_section = ranking_section.strip()
 
     # Try multiple parsing strategies
     # 1. Try to parse JSON with "ranking" key
@@ -344,7 +351,7 @@ def score_candidates_listwise(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert news recommendation system that ranks articles based on user preferences. Your task is to analyze reading history to identify user interests, then rank candidate articles by relevance. Be thorough in your analysis, considering both topical alignment and content similarity. Always provide complete rankings with all candidates ordered from most to least relevant."
+                    "content": "You are an expert news recommendation system that identifies top articles based on user preferences. Your task is to analyze reading history to identify user interests, then select and rank the TOP 5 most relevant candidate articles. CRITICAL: After your analysis, you MUST output exactly 5 article numbers in JSON format: RANKING: {\"ranking\": [...]}, with NO markdown code blocks, NO additional explanations after the JSON. Follow the output format precisely."
                 },
                 {
                     "role": "user",
@@ -371,11 +378,27 @@ def score_candidates_listwise(
             debug_content = content[idx:]
         print(f"[Listwise] {debug_content[:200].strip()}")
 
-    order = _parse_ranked_numbers(content, num_candidates)
+    # Parse top-K ranking (expecting up to 5 items)
+    top_k = _parse_ranked_numbers(content, num_candidates)
 
+    # Limit to top 5 as specified in prompt
+    top_k = top_k[:5] if len(top_k) > 5 else top_k
+
+    # Build scores: top-K get highest scores, rest get lower scores in original order
     scores = [0.0] * num_candidates
-    for rank, option in enumerate(order):
+    top_k_set = set(top_k)
+
+    # Assign scores to top-K items based on their rank
+    for rank, option in enumerate(top_k):
         scores[option - 1] = float(num_candidates - rank)
+
+    # Assign remaining items scores based on original order (decreasing from where top-K left off)
+    remaining_score = float(num_candidates - len(top_k))
+    for i in range(num_candidates):
+        if (i + 1) not in top_k_set:
+            scores[i] = remaining_score
+            remaining_score -= 1
+
     return scores
 
 

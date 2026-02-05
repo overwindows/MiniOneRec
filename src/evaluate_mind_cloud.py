@@ -413,6 +413,44 @@ def score_candidates_pointwise(
     return scores
 
 
+def _build_system_message_with_examples(top_k: int, num_candidates: int) -> str:
+    """Build system message with few-shot examples to enforce format compliance."""
+    # Base instruction
+    if top_k == 0 or top_k >= num_candidates:
+        base = f"You are an expert news recommendation system. Rank ALL {num_candidates} articles by click likelihood."
+        count = num_candidates
+    else:
+        base = f"You are an expert news recommendation system. Select and rank the TOP {top_k} most relevant articles."
+        count = top_k
+
+    # Few-shot examples showing EXACT correct format
+    msg = base + "\n\n"
+    msg += "CRITICAL: Follow this EXACT format:\n\n"
+
+    # Example 1: Correct format
+    msg += "USER: [history and candidates]\n"
+    msg += "ASSISTANT: THINKING:\n"
+    msg += "Step 1 - User Interests: Tech, AI\n"
+    msg += "Step 2 - Evaluate Candidates: #2 matches AI\n"
+    msg += "Step 3 - Create Ranking: #2 top pick\n\n"
+    if count == 1:
+        msg += 'RANKING: {"ranking": [2]}\n\n'
+    else:
+        msg += 'RANKING: {"ranking": [2, 5, 1]}\n\n'
+
+    # Emphasize what NOT to do
+    msg += "NEVER do this:\n"
+    msg += "❌ Ranking:\n  - Top 1: Candidate 2\nRANKING: {...}\n"
+    msg += "❌ RANKING: {\"ranking\": [2  (incomplete JSON)\n"
+    msg += "❌ Based on analysis, RANKING: {...}\n\n"
+
+    # Final strict instruction
+    msg += f"OUTPUT FORMAT: After THINKING section, output EXACTLY: RANKING: {{\"ranking\": [...]}} with {count} numbers. "
+    msg += "NO extra text, NO explanations, NO markdown, NO bullets. Just the JSON line."
+
+    return msg
+
+
 def score_candidates_listwise(
     client,
     model: str,
@@ -423,11 +461,8 @@ def score_candidates_listwise(
     max_tokens: int,
     top_k: int = 5,
 ) -> List[float]:
-    # Build dynamic system message based on top_k
-    if top_k == 0 or top_k >= num_candidates:
-        system_msg = f"You are an expert news recommendation system that ranks articles based on user preferences. Your task is to analyze reading history to identify user interests, then rank ALL {num_candidates} candidate articles by relevance. CRITICAL FORMAT: After your THINKING section, output ONLY: RANKING: {{\"ranking\": [...]}} on a single line with exactly {num_candidates} numbers. NO explanations, NO markdown, NO extra text before or after."
-    else:
-        system_msg = f"You are an expert news recommendation system that identifies top articles based on user preferences. Your task is to analyze reading history to identify user interests, then select and rank the TOP {top_k} most relevant candidate articles. CRITICAL FORMAT: After your THINKING section, output ONLY: RANKING: {{\"ranking\": [...]}} on a single line with exactly {top_k} numbers. NO explanations, NO markdown, NO extra text before or after."
+    # Build enhanced system message with few-shot examples (Option A + B)
+    system_msg = _build_system_message_with_examples(top_k, num_candidates)
 
     try:
         response = client.chat.completions.create(
@@ -467,6 +502,41 @@ def score_candidates_listwise(
 
     # Determine expected count based on top_k parameter
     expected_k = num_candidates if (top_k == 0 or top_k >= num_candidates) else top_k
+
+    # Option C: Retry with simpler prompt if parsing completely failed
+    if not ranked_items:
+        if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+            print(f"[Listwise] WARNING: Parsing failed, retrying with simpler prompt...", file=sys.stderr)
+
+        # Build ultra-simple retry prompt
+        retry_prompt = f"Rank these {num_candidates} articles for the user. Output ONLY: {{\"ranking\": [list of {expected_k} numbers]}}\n\n"
+        retry_prompt += prompt.split("=== TASK ===")[0] if "=== TASK ===" in prompt else prompt[:500]
+
+        try:
+            retry_response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"Output ONLY valid JSON: {{\"ranking\": [...]}} with {expected_k} numbers. NO text before or after."
+                    },
+                    {
+                        "role": "user",
+                        "content": retry_prompt,
+                    },
+                ],
+                temperature=0.0,  # More deterministic for retry
+                top_p=top_p,
+                max_tokens=100,  # Very short - just need the JSON
+            )
+            if retry_response.choices and retry_response.choices[0].message.content:
+                retry_content = retry_response.choices[0].message.content.strip()
+                ranked_items = _parse_ranked_numbers(retry_content, num_candidates)
+                if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+                    print(f"[Listwise] Retry result: {ranked_items}", file=sys.stderr)
+        except Exception as e:
+            if os.getenv("DEBUG_CLOUD_EVAL") == "1":
+                print(f"[Listwise] Retry failed: {e}", file=sys.stderr)
 
     # Limit parsed items to expected count
     ranked_items = ranked_items[:expected_k] if len(ranked_items) > expected_k else ranked_items

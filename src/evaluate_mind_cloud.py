@@ -139,30 +139,56 @@ def build_listwise_prompt(history: List[dict], candidates: List[dict], top_k: in
     prompt += f"  - Order your {top_prefix}{num_to_rank} picks from most to least likely to be clicked\n"
     prompt += "  - Consider strength of match when ordering\n\n"
 
-    # Output format - VERY EXPLICIT
-    if num_to_rank == len(candidates):
-        prompt += f"THEN, provide your complete ranking of ALL {num_to_rank} articles in EXACT format:\n\n"
-    else:
-        prompt += f"THEN, provide your TOP {num_to_rank} ranked article numbers in EXACT format:\n\n"
-    prompt += "RANKING: "
-    if num_to_rank <= 5:
-        example_ranking = list(range(1, num_to_rank + 1))
-        prompt += f'{{\"ranking\": {example_ranking}}}\n\n'
-    else:
-        prompt += f'{{\"ranking\": [3, 1, 5, 2, 4, ...]}} (all {num_to_rank} numbers)\n\n'
+    # Output format - EXTREMELY EXPLICIT with example
+    prompt += "THEN, output your ranking IMMEDIATELY:\n\n"
+    prompt += "CRITICAL OUTPUT RULES:\n"
+    prompt += "1. After your THINKING section, the VERY NEXT LINE must be RANKING:\n"
+    prompt += "2. Do NOT add any extra text, explanations, or summaries\n"
+    prompt += "3. Do NOT add a separate 'Ranking:' section with explanations\n"
+    prompt += "4. Output ONLY the JSON on a single line\n\n"
 
-    prompt += "CRITICAL FORMAT REQUIREMENTS:\n"
-    prompt += f"- Must start with exactly: RANKING: {{\"ranking\": [...]}}\n"
-    if num_to_rank == len(candidates):
-        prompt += f"- Include ALL {num_to_rank} article numbers (complete ranking)\n"
+    prompt += "EXACT FORMAT:\n"
+    if num_to_rank == 1:
+        prompt += f'RANKING: {{\"ranking\": [X]}}\n\n'
+        prompt += f"Where X is your single top pick (1-{len(candidates)})\n\n"
+    elif num_to_rank <= 5:
+        example_ranking = list(range(1, min(num_to_rank + 1, 6)))
+        prompt += f'RANKING: {{\"ranking\": {example_ranking}}}\n\n'
     else:
-        prompt += f"- Include ONLY {num_to_rank} article numbers (your top picks)\n"
-    prompt += "- Use plain JSON - NO markdown code blocks, NO ```json tags\n"
-    prompt += "- Do NOT add explanations after RANKING: - just the JSON\n"
-    prompt += f"- Order: most likely click first, {num_to_rank}th most likely last\n"
-    prompt += f"- Each number must be in range 1-{len(candidates)}\n"
+        prompt += f'RANKING: {{\"ranking\": [3, 1, 5, 2, 4, ...]}}\n\n'
+
+    prompt += "EXAMPLE OUTPUT:\n"
+    prompt += "THINKING:\n"
+    prompt += "Step 1 - User Interests: Finance, markets\n"
+    prompt += "Step 2 - Evaluate Candidates: #4 matches finance\n"
+    prompt += "Step 3 - Create Ranking: #4 is top pick\n\n"
+    if num_to_rank == 1:
+        prompt += 'RANKING: {"ranking": [4]}\n\n'
+    else:
+        prompt += 'RANKING: {"ranking": [4, 7, 2]}\n\n'
+
+    # Add explicit WRONG vs RIGHT examples
+    prompt += "WRONG OUTPUTS (DO NOT DO THIS):\n"
+    prompt += "❌ Ranking:\n  - Top 1: Candidate 4\nRANKING: {...}\n"
+    prompt += "❌ RANKING: {\"ranking\": [4  (missing closing brackets)\n"
+    prompt += "❌ RANKING: ```json{\"ranking\": [4]}```\n"
+    prompt += "❌ Based on the analysis, RANKING: {\"ranking\": [4]}\n\n"
+
+    prompt += "RIGHT OUTPUT:\n"
+    if num_to_rank == 1:
+        prompt += '✓ RANKING: {"ranking": [4]}\n\n'
+    else:
+        prompt += '✓ RANKING: {"ranking": [4, 7, 2]}\n\n'
+
+    prompt += "REQUIREMENTS:\n"
+    prompt += f"- Must be exactly: RANKING: {{\"ranking\": [...]}}\n"
     if num_to_rank == len(candidates):
-        prompt += f"- Each number 1-{len(candidates)} must appear exactly once\n"
+        prompt += f"- Include ALL {num_to_rank} numbers (complete ranking)\n"
+    else:
+        prompt += f"- Include exactly {num_to_rank} numbers\n"
+    prompt += "- Valid JSON on ONE line\n"
+    prompt += "- NO text before or after the JSON\n"
+    prompt += f"- Numbers must be in range 1-{len(candidates)}\n"
 
     return prompt
 
@@ -217,6 +243,15 @@ def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
         idx = text.upper().find("RANKING:")
         ranking_section = text[idx + 8:]
 
+    # Remove any "Ranking:" explanatory text that sometimes appears before RANKING:
+    # This handles cases where LLM adds extra "Ranking:" section with explanations
+    # Look for patterns like "Ranking:\n  - Top 1: ..." and remove everything up to RANKING:
+    if "RANKING:" not in ranking_section.upper():
+        # If no RANKING: marker in this section, it might be all explanatory text
+        # Clear any lines starting with "Ranking:" or containing bullet points
+        ranking_section = re.sub(r'^Ranking:.*?$', '', ranking_section, flags=re.IGNORECASE | re.MULTILINE)
+        ranking_section = re.sub(r'^\s*[-•]\s*Top\s+\d+:.*?$', '', ranking_section, flags=re.IGNORECASE | re.MULTILINE)
+
     # Clean up markdown code blocks if present
     ranking_section = re.sub(r'```json\s*', '', ranking_section)
     ranking_section = re.sub(r'```\s*', '', ranking_section)
@@ -227,8 +262,26 @@ def _parse_ranked_numbers(text: str, num_candidates: int) -> List[int]:
     try:
         start = ranking_section.find("{")
         end = ranking_section.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            json_str = ranking_section[start : end + 1]
+        if start != -1:
+            if end != -1 and end > start:
+                json_str = ranking_section[start : end + 1]
+            else:
+                # No closing brace found, take everything after opening brace
+                json_str = ranking_section[start:]
+
+            # Fix common malformed JSON: missing closing brackets
+            # Need to close in proper order: inner brackets first
+            open_square = json_str.count('[')
+            close_square = json_str.count(']')
+            open_curly = json_str.count('{')
+            close_curly = json_str.count('}')
+
+            # Close square brackets first (they're inner), then curly braces
+            if open_square > close_square:
+                json_str += ']' * (open_square - close_square)
+            if open_curly > close_curly:
+                json_str += '}' * (open_curly - close_curly)
+
             payload = json.loads(json_str)
             if isinstance(payload, dict) and isinstance(payload.get("ranking"), list):
                 order = [int(n) for n in payload["ranking"]]
@@ -372,9 +425,9 @@ def score_candidates_listwise(
 ) -> List[float]:
     # Build dynamic system message based on top_k
     if top_k == 0 or top_k >= num_candidates:
-        system_msg = f"You are an expert news recommendation system that ranks articles based on user preferences. Your task is to analyze reading history to identify user interests, then rank ALL {num_candidates} candidate articles by relevance. CRITICAL: After your analysis, you MUST output exactly {num_candidates} article numbers in JSON format: RANKING: {{\"ranking\": [...]}}, with NO markdown code blocks, NO additional explanations after the JSON. Follow the output format precisely."
+        system_msg = f"You are an expert news recommendation system that ranks articles based on user preferences. Your task is to analyze reading history to identify user interests, then rank ALL {num_candidates} candidate articles by relevance. CRITICAL FORMAT: After your THINKING section, output ONLY: RANKING: {{\"ranking\": [...]}} on a single line with exactly {num_candidates} numbers. NO explanations, NO markdown, NO extra text before or after."
     else:
-        system_msg = f"You are an expert news recommendation system that identifies top articles based on user preferences. Your task is to analyze reading history to identify user interests, then select and rank the TOP {top_k} most relevant candidate articles. CRITICAL: After your analysis, you MUST output exactly {top_k} article numbers in JSON format: RANKING: {{\"ranking\": [...]}}, with NO markdown code blocks, NO additional explanations after the JSON. Follow the output format precisely."
+        system_msg = f"You are an expert news recommendation system that identifies top articles based on user preferences. Your task is to analyze reading history to identify user interests, then select and rank the TOP {top_k} most relevant candidate articles. CRITICAL FORMAT: After your THINKING section, output ONLY: RANKING: {{\"ranking\": [...]}} on a single line with exactly {top_k} numbers. NO explanations, NO markdown, NO extra text before or after."
 
     try:
         response = client.chat.completions.create(

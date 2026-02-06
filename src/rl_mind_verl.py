@@ -159,8 +159,10 @@ def main(
 
     # Validate reward type
     valid_reward_types = [
-        # Standard (short output)
+        # Standard ranking (short output)
         'mind_auc', 'mind_auc_rank', 'mind_ndcg', 'mind_mrr',
+        # Pointwise (Yes/No classification)
+        'pointwise_binary', 'pointwise_weighted', 'pointwise_auc_proxy', 'pointwise_margin',
         # Chain-of-Thought (reasoning + answer)
         'mind_cot_binary', 'mind_cot_ndcg', 'mind_cot_auc', 'mind_cot_margin', 'mind_cot_format'
     ]

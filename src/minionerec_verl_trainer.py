@@ -104,4 +104,13 @@ def train_verl(
 
     print("Launching VERL with:")
     print(" ".join(cmd))
-    subprocess.run(cmd, check=True, env=env)
+
+    # Run with explicit output handling
+    result = subprocess.run(cmd, env=env, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        print(f"\nVERL training failed with return code: {result.returncode}")
+        print("Check Ray logs for detailed errors:")
+        print("  ls -ltr /tmp/ray/session_latest*/logs/")
+        print("  tail /tmp/ray/session_latest*/logs/worker-*.err")
+        raise subprocess.CalledProcessError(result.returncode, cmd)

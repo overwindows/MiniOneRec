@@ -2,8 +2,8 @@
 # Pin to specific commit compatible with torch 2.6.0
 git+https://github.com/volcengine/verl.git@v0.3.0.post1
 
-# vLLM rollout backend - pin to version compatible with torch 2.6.0
-vllm==0.6.6.post1
+# vLLM rollout backend - use version 0.7.0+ for VERL compatibility
+vllm>=0.7.0
 
 # ZeroMQ for vLLM async communication
 pyzmq

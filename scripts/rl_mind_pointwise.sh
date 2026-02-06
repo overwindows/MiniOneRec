@@ -191,7 +191,7 @@ fi
 # Prepare training data with POINTWISE format
 if [[ ! -f "${TRAIN_PARQUET}" ]]; then
     echo "Preparing POINTWISE training data for RL..."
-    python prepare_mind_rl_pointwise.py \
+    python src/prepare_mind_rl_pointwise.py \
         --behaviors_path "${TRAIN_BEHAVIORS}" \
         --news_path "${TRAIN_NEWS}" \
         --output_parquet "${TRAIN_PARQUET}" \
@@ -205,22 +205,16 @@ else
     echo ""
 fi
 
-# Prepare dev data with POINTWISE format
-if [[ ! -f "${DEV_PARQUET}" ]]; then
-    echo "Preparing POINTWISE dev data for RL..."
-    python prepare_mind_rl_pointwise.py \
-        --behaviors_path "${DEV_BEHAVIORS}" \
-        --news_path "${DEV_NEWS}" \
-        --output_parquet "${DEV_PARQUET}" \
-        --max_history ${MAX_HISTORY} \
-        --neg_ratio ${NEG_RATIO} \
-        ${ABSTRACT_FLAG}
-    echo ""
-else
-    echo "Dev parquet already exists: ${DEV_PARQUET}"
-    echo "  (Set REGENERATE_DATA=1 to regenerate with new settings)"
-    echo ""
-fi
+# Prepare dev data with POINTWISE format (always regenerate)
+echo "Preparing POINTWISE dev data for RL..."
+python src/prepare_mind_rl_pointwise.py \
+    --behaviors_path "${DEV_BEHAVIORS}" \
+    --news_path "${DEV_NEWS}" \
+    --output_parquet "${DEV_PARQUET}" \
+    --max_history ${MAX_HISTORY} \
+    --neg_ratio ${NEG_RATIO} \
+    ${ABSTRACT_FLAG}
+echo ""
 
 # ========================================
 # Step 4: Run RL training

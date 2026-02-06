@@ -14,6 +14,11 @@ def _reward_name(reward_type):
         "mind_mrr": "compute_score_mind_mrr",
         "mind_auc": "compute_score_mind_auc",
         "mind_auc_rank": "compute_score_mind_auc_rank",
+        # Pointwise rewards
+        "pointwise_binary": "compute_score_pointwise_binary",
+        "pointwise_weighted": "compute_score_pointwise_weighted",
+        "pointwise_auc_proxy": "compute_score_pointwise_auc_proxy",
+        "pointwise_margin": "compute_score_pointwise_margin",
     }
     return mapping.get(reward_type, "compute_score_rule")
 
@@ -67,9 +72,6 @@ def train_verl(
     project = wandb_project or "minionerec"
     experiment = wandb_run_name or f"minionerec_verl_{reward_type}"
 
-    # Calculate total micro batch size for ref (per_gpu * n_gpus)
-    ref_micro_batch_size = ppo_micro_batch_size_per_gpu * n_gpus_per_node
-
     cmd = [
         sys.executable,
         "-m",
@@ -92,8 +94,6 @@ def train_verl(
         f"actor_rollout_ref.actor.kl_loss_type={kl_loss_type}",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={ppo_mini_batch_size}",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
-        f"actor_rollout_ref.ref.micro_batch_size={ref_micro_batch_size}",
-        f"actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
         f"trainer.total_epochs={total_epochs}",
         f"trainer.project_name={project}",
         f"trainer.experiment_name={experiment}",

@@ -93,7 +93,7 @@ DEV_PARQUET="${DEV_PARQUET:-${MIND_ROOT}/dev/rl_pointwise_dev.parquet}"
 REWARD_TYPE=${REWARD_TYPE:-"pointwise_weighted"}  # pointwise_binary, pointwise_weighted, pointwise_margin
 TOTAL_EPOCHS=${TOTAL_EPOCHS:-1}
 LEARNING_RATE=${LEARNING_RATE:-1e-7}
-TRAIN_BATCH_SIZE=${TRAIN_BATCH_SIZE:-128}  # Use 128 for 8 GPUs or 126 for 7 GPUs (batch_size*8 must be divisible by n_gpus)
+TRAIN_BATCH_SIZE=${TRAIN_BATCH_SIZE:-128}  # Use 128 for 8 GPUs or 252 for 7 GPUs (batch_size*8 must be divisible by n_gpus)
 KL_LOSS_COEF=${KL_LOSS_COEF:-0.5}
 MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-1.0}  # Match pointwise SFT training
@@ -238,6 +238,7 @@ if [[ "${VERL_PRETTY_LOG:-1}" == "1" ]]; then
         --total_epochs ${TOTAL_EPOCHS} \
         --learning_rate ${LEARNING_RATE} \
         --train_batch_size ${TRAIN_BATCH_SIZE} \
+        --ppo_mini_batch_size 32 \
         --kl_loss_coef ${KL_LOSS_COEF} \
         --wandb_project "${WANDB_PROJECT}" \
         --wandb_run_name "${WANDB_RUN_NAME}" \
@@ -253,6 +254,7 @@ else
         --total_epochs ${TOTAL_EPOCHS} \
         --learning_rate ${LEARNING_RATE} \
         --train_batch_size ${TRAIN_BATCH_SIZE} \
+        --ppo_mini_batch_size 32 \
         --kl_loss_coef ${KL_LOSS_COEF} \
         --wandb_project "${WANDB_PROJECT}" \
         --wandb_run_name "${WANDB_RUN_NAME}" \

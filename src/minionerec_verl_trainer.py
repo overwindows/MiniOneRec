@@ -72,6 +72,9 @@ def train_verl(
     project = wandb_project or "minionerec"
     experiment = wandb_run_name or f"minionerec_verl_{reward_type}"
 
+    # Calculate total micro batch size for ref (per_gpu * n_gpus)
+    ref_micro_batch_size_per_gpu = ppo_micro_batch_size_per_gpu
+
     cmd = [
         sys.executable,
         "-m",
@@ -94,6 +97,7 @@ def train_verl(
         f"actor_rollout_ref.actor.kl_loss_type={kl_loss_type}",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={ppo_mini_batch_size}",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
+        f"+actor_rollout_ref.ref.micro_batch_size_per_gpu={ref_micro_batch_size_per_gpu}",
         f"trainer.total_epochs={total_epochs}",
         f"trainer.project_name={project}",
         f"trainer.experiment_name={experiment}",

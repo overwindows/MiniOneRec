@@ -222,7 +222,7 @@ def main():
         from lm_eval import evaluator
     except Exception as exc:
         raise SystemExit(
-            "lm-eval-harness is not installed. Install with: pip install -r requirements-eval.txt"
+            "lm-eval-harness is not installed. Install with: pip install -r requirements.txt"
         ) from exc
 
     tasks = [task.strip() for task in args.tasks.split(",") if task.strip()]

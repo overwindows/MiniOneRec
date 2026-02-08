@@ -21,7 +21,7 @@ def _resolve_tasks(task_names: Iterable[str]) -> Dict[str, object]:
         logging.info("  ✓ lm_eval.tasks module imported successfully")
     except Exception as exc:
         raise SystemExit(
-            "lm-eval-harness is not installed. Install with: pip install -r requirements-eval.txt"
+            "lm-eval-harness is not installed. Install with: pip install -r requirements.txt"
         ) from exc
 
     # Try legacy get_task_dict() first - it's much faster than TaskManager initialization

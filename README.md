@@ -86,7 +86,7 @@ If you want to track general LLM capability during SFT/RL (e.g., MMLU, GSM8K), t
 
 **Step 1: Install evaluation dependencies**
 ```bash
-pip install -r requirements-eval.txt
+pip install -r requirements.txt
 ```
 
 **Step 2: Pre-download datasets (once)**
@@ -661,6 +661,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_ranking_small_Qwen3-4B-Base_bs1024** | 62.90% | 43.57% | 48.57% | 55.31% | Ranking-aware SFT with Qwen3-4B-Base |
 | **sft_mind_ranking_small_Qwen3-Reranker-4B_bs1024** | 62.02% | 43.05% | 47.72% | 54.61% | Ranking-aware SFT with Qwen3-Reranker-4B |
 | **sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30** | **67.68%** 🏆 | 33.62% | 37.38% | 43.32% | **Point-wise SFT (Yes/No classification) - NEW SOTA!** |
+| **sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30** | 69.39% | 33.70% | 37.61% | 43.82% | Point-wise SFT on MINDlarge (73,152 impressions) |
 
 **Note on ranking evaluation**: The ranking-aware model now uses numeric options (1/2/3/...) instead of letters (A/B/C), supporting unlimited candidates per impression.
 
@@ -1369,7 +1370,7 @@ You can run MiniOneRec RL using the official VERL framework while keeping the or
 
 ### Install VERL
 ```bash
-pip install -r requirements-verl.txt
+pip install -r requirements.txt
 ```
 
 ### Prepare data (CSV → parquet)
@@ -1422,7 +1423,6 @@ Reward options: `rule`, `ranking`, `ranking_only`, `semantic`, `sasrec`. For `se
 | `src/verl_reward.py`          | Custom reward functions for VERL (rule/semantic/sasrec/ranking)               |
 | `src/verl_data_prep.py`       | CSV → parquet converter for VERL data prep                                    |
 | `scripts/rl_verl.sh`              | Example VERL RL launch script                                              |
-| `requirements-verl.txt`   | VERL dependency (pip install from git)                                             |
 | `configs/`                | YAML configuration files                                            |
 | `evaluate.sh`     | One-click offline Top-K evaluation script                                                        |
 | `evaluate.py`     | Evaluation utilities for computing HR@K and NDCG@K.                                                           |
@@ -1456,8 +1456,7 @@ Reward options: `rule`, `ranking`, `ranking_only`, `semantic`, `sasrec`. For `se
 | `llm_eval_parallel.py`   | Multi-GPU parallel LLM evaluation                                                                         |
 | `eval_llm.sh`            | LLM evaluation script with decoupled dataset download                                                     |
 | `download_eval_datasets.py` | Pre-download evaluation datasets for lm-eval-harness                                                  |
-| `requirements.txt`        | List of Python dependencies                                                                                |
-| `requirements-eval.txt`   | Optional dependencies for LLM capability evaluation                                                        |
+| `requirements.txt`        | Consolidated list of all Python dependencies (SFT, RL, VERL, evaluation, cloud)                          |
 
 ---
 

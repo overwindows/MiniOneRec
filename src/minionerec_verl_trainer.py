@@ -92,6 +92,7 @@ def train_verl(
         f"++actor_rollout_ref.rollout.name={rollout_name}",
         "++actor_rollout_ref.rollout.tensor_model_parallel_size=1",  # Disable tensor parallelism for small models
         "reward_model.enable=False",  # Disable built-in reward model; we use custom_reward_function
+        f"++reward_model.rollout.name={rollout_name}",  # Satisfy mandatory field even when disabled
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
         "actor_rollout_ref.actor.use_kl_loss=True",
         f"actor_rollout_ref.actor.kl_loss_coef={kl_loss_coef}",

@@ -89,8 +89,9 @@ def train_verl(
         f"actor_rollout_ref.actor.optim.lr={learning_rate}",
         f"actor_rollout_ref.rollout.temperature={temperature}",
         f"actor_rollout_ref.rollout.n={num_generations}",
-        f"actor_rollout_ref.rollout.name={rollout_name}",
-        "actor_rollout_ref.rollout.tensor_model_parallel_size=1",  # Disable tensor parallelism for small models
+        f"++actor_rollout_ref.rollout.name={rollout_name}",
+        "++actor_rollout_ref.rollout.tensor_model_parallel_size=1",  # Disable tensor parallelism for small models
+        "reward_model.enable=False",  # Disable built-in reward model; we use custom_reward_function
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
         "actor_rollout_ref.actor.use_kl_loss=True",
         f"actor_rollout_ref.actor.kl_loss_coef={kl_loss_coef}",

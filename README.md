@@ -2124,7 +2124,8 @@ bash rq/rqvae.sh \
 - **3.1.2 Train RQ-Kmeans on the embeddings**
 
 ```
-conda install faiss-gpu
+# faiss-cpu is included in requirements.txt; for GPU support use conda:
+# conda install -c conda-forge faiss-gpu
 python rqkmeans_faiss.py --dataset Industrial_and_Scientific # The RQ-Kmeans method based on semantic embeddings has a relatively high collision rate.
 ```
 

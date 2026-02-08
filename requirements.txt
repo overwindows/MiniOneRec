@@ -45,7 +45,9 @@ polars
 
 # Vector Search and Clustering
 # ----------------------------------------------------------------------------
-faiss-gpu
+# Note: faiss-gpu is not available on PyPI; install via conda if GPU support needed:
+#   conda install -c conda-forge faiss-gpu
+faiss-cpu
 k-means-constrained
 
 # NVIDIA CUDA Libraries

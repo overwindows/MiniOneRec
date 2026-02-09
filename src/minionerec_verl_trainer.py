@@ -91,6 +91,7 @@ def train_verl(
         f"actor_rollout_ref.rollout.n={num_generations}",
         f"++actor_rollout_ref.rollout.name={rollout_name}",
         "++actor_rollout_ref.rollout.tensor_model_parallel_size=1",  # Disable tensor parallelism for small models
+        "++actor_rollout_ref.model.override_config.attn_implementation=sdpa",  # Use PyTorch SDPA instead of flash_attention_2
         "reward_model.enable=False",  # Disable built-in reward model; we use custom_reward_function
         f"++reward_model.rollout.name={rollout_name}",  # Satisfy mandatory field even when disabled
         f"actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
@@ -99,7 +100,7 @@ def train_verl(
         f"actor_rollout_ref.actor.kl_loss_type={kl_loss_type}",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={ppo_mini_batch_size}",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
-        f"+actor_rollout_ref.ref.micro_batch_size_per_gpu={ref_micro_batch_size_per_gpu}",
+        f"+actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu={ref_micro_batch_size_per_gpu}",
         f"trainer.total_epochs={total_epochs}",
         f"trainer.project_name={project}",
         f"trainer.experiment_name={experiment}",

@@ -42,7 +42,7 @@
 set -euo pipefail
 
 export NCCL_IB_DISABLE=1
-export WANDB_API_KEY="${WANDB_API_KEY:-}"
+export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
 
 export MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
 export GLOO_SOCKET_IFNAME=${GLOO_SOCKET_IFNAME:-lo}

@@ -29,76 +29,13 @@ from typing import Dict, List
 import pandas as pd
 from tqdm import tqdm
 
-
-def load_news(news_path: str, use_abstract: bool) -> Dict[str, Dict[str, str]]:
-    """
-    Load news articles from news.tsv.
-
-    Args:
-        news_path: Path to news.tsv file
-        use_abstract: Whether to include abstracts in news text
-
-    Returns:
-        Dictionary mapping news_id -> dict(title, text, category)
-    """
-    news = {}
-    with open(news_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            parts = line.strip().split('\t')
-            if len(parts) < 4:
-                continue
-            news_id = parts[0]
-            category = parts[1] if len(parts) > 1 else ""
-            title = parts[3]
-            abstract = parts[4] if len(parts) > 4 else ""
-
-            if use_abstract and abstract:
-                text = f"{title} {abstract}"
-            else:
-                text = title
-            news[news_id] = {
-                "title": title,
-                "text": text,
-                "category": category,
-            }
-
-    return news
+from mind_utils import load_news, build_pointwise_prompt as _build_prompt
 
 
 def build_pointwise_prompt(history_items: List[Dict[str, str]], candidate: Dict[str, str]) -> List[Dict[str, str]]:
-    """
-    Build pointwise Yes/No prompt matching SFT training format.
-
-    Args:
-        history_items: List of news dicts in user's reading history
-        candidate: Single candidate news dict
-
-    Returns:
-        Chat-style prompt list for VERL
-    """
-    prompt = "A user read these news articles:\n"
-
-    # User history - limit to last 30 for token efficiency
-    if history_items:
-        recent_history = history_items[-30:] if len(history_items) > 30 else history_items
-        for i, h in enumerate(recent_history, 1):
-            cat = h.get('category', 'General')
-            prompt += f"{i}. [{cat}] {h['text']}\n"
-    else:
-        prompt += "(No reading history)\n"
-
-    prompt += "\n"
-
-    # Candidate article - category first in brackets
-    prompt += "Candidate article:\n"
-    cat = candidate.get('category', 'General')
-    prompt += f"[{cat}] {candidate['text']}\n"
-
-    prompt += "\n"
-    # Simple, natural question
-    prompt += "Will this user read this article? Answer:"
-
-    return [{"role": "user", "content": prompt}]
+    """Build pointwise prompt in VERL chat format."""
+    prompt_text = _build_prompt(history_items, candidate)
+    return [{"role": "user", "content": prompt_text}]
 
 
 def prepare_mind_pointwise_for_rl(

@@ -14,3 +14,6 @@ outputs/*
 temp_mind_ranking/
 results_mind/
 data/
+temp_mind_pointwise/
+rl_error.log
+verl_direct.log

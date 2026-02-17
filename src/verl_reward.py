@@ -712,6 +712,50 @@ def compute_score_pointwise_auc_proxy(data_source, solution_str, ground_truth, e
             return 0.0  # Wrong prediction on negative = no reward
 
 
+def compute_score_pointwise_asymmetric(data_source, solution_str, ground_truth, extra_info=None):
+    """
+    Asymmetric reward for pointwise prediction designed to prevent mode collapse.
+
+    Key insight: With neg_ratio=3.0 (75% negatives, 25% positives):
+      - Always "Yes" strategy: 0.25*1.0 + 0.75*(-1.0) = -0.50 (terrible)
+      - Always "No" strategy:  0.25*(-0.3) + 0.75*0.5  = +0.30 (mediocre)
+      - Perfect discrimination: 0.25*1.0 + 0.75*0.5    = +0.625 (optimal)
+
+    The harsh false-positive penalty (-1.0) makes indiscriminate "Yes" predictions
+    very costly, breaking the mode collapse that ruins pointwise_weighted.
+
+    Args:
+        data_source: Not used (kept for API compatibility)
+        solution_str: Model's prediction ("Yes" or "No")
+        ground_truth: Expected answer ("Yes" or "No")
+        extra_info: Dict containing 'label' (1=positive, 0=negative)
+
+    Returns:
+        float: Reward in [-1.0, 1.0] range
+            - Correct Yes on positive:  +1.0
+            - Correct No on negative:   +0.5
+            - Wrong Yes on negative:    -1.0 (harsh false positive penalty)
+            - Wrong No on positive:     -0.3 (moderate false negative penalty)
+    """
+    if not solution_str:
+        return -0.5
+
+    pred_str = str(solution_str).strip().lower()
+    pred_yes = "yes" in pred_str
+
+    label = 0
+    if extra_info:
+        label = extra_info.get('label', 0)
+    else:
+        target_str = str(ground_truth).strip().lower()
+        label = 1 if "yes" in target_str else 0
+
+    if label == 1:  # Positive sample
+        return 1.0 if pred_yes else -0.3
+    else:  # Negative sample
+        return -1.0 if pred_yes else 0.5
+
+
 def compute_score_pointwise_margin(data_source, solution_str, ground_truth, extra_info=None):
     """
     Margin-based reward for pointwise prediction.

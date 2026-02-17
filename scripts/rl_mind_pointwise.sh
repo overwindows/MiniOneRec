@@ -42,7 +42,7 @@
 set -euo pipefail
 
 export NCCL_IB_DISABLE=1
-export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
+export WANDB_API_KEY="${WANDB_API_KEY:-}"
 
 export MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
 export GLOO_SOCKET_IFNAME=${GLOO_SOCKET_IFNAME:-lo}
@@ -85,18 +85,21 @@ TRAIN_NEWS="${TRAIN_NEWS:-${MIND_ROOT}/train/news.tsv}"
 DEV_BEHAVIORS="${DEV_BEHAVIORS:-${MIND_ROOT}/dev/behaviors.tsv}"
 DEV_NEWS="${DEV_NEWS:-${MIND_ROOT}/dev/news.tsv}"
 
-# RL data paths - POINTWISE FORMAT
-TRAIN_PARQUET="${TRAIN_PARQUET:-${MIND_ROOT}/train/rl_pointwise_train.parquet}"
-DEV_PARQUET="${DEV_PARQUET:-${MIND_ROOT}/dev/rl_pointwise_dev.parquet}"
+# NEG_RATIO must be set before parquet paths (which encode it in filename)
+NEG_RATIO=${NEG_RATIO:-3.0}  # 3:1 neg:pos ratio prevents mode collapse to always-Yes
+
+# RL data paths - POINTWISE FORMAT (neg_ratio encoded in filename to prevent stale data)
+NEG_RATIO_TAG=$(echo "${NEG_RATIO}" | tr '.' 'p')
+TRAIN_PARQUET="${TRAIN_PARQUET:-${MIND_ROOT}/train/rl_pointwise_neg${NEG_RATIO_TAG}_train.parquet}"
+DEV_PARQUET="${DEV_PARQUET:-${MIND_ROOT}/dev/rl_pointwise_neg${NEG_RATIO_TAG}_dev.parquet}"
 
 # Training parameters - POINTWISE SPECIFIC
-REWARD_TYPE=${REWARD_TYPE:-"pointwise_weighted"}  # pointwise_binary, pointwise_weighted, pointwise_margin
+REWARD_TYPE=${REWARD_TYPE:-"pointwise_asymmetric"}  # pointwise_asymmetric (recommended), pointwise_weighted, pointwise_margin, pointwise_binary
 TOTAL_EPOCHS=${TOTAL_EPOCHS:-1}
 LEARNING_RATE=${LEARNING_RATE:-1e-7}
 TRAIN_BATCH_SIZE=${TRAIN_BATCH_SIZE:-128}  # Use 128 for 8 GPUs or 252 for 7 GPUs (batch_size*8 must be divisible by n_gpus)
-KL_LOSS_COEF=${KL_LOSS_COEF:-0.5}
+KL_LOSS_COEF=${KL_LOSS_COEF:-0.1}  # Lower KL ok with asymmetric reward (reward itself prevents collapse)
 MAX_HISTORY=${MAX_HISTORY:-30}
-NEG_RATIO=${NEG_RATIO:-1.0}  # Match pointwise SFT training
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 REGENERATE_DATA=${REGENERATE_DATA:-0}
 

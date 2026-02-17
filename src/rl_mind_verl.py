@@ -32,15 +32,15 @@ def main(
     reward_type: str = "mind_auc",  # Options: mind_auc, mind_auc_rank, mind_ndcg, mind_mrr, mind_cot_*
 
     # Generation parameters
-    num_generations: int = 8,  # Number of generations per prompt (reduced for memory)
+    num_generations: int = 16,  # Number of generations per prompt for better GRPO advantage estimation
     max_prompt_length: int = 2048,  # For letter format (up to 26 candidates), use 4096 for numeric
-    max_response_length: int = 4,  # Single letter output (A, B, C...) or short number; use 256+ for CoT
+    max_response_length: int = 8,  # Short output (Yes/No/number); use 256+ for CoT
 
     # Training hyperparameters
     train_batch_size: int = 64,  # Further reduced for memory with larger prompts
     learning_rate: float = 1e-7,  # Very conservative LR for stability
     total_epochs: int = 1,
-    temperature: float = 1.0,
+    temperature: float = 0.8,
 
     # GRPO/PPO configuration
     rollout_name: str = "vllm",
@@ -163,6 +163,7 @@ def main(
         'mind_auc', 'mind_auc_rank', 'mind_ndcg', 'mind_mrr',
         # Pointwise (Yes/No classification)
         'pointwise_binary', 'pointwise_weighted', 'pointwise_auc_proxy', 'pointwise_margin',
+        'pointwise_asymmetric',
         # Chain-of-Thought (reasoning + answer)
         'mind_cot_binary', 'mind_cot_ndcg', 'mind_cot_auc', 'mind_cot_margin', 'mind_cot_format'
     ]

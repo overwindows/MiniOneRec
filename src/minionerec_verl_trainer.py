@@ -19,6 +19,13 @@ def _reward_name(reward_type):
         "pointwise_weighted": "compute_score_pointwise_weighted",
         "pointwise_auc_proxy": "compute_score_pointwise_auc_proxy",
         "pointwise_margin": "compute_score_pointwise_margin",
+        "pointwise_asymmetric": "compute_score_pointwise_asymmetric",
+        # Chain-of-Thought rewards
+        "mind_cot_binary": "compute_score_mind_cot_binary",
+        "mind_cot_ndcg": "compute_score_mind_cot_ndcg",
+        "mind_cot_auc": "compute_score_mind_cot_auc",
+        "mind_cot_margin": "compute_score_mind_cot_margin",
+        "mind_cot_format": "compute_score_mind_cot_format",
     }
     return mapping.get(reward_type, "compute_score_rule")
 

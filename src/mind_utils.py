@@ -1,0 +1,166 @@
+"""
+Shared utilities for MIND benchmark operations.
+
+Consolidates functions duplicated across evaluation, data preparation,
+and training scripts into a single module.
+
+Functions:
+    load_news() - Load news articles from news.tsv
+    build_pointwise_prompt() - Build Yes/No classification prompt
+    parse_behaviors_line() - Parse a single line from behaviors.tsv
+    auc_score() - Compute AUC metric
+    mrr_score() - Compute MRR metric
+    dcg_score() - Compute DCG metric
+    ndcg_score() - Compute nDCG metric
+"""
+
+import math
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+from sklearn.metrics import roc_auc_score
+
+
+def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str, str]]:
+    """
+    Load news articles from MIND news.tsv file.
+
+    Args:
+        news_path: Path to news.tsv
+        use_abstract: Whether to append abstract to title text
+
+    Returns:
+        Dict mapping news_id -> {'text': str, 'category': str, 'title': str}
+    """
+    news = {}
+    with open(news_path, "r", encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("\t")
+            if len(parts) < 4:
+                continue
+            news_id = parts[0]
+            category = parts[1] if len(parts) > 1 else ""
+            title = parts[3]
+            abstract = parts[4] if len(parts) > 4 else ""
+
+            if use_abstract and abstract:
+                text = f"{title} {abstract}"
+            else:
+                text = title
+
+            news[news_id] = {
+                "text": text,
+                "category": category,
+                "title": title,
+            }
+    return news
+
+
+def build_pointwise_prompt(history: List[Dict[str, str]], candidate: Dict[str, str]) -> str:
+    """
+    Build pointwise Yes/No classification prompt matching SFT training format.
+
+    Based on Prompt4NR research (arXiv:2304.05263):
+    - Concise format saves ~20 tokens
+    - Category in [brackets] for visibility
+    - Limits to last 30 history items
+
+    Args:
+        history: List of news dicts with 'text' and 'category' keys
+        candidate: Single candidate news dict
+
+    Returns:
+        Prompt string ending with "Answer:"
+    """
+    prompt = "A user read these news articles:\n"
+
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get("category", "General")
+            prompt += f"{i}. [{cat}] {h['text']}\n"
+    else:
+        prompt += "(No reading history)\n"
+
+    prompt += "\n"
+    prompt += "Candidate article:\n"
+    cat = candidate.get("category", "General")
+    prompt += f"[{cat}] {candidate['text']}\n"
+    prompt += "\n"
+    prompt += "Will this user read this article? Answer:"
+
+    return prompt
+
+
+def parse_behaviors_line(line: str) -> Optional[Tuple[str, str, str, List[str], List[Tuple[str, int]]]]:
+    """
+    Parse a single line from MIND behaviors.tsv.
+
+    Args:
+        line: Raw line from behaviors.tsv
+
+    Returns:
+        Tuple of (impression_id, user_id, timestamp, history_ids, impressions)
+        where impressions is a list of (news_id, label) tuples.
+        Returns None if the line is malformed.
+    """
+    parts = line.strip().split("\t")
+    if len(parts) < 5:
+        return None
+
+    impression_id = parts[0]
+    user_id = parts[1]
+    timestamp = parts[2]
+    history_ids = parts[3].split()
+
+    impressions = []
+    for imp in parts[4].split():
+        if "-" not in imp:
+            continue
+        news_id, label = imp.rsplit("-", 1)
+        impressions.append((news_id, int(label)))
+
+    return impression_id, user_id, timestamp, history_ids, impressions
+
+
+# ---------------------------------------------------------------------------
+# Metrics - Official MIND evaluation formulas
+# ---------------------------------------------------------------------------
+
+def auc_score(labels: List[int], scores: List[float]) -> float:
+    """Compute AUC score using sklearn. Returns 0.5 for degenerate cases."""
+    pos = sum(labels)
+    if pos == 0 or pos == len(labels):
+        return 0.5
+    return roc_auc_score(labels, scores)
+
+
+def mrr_score(y_true, y_score) -> float:
+    """
+    MRR (Mean Reciprocal Rank) - Official MIND implementation.
+    Averages reciprocal rank over all positive items.
+    """
+    y_true = np.array(y_true)
+    y_score = np.array(y_score)
+    order = np.argsort(y_score)[::-1]
+    y_true = np.take(y_true, order)
+    rr_score = y_true / (np.arange(len(y_true)) + 1)
+    return float(np.sum(rr_score) / np.sum(y_true)) if np.sum(y_true) > 0 else 0.0
+
+
+def dcg_score(y_true, y_score, k: int = 10) -> float:
+    """DCG (Discounted Cumulative Gain) - Official MIND implementation."""
+    y_true = np.array(y_true)
+    y_score = np.array(y_score)
+    order = np.argsort(y_score)[::-1]
+    y_true = np.take(y_true, order[:k])
+    gains = 2 ** y_true - 1
+    discounts = np.log2(np.arange(len(y_true)) + 2)
+    return float(np.sum(gains / discounts))
+
+
+def ndcg_score(y_true, y_score, k: int = 10) -> float:
+    """nDCG (Normalized DCG) - Official MIND implementation."""
+    best = dcg_score(y_true, y_true, k)
+    actual = dcg_score(y_true, y_score, k)
+    return actual / best if best > 0 else 0.0

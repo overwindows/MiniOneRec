@@ -9,46 +9,10 @@ Usage:
 """
 
 import argparse
-import math
 import numpy as np
-from typing import List
 from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
 
-
-def auc_score(labels: List[int], scores: List[float]) -> float:
-    """
-    Calculate AUC score using sklearn's roc_auc_score.
-    Matches official MIND evaluation script.
-    """
-    pos = sum(labels)
-    if pos == 0 or pos == len(labels):
-        return 0.5
-    return roc_auc_score(labels, scores)
-
-
-def mrr_score(labels: List[int], scores: List[float]) -> float:
-    """
-    Calculate MRR score (Mean Reciprocal Rank).
-    Matches official MIND evaluation: averages RR over all clicked items.
-    """
-    sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    rr_scores = []
-    for rank, idx in enumerate(sorted_idx, start=1):
-        if labels[idx] == 1:
-            rr_scores.append(1.0 / rank)
-    return float(np.mean(rr_scores)) if rr_scores else 0.0
-
-
-def ndcg_score(labels: List[int], scores: List[float], k: int) -> float:
-    """Calculate nDCG@k score."""
-    sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    dcg = 0.0
-    for rank, idx in enumerate(sorted_idx[:k], start=1):
-        if labels[idx] == 1:
-            dcg += 1.0 / math.log2(rank + 1)
-    ideal = sum(1.0 / math.log2(r + 1) for r in range(1, min(sum(labels), k) + 1))
-    return dcg / ideal if ideal > 0 else 0.0
+from mind_utils import auc_score, mrr_score, ndcg_score
 
 
 def load_ground_truth(behaviors_path: str):

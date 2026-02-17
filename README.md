@@ -662,6 +662,7 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_ranking_small_Qwen3-Reranker-4B_bs1024** | 62.02% | 43.05% | 47.72% | 54.61% | Ranking-aware SFT with Qwen3-Reranker-4B |
 | **sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30** | **67.68%** 🏆 | 33.62% | 37.38% | 43.32% | **Point-wise SFT (Yes/No classification) - NEW SOTA!** |
 | **sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30** | 69.39% | 33.70% | 37.61% | 43.82% | Point-wise SFT on MINDlarge (73,152 impressions) |
+| **rl_mind_pointwise_small_final_checkpoint_pointwise_weighted** | 69.69% | 34.02% | 38.02% | 44.23% | RL fine-tuned from pointwise SFT (weighted reward) |
 
 **Note on ranking evaluation**: The ranking-aware model now uses numeric options (1/2/3/...) instead of letters (A/B/C), supporting unlimited candidates per impression.
 

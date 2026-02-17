@@ -523,11 +523,12 @@ Training logs are uploaded to Weights & Biases (wandb) automatically.
 
 ### Evaluate on MIND
 
-We provide three evaluation scripts:
+We provide four evaluation scripts:
 
 1. **Ranking-Only Evaluation** (`eval_ranking_only.sh`) - For ranking-aware models, uses multiple-choice format
-2. **Point-wise Evaluation** (`eval_mind_pointwise.sh`) - 🆕 For point-wise models, scores P(Yes) vs P(No)
-3. **Standard Evaluation** (`eval_mind.sh`) - For standard SFT models, uses text generation format
+2. **Point-wise Evaluation** (`eval_mind_pointwise.sh`) - For point-wise models, scores P(Yes) vs P(No)
+3. **CoT Evaluation** (`eval_mind_cot.sh`) - For RL CoT models, generates reasoning then extracts final answer
+4. **Standard Evaluation** (`eval_mind.sh`) - For standard SFT models, uses text generation format
 
 #### Ranking-Only Evaluation (for Ranking-Aware Models)
 
@@ -598,6 +599,44 @@ USE_ABSTRACT=1 CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_pointwise.sh 
 | `USE_ABSTRACT` | `0` | Include abstracts in prompts |
 | `MAX_HISTORY` | `0` | Max history items (0=unlimited) |
 | `FLASH_ATTN` | `1` | Use Flash Attention 2 |
+
+**Metrics:** Same official MIND metrics (AUC, MRR, nDCG@5, nDCG@10).
+
+#### CoT Evaluation (for RL CoT Models)
+
+```bash
+# Quick test (100 impressions)
+bash scripts/eval_mind_cot.sh output_dir/rl_mind_cot/final_checkpoint dev 100
+
+# Full evaluation (single GPU)
+CUDA_VISIBLE_DEVICES=0 bash scripts/eval_mind_cot.sh output_dir/rl_mind_cot/final_checkpoint dev
+
+# Multi-GPU parallel evaluation (faster)
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_cot.sh output_dir/rl_mind_cot/final_checkpoint dev
+
+# Match training config (e.g. COT_STYLE=detailed, MAX_RESPONSE_LENGTH=512)
+COT_STYLE=detailed COT_MAX_TOKENS=512 MIND_SIZE=large \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_cot.sh \
+    output_dir/rl_mind_cot/final_checkpoint dev
+```
+
+**How it works:**
+- Generates up to `COT_MAX_TOKENS` tokens per impression (reasoning + answer)
+- Extracts the final answer using `Answer: <number>` pattern from the generated text
+- Converts the single predicted candidate to a ranked scores array for metric computation
+
+**Configuration:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COT_STYLE` | `standard` | Prompt style — must match training `COT_STYLE` |
+| `COT_MAX_TOKENS` | `512` | Max generation tokens — must match training `MAX_RESPONSE_LENGTH` |
+| `USE_CHAT_TEMPLATE` | `1` | Apply chat template (required for instruct models) |
+| `MAX_HISTORY` | `30` | Max history items — must match training |
+| `MAX_CANDIDATES` | `30` | Max candidates — must match training |
+| `USE_ABSTRACT` | `0` | Include abstracts in prompts |
+| `FLASH_ATTN` | `1` | Use Flash Attention 2 |
+
+**Note:** CoT evaluation is slower than probability-scoring methods since it generates full sequences. Use `--max_impressions 1000` for quick sanity checks.
 
 **Metrics:** Same official MIND metrics (AUC, MRR, nDCG@5, nDCG@10).
 
@@ -773,6 +812,20 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_pointwise.sh \
     output_dir/sft_mind_pointwise_large_*/final_checkpoint test
 
 # Predictions saved to: ./results_mind/test_pointwise_predictions.txt
+```
+
+**For RL CoT Models:**
+```bash
+# Single GPU
+CUDA_VISIBLE_DEVICES=0 bash scripts/eval_mind_cot.sh \
+    output_dir/rl_mind_cot/final_checkpoint test
+
+# Multi-GPU parallel (faster)
+COT_STYLE=detailed COT_MAX_TOKENS=512 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_cot.sh \
+    output_dir/rl_mind_cot/final_checkpoint test
+
+# Predictions saved to: ./results_mind/test_cot_predictions.txt
 ```
 
 **For Standard SFT Models:**
@@ -1453,6 +1506,7 @@ Reward options: `rule`, `ranking`, `ranking_only`, `semantic`, `sasrec`. For `se
 | `evaluate_mind_pointwise.py` | Point-wise evaluation script (scores P(Yes) vs P(No))                                                |
 | `scripts/sft_mind_pointwise.sh` | Shell script for point-wise SFT training                                                           |
 | `scripts/eval_mind_pointwise.sh` | Shell script for point-wise evaluation with multi-GPU support                                     |
+| `scripts/eval_mind_cot.sh`      | Shell script for RL CoT evaluation with multi-GPU support                                          |
 | `llm_eval.py`            | Single-GPU LLM capability evaluation (MMLU, HellaSwag, etc.)                                              |
 | `llm_eval_parallel.py`   | Multi-GPU parallel LLM evaluation                                                                         |
 | `eval_llm.sh`            | LLM evaluation script with decoupled dataset download                                                     |
@@ -1780,6 +1834,13 @@ torchrun --nproc_per_node 4 src/sft_mind_pointwise.py \
 
 ```bash
 bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkpoint dev
+```
+
+#### CoT Evaluation (RL CoT Models)
+
+```bash
+COT_STYLE=detailed COT_MAX_TOKENS=512 \
+    bash scripts/eval_mind_cot.sh output_dir/rl_mind_cot/final_checkpoint dev
 ```
 
 #### Ranking Evaluation

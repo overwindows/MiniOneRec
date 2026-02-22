@@ -182,12 +182,14 @@ class MINDPointwiseSFTDataset:
         max_history: int = 0,  # 0 = no limit
         neg_ratio: float = 1.0,  # Ratio of negatives to positives per impression
         use_abstract: bool = False,
+        use_chat_template: bool = False,  # Use chat template for instruct models
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.max_history = max_history if max_history > 0 else None
         self.neg_ratio = neg_ratio
         self.use_abstract = use_abstract
+        self.use_chat_template = use_chat_template
         self.seed = seed
 
         # Load news articles
@@ -381,24 +383,59 @@ class MINDPointwiseSFTDataset:
             sample['label']
         )
 
-        # Tokenize
-        full_text = prompt + target
-        input_ids = self.tokenizer.encode(
-            full_text,
-            max_length=self.max_len,
-            truncation=True,
-            add_special_tokens=True
-        )
+        if self.use_chat_template:
+            # Use chat template for instruct models
+            # Format: <|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{target}<|im_end|>
+            messages = [{"role": "user", "content": prompt}]
 
-        # Create training labels (mask prompt, only train on Yes/No)
-        prompt_ids = self.tokenizer.encode(
-            prompt,
-            max_length=self.max_len,
-            truncation=True,
-            add_special_tokens=True
-        )
+            # Apply chat template to get the formatted prompt with generation prompt
+            formatted_prompt = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
 
-        train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+            # Full text includes the assistant response
+            full_text = formatted_prompt + target
+
+            # Tokenize full text
+            input_ids = self.tokenizer.encode(
+                full_text,
+                max_length=self.max_len,
+                truncation=True,
+                add_special_tokens=False  # Chat template already added them
+            )
+
+            # Get prompt length for masking
+            prompt_ids = self.tokenizer.encode(
+                formatted_prompt,
+                max_length=self.max_len,
+                truncation=True,
+                add_special_tokens=False
+            )
+
+            # Mask prompt, only train on target
+            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+
+        else:
+            # Original raw text format
+            full_text = prompt + target
+            input_ids = self.tokenizer.encode(
+                full_text,
+                max_length=self.max_len,
+                truncation=True,
+                add_special_tokens=True
+            )
+
+            # Create training labels (mask prompt, only train on Yes/No)
+            prompt_ids = self.tokenizer.encode(
+                prompt,
+                max_length=self.max_len,
+                truncation=True,
+                add_special_tokens=True
+            )
+
+            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
 
         # Pad if needed
         if len(input_ids) < self.max_len:

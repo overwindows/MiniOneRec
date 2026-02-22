@@ -80,10 +80,19 @@ def train(
     wandb_run_name: str = "",
     wandb_run_id: str = "",
     deepspeed_config: str = "",
+    use_chat_template: bool = None,  # Auto-detect if None
 ):
     """Train with point-wise SFT format (Yes/No classification) using DeepSpeed"""
 
     set_seed(seed)
+
+    # Auto-detect if model is instruct variant (if use_chat_template not explicitly set)
+    if use_chat_template is None:
+        use_chat_template = "instruct" in base_model.lower() or "chat" in base_model.lower()
+        if use_chat_template:
+            print(f"Auto-detected instruct model: will use chat template")
+        else:
+            print(f"Using raw text format (no chat template)")
 
     # Resume existing WandB run if run_id is provided
     if wandb_run_id:
@@ -127,6 +136,7 @@ def train(
         max_history=max_history,
         neg_ratio=neg_ratio,
         use_abstract=use_abstract,
+        use_chat_template=use_chat_template,
     )
 
     val_data = MINDPointwiseSFTDataset(
@@ -139,6 +149,7 @@ def train(
         max_history=max_history,
         neg_ratio=neg_ratio,
         use_abstract=use_abstract,
+        use_chat_template=use_chat_template,
     )
 
     print(f"\nTraining with Point-wise SFT:")
@@ -148,6 +159,7 @@ def train(
     print(f"  Neg ratio: {neg_ratio}")
     print(f"  Cutoff length: {cutoff_len}")
     print(f"  Format: Yes/No classification")
+    print(f"  Chat template: {'enabled' if use_chat_template else 'disabled (raw text)'}")
 
     # Prepare training arguments with optional DeepSpeed
     training_args_dict = {

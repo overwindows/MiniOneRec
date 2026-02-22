@@ -67,6 +67,7 @@ USE_ABSTRACT="${USE_ABSTRACT:-0}"
 MAX_HISTORY="${MAX_HISTORY:-0}"  # 0 = no limit (use all history)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 FLASH_ATTN="${FLASH_ATTN:-1}"  # Use Flash Attention 2 by default
+USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Use chat template for instruct models
 BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates
 
 # Construct paths
@@ -158,6 +159,10 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     if [[ "${FLASH_ATTN}" -eq 1 ]]; then
       cmd="${cmd} --flash_attn"
+    fi
+
+    if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
+      cmd="${cmd} --use_chat_template"
     fi
 
     if [[ -n "${MAX_IMPRESSIONS}" ]] && [[ "${MAX_IMPRESSIONS}" -gt 0 ]]; then
@@ -261,6 +266,10 @@ else
 
   if [[ "${FLASH_ATTN}" -eq 1 ]]; then
     CMD="${CMD} --flash_attn"
+  fi
+
+  if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
+    CMD="${CMD} --use_chat_template"
   fi
 
   eval "${CMD}"

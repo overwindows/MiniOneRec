@@ -56,7 +56,12 @@ def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str,
     return news
 
 
-def build_pointwise_prompt(history: List[Dict[str, str]], candidate: Dict[str, str]) -> str:
+def build_pointwise_prompt(
+    history: List[Dict[str, str]],
+    candidate: Dict[str, str],
+    tokenizer=None,
+    use_chat_template: bool = False
+) -> str:
     """
     Build pointwise Yes/No classification prompt matching SFT training format.
 
@@ -68,28 +73,42 @@ def build_pointwise_prompt(history: List[Dict[str, str]], candidate: Dict[str, s
     Args:
         history: List of news dicts with 'text' and 'category' keys
         candidate: Single candidate news dict
+        tokenizer: Tokenizer object (required if use_chat_template=True)
+        use_chat_template: Whether to format using chat template for instruct models
 
     Returns:
-        Prompt string ending with "Answer:"
+        Prompt string ending with "Answer:" (raw) or chat-formatted prompt
     """
-    prompt = "A user read these news articles:\n"
+    # Build the base content
+    content = "A user read these news articles:\n"
 
     if history:
         recent_history = history[-30:] if len(history) > 30 else history
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
-            prompt += f"{i}. [{cat}] {h['text']}\n"
+            content += f"{i}. [{cat}] {h['text']}\n"
     else:
-        prompt += "(No reading history)\n"
+        content += "(No reading history)\n"
 
-    prompt += "\n"
-    prompt += "Candidate article:\n"
+    content += "\n"
+    content += "Candidate article:\n"
     cat = candidate.get("category", "General")
-    prompt += f"[{cat}] {candidate['text']}\n"
-    prompt += "\n"
-    prompt += "Will this user read this article? Answer:"
+    content += f"[{cat}] {candidate['text']}\n"
+    content += "\n"
+    content += "Will this user read this article? Answer:"
 
-    return prompt
+    # Apply chat template if requested
+    if use_chat_template:
+        if tokenizer is None:
+            raise ValueError("tokenizer must be provided when use_chat_template=True")
+        messages = [{"role": "user", "content": content}]
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+    return content
 
 
 def parse_behaviors_line(line: str) -> Optional[Tuple[str, str, str, List[str], List[Tuple[str, int]]]]:

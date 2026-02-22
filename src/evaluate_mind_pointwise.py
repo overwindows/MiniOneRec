@@ -60,6 +60,7 @@ def batch_score_candidates_pointwise(
     yes_token_id: int,
     no_token_id: int,
     batch_size: int = 8,
+    use_chat_template: bool = False,
 ) -> List[float]:
     """
     Score multiple candidates in batches for efficiency.
@@ -68,10 +69,17 @@ def batch_score_candidates_pointwise(
         List of scores for each candidate
     """
     # Build all prompts
-    prompts = [build_pointwise_prompt(history, cand) for cand in candidates]
+    prompts = [
+        build_pointwise_prompt(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
+        for cand in candidates
+    ]
 
     # Tokenize all prompts
-    all_prompt_ids = [tokenizer.encode(p, add_special_tokens=True) for p in prompts]
+    # For chat templates, add_special_tokens is already handled
+    all_prompt_ids = [
+        tokenizer.encode(p, add_special_tokens=(not use_chat_template))
+        for p in prompts
+    ]
 
     scores = []
 
@@ -120,6 +128,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
     parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2")
+    parser.add_argument("--use_chat_template", action="store_true", help="Use chat template (for instruct models)")
     parser.add_argument("--quick", action="store_true", help="Quick mode: evaluate 500 impressions")
     args = parser.parse_args()
 
@@ -230,7 +239,7 @@ def main():
             # Score all candidates using batched point-wise scoring
             scores = batch_score_candidates_pointwise(
                 model, tokenizer, history_objs, candidate_objs, device,
-                yes_token_id, no_token_id, args.batch_size
+                yes_token_id, no_token_id, args.batch_size, args.use_chat_template
             )
 
             # Compute metrics (only if we have positive labels)

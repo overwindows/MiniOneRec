@@ -100,6 +100,7 @@ NUM_EPOCHS=${NUM_EPOCHS:-5}
 MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-2.0}
 USE_ABSTRACT=${USE_ABSTRACT:-False}
+USE_CHAT_TEMPLATE=${USE_CHAT_TEMPLATE:-}  # Auto-detect if empty (instruct models use chat template)
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-mind_pointwise_$(basename ${MODEL_PATH})_bs${BATCH_SIZE}}
 DS_CONFIG=${DS_CONFIG:-ds_configs/ds_config_zero2.json}
 # Convert to absolute path for multi-node compatibility
@@ -157,6 +158,7 @@ deepspeed --hostfile=$HOSTFILE \
         --max_history ${MAX_HISTORY} \
         --neg_ratio ${NEG_RATIO} \
         --use_abstract ${USE_ABSTRACT} \
+        ${USE_CHAT_TEMPLATE:+--use_chat_template $USE_CHAT_TEMPLATE} \
         --wandb_project MiniOneRec_MIND \
         --wandb_run_name ${WANDB_RUN_NAME} \
         --train_from_scratch False \

@@ -827,6 +827,11 @@ def extract_cot_answer(solution_str, num_candidates=None):
 
     text = str(solution_str).strip()
 
+    # If model used <think> tags (Qwen instruct models), only look after </think>
+    # to avoid extracting intermediate reasoning numbers
+    if '</think>' in text:
+        text = text.split('</think>', 1)[1].strip()
+
     # Pattern 1: "Answer: X" or "Answer:X" (most explicit)
     match = re.search(r'[Aa]nswer\s*:\s*(\d+)', text)
     if match:

@@ -191,6 +191,10 @@ def extract_cot_answer(generated_text: str, num_candidates: int) -> Optional[int
 
     text = generated_text.strip()
 
+    # If model used <think> tags (Qwen instruct models), only look after </think>
+    if '</think>' in text:
+        text = text.split('</think>', 1)[1].strip()
+
     # Pattern 1: "Answer: X"
     match = re.search(r'[Aa]nswer\s*:\s*(\d+)', text)
     if match:

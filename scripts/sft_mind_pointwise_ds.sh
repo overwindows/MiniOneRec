@@ -100,8 +100,8 @@ NUM_EPOCHS=${NUM_EPOCHS:-5}
 MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-2.0}
 USE_ABSTRACT=${USE_ABSTRACT:-False}
-USE_CHAT_TEMPLATE=${USE_CHAT_TEMPLATE:-}  # Auto-detect if empty (instruct models use chat template)
-WANDB_RUN_NAME=${WANDB_RUN_NAME:-mind_pointwise_$(basename ${MODEL_PATH})_bs${BATCH_SIZE}}
+USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Set to 1 for instruct models (e.g., Qwen3-1.7B, Qwen3-4B-Instruct)
+WANDB_RUN_NAME=${WANDB_RUN_NAME:-}  # Will be set after OUTPUT_NAME is constructed
 DS_CONFIG=${DS_CONFIG:-ds_configs/ds_config_zero2.json}
 # Convert to absolute path for multi-node compatibility
 if [[ ! "$DS_CONFIG" = /* ]]; then
@@ -125,13 +125,20 @@ EVAL_BEHAVIORS=${DATA_ROOT}/dev/behaviors.tsv
 EVAL_NEWS=${DATA_ROOT}/dev/news.tsv
 
 # Output directory (configurable)
-OUTPUT_DIR=${OUTPUT_DIR:-output_dir/mind_pointwise_ds}
+MODEL_BASENAME=$(basename ${MODEL_PATH})
+OUTPUT_NAME="sft_mind_pointwise_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}_hist${MAX_HISTORY}"
+if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_chat"
+fi
+OUTPUT_DIR=${OUTPUT_DIR:-output_dir/${OUTPUT_NAME}}
+WANDB_RUN_NAME=${WANDB_RUN_NAME:-${OUTPUT_NAME}}
 
 echo "DATA_ROOT: ${DATA_ROOT}"
 echo "Train behaviors: ${TRAIN_BEHAVIORS}"
 echo "Train news: ${TRAIN_NEWS}"
 echo "Eval behaviors: ${EVAL_BEHAVIORS}"
 echo "Eval news: ${EVAL_NEWS}"
+echo "Chat template: $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "enabled"; else echo "disabled"; fi)"
 
 export PDSH_RCMD_TYPE=ssh
 
@@ -158,7 +165,7 @@ deepspeed --hostfile=$HOSTFILE \
         --max_history ${MAX_HISTORY} \
         --neg_ratio ${NEG_RATIO} \
         --use_abstract ${USE_ABSTRACT} \
-        ${USE_CHAT_TEMPLATE:+--use_chat_template $USE_CHAT_TEMPLATE} \
+        $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \
         --wandb_project MiniOneRec_MIND \
         --wandb_run_name ${WANDB_RUN_NAME} \
         --train_from_scratch False \

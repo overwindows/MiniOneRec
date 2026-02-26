@@ -64,6 +64,132 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 ---
 
+## 📊 Experiments Tracking Table
+
+### Progress Summary
+
+| Phase | Total | Pending | Running | Completed | Failed | Best AUC |
+|-------|-------|---------|---------|-----------|--------|----------|
+| Phase 1: Point-wise SFT | 6 | 6 | 0 | 0 | 0 | - |
+| Phase 2: RL Fine-tuning | 4 | 4 | 0 | 0 | 0 | - |
+| Phase 3: Ensemble & Cascade | 5 | 5 | 0 | 0 | 0 | - |
+| Phase 4: Multi-task | 3 | 3 | 0 | 0 | 0 | - |
+| Phase 5: Advanced | 3 | 3 | 0 | 0 | 0 | - |
+| **Total** | **21** | **21** | **0** | **0** | **0** | **-** |
+
+**Progress**: 0/21 (0%) | **Current Best**: 69.69% AUC (Baseline) | **Target**: 72.72% AUC | **Gap**: 3.03%
+
+---
+
+### Completed Experiments Archive
+
+| Exp ID | Date | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|------|-------|---------|--------|-----|-----|--------|---------|-------|
+| **Baseline** | 2026-02 | Qwen3-1.7B-Base | MINDlarge | Point-wise + RL | 69.69% | 34.02% | 38.02% | 44.23% | Starting point |
+
+---
+
+### Phase 1: Point-wise SFT Optimization
+
+| Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
+| **P1.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0 | - | - | - | - | More negatives |
+| **P1.2** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | - | - | - | - | Longer training |
+| **P1.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | - | - | - | - | With abstracts (local only) |
+| **P1.4** | ⬜ Pending | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | - | - | - | - | More history |
+| **P1.5** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | - | - | - | - | Combined best |
+| **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDlarge | Default + 8B model | - | - | - | - | Scale to 8B |
+
+**Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
+
+### Phase 2: RL Fine-tuning
+
+| Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|------------|--------|-----|-----|--------|---------|-------|
+| **R2.1** | ⬜ Pending | Best P1.x | REWARD_TYPE=asymmetric | - | - | - | - | Asymmetric reward |
+| **R2.2** | ⬜ Pending | Best P1.x | KL_COEF=0.05 | - | - | - | - | Lower KL penalty |
+| **R2.3** | ⬜ Pending | Best P1.x | TOTAL_EPOCHS=2 | - | - | - | - | More RL epochs |
+| **R2.4** | ⬜ Pending | Best P1.6 | RL on 8B model | - | - | - | - | RL on larger model |
+
+### Phase 3: Ensemble & Cascade
+
+| Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|--------|--------|-----|-----|--------|---------|-------|
+| **E3.1** | ⬜ Pending | PW + RK | ALPHA=0.7 | - | - | - | - | More pointwise weight |
+| **E3.2** | ⬜ Pending | PW + RK | ALPHA=0.5 | - | - | - | - | Balanced ensemble |
+| **E3.3** | ⬜ Pending | PW + RK | ALPHA=0.3 | - | - | - | - | More ranking weight |
+| **E3.4** | ⬜ Pending | PW + RK | TOP_K=15 | - | - | - | - | Cascade top-15 |
+| **E3.5** | ⬜ Pending | PW + RK | TOP_K=10 | - | - | - | - | Cascade top-10 |
+
+### Phase 4: Multi-task Exploration
+
+| Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
+| **M4.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.7 | - | - | - | - | 70% pointwise |
+| **M4.2** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.8 | - | - | - | - | 80% pointwise |
+| **M4.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | Two-stage: PW(2ep)+RK(3ep) | - | - | - | - | Two-stage training |
+
+### Phase 5: Advanced Experiments
+
+| Exp ID | Status | Model | Approach | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|-------|----------|-----|-----|--------|---------|-------|
+| **A5.1** | ⬜ Pending | Qwen3-1.7B | CoT RL | - | - | - | - | Chain-of-Thought |
+| **A5.2** | ⬜ Pending | Qwen3-14B/32B | Large model | - | - | - | - | Resource intensive |
+| **A5.3** | ⬜ Pending | Qwen3-1.7B | Data augmentation | - | - | - | - | Research exploration |
+
+---
+
+## 📝 How to Update This Table
+
+After completing an experiment:
+
+1. **Update Status**: ⬜ Pending → 🔄 Running → ✅ Completed / ❌ Failed
+2. **Fill in Results**: AUC, MRR, nDCG@5, nDCG@10 (in percentage)
+3. **Add Notes**: Training time, observations, issues, checkpoint path
+4. **Highlight Best**: Use 🏆 or **bold** for best results
+
+### Example Update:
+
+```markdown
+| **P1.1** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0 | **69.85%** 🏆 | 33.45% | 37.89% | 43.67% | Best AUC! 8h train, checkpoint: sft_mind_pointwise_large_neg3.0 |
+```
+
+### Quick Update Template:
+
+Copy and paste this template when updating:
+
+```markdown
+| **[EXP_ID]** | ✅ Completed | [MODEL] | [DATASET] | [CONFIG] | [AUC]% | [MRR]% | [nDCG@5]% | [nDCG@10]% | [NOTES] |
+```
+
+---
+
+## 🔧 Pipeline Support Matrix
+
+| Experiment | Azure ML Pipeline | Local Scripts | Notes |
+|------------|-------------------|---------------|-------|
+| **P1.1** | ✅ Training + Eval | ✅ Available | Full pipeline support |
+| **P1.2** | ✅ Training + Eval | ✅ Available | Full pipeline support |
+| **P1.3** | ❌ Training / ✅ Eval | ✅ Required | Abstract parameter not in pipeline |
+| **P1.4** | ✅ Training + Eval | ✅ Available | Full pipeline support |
+| **P1.5** | ✅ Training + Eval | ✅ Available | Full pipeline support |
+| **P1.6** | ✅ Training + Eval | ✅ Available | Full pipeline support (8B model) |
+| **R2.1-R2.4** | ❌ Training / ✅ Eval | ✅ Required | RL not yet in pipeline |
+| **E3.1-E3.5** | ❌ Not applicable | ✅ Required | Ensemble/cascade local only |
+| **M4.1-M4.3** | ❌ Training / ✅ Eval | ✅ Required | Multi-task not yet in pipeline |
+| **A5.1** | ❌ All | ✅ Required | CoT RL local only |
+| **A5.2** | ✅ Training + Eval | ✅ Available | Full pipeline support (14B/32B) |
+| **A5.3** | ❌ TBD | ❌ TBD | Research exploration |
+
+**Legend:**
+- ✅ = Supported
+- ❌ = Not supported / Use local scripts
+- TBD = To be determined
+
+**Note**: All copy-paste ready commands are provided in the "Detailed Experiment Configurations" section below.
+
+---
+
 ## Available Approaches
 
 ### Training Scripts Inventory
@@ -632,6 +758,63 @@ MiniOneRec/
 - **Pros**: Fast iteration, full control, easy debugging
 - **Cons**: Limited to local GPUs, manual tracking
 - **Use for**: Development, debugging, quick tests
+
+---
+
+---
+
+## 🚀 Quick Reference: Experiment Commands
+
+### Update Experiment Status
+
+```bash
+# Mark experiment as running
+# In EXPERIMENT_PLAN.md, change: ⬜ Pending → 🔄 Running
+
+# Mark experiment as completed with results
+# In EXPERIMENT_PLAN.md, change: 🔄 Running → ✅ Completed
+# Fill in: AUC | MRR | nDCG@5 | nDCG@10 | Notes
+```
+
+### Submit Experiment (Phase 1)
+
+```bash
+# Example: P1.1 (More negatives)
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1.1_neg3.0 \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 3.0 \
+  --max-history 30 \
+  --use-chat-template 1
+```
+
+### Evaluate Experiment
+
+```bash
+# Example: Evaluate P1.1
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_p1.1 \
+  --model-path shares/users/wuc/models/[checkpoint_name]/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
+```
+
+### Update Progress Summary
+
+After each experiment, update the Progress Summary table:
+1. Increment "Completed" or "Failed" count
+2. Decrement "Pending" count
+3. Update "Best AUC" if improved
+4. Update overall progress percentage
+
+### Copy Results to Archive
+
+When an experiment is completed, copy the row from active table to "Completed Experiments Archive" section.
 
 ---
 

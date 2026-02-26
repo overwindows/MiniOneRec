@@ -1,12 +1,12 @@
 """
-MIND SFT Training Pipeline - Azure ML SDK v2
-在 A100 GPU 节点上克隆 MiniOneRec 仓库并执行 MIND SFT pointwise 训练
+MIND Model Evaluation Pipeline - Azure ML SDK v2
+在 A100 GPU 节点上克隆 MiniOneRec 仓库并执行 MIND 模型评估
 
 Usage:
-    python run_pipeline.py
-    python run_pipeline.py --model-path Qwen/Qwen3-1.7B --num-epochs 5
-    python run_pipeline.py --batch-size 512 --micro-batch-size 8 --neg-ratio 3.0
-    python run_pipeline.py --debug
+    python run_eval_pipeline.py --model-path shares/users/wuc/models/checkpoint
+    python run_eval_pipeline.py --model-path shares/users/wuc/models/checkpoint --eval-type ranking
+    python run_eval_pipeline.py --model-path shares/users/wuc/models/checkpoint --split test
+    python run_eval_pipeline.py --debug
 """
 import argparse
 from pathlib import Path
@@ -28,13 +28,6 @@ ml_client = MLClient(
 # ============================================================================
 # 2) Virtual Cluster Full ARM ID
 # ============================================================================
-# ranking
-# VC_ARM_ID = (
-#     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-#     "/resourceGroups/rg-cs-ranking-ml-singularity"
-#     "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
-# )
-
 # recall
 VC_ARM_ID = (
     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
@@ -61,84 +54,84 @@ res_cfg = JobResourceConfiguration(
 # 4) Load Component from YAML
 # ============================================================================
 SCRIPT_DIR = Path(__file__).parent
-mind_train_component = load_component(
-    source=str(SCRIPT_DIR / "components" / "mind_train" / "component.yaml")
+mind_eval_component = load_component(
+    source=str(SCRIPT_DIR / "components" / "mind_eval" / "component.yaml")
 )
 
 # ============================================================================
 # 5) Build Pipeline
 # ============================================================================
 @dsl.pipeline(
-    description="MIND SFT Pointwise Training Pipeline",
+    description="MIND Model Evaluation Pipeline",
 )
-def mind_train_pipeline(
+def mind_eval_pipeline(
     msndni_input: Input,
-    model_path: str = "Qwen/Qwen3-1.7B",
+    model_path: str,
     data_root: str = "shares/users/wuc/data/MIND_small",
-    batch_size: int = 256,
-    micro_batch_size: int = 4,
-    num_epochs: int = 3,
-    neg_ratio: float = 2.0,
-    max_history: int = 30,
+    eval_type: str = "pointwise",
+    split: str = "dev",
     use_chat_template: int = 1,
+    max_history: int = 30,
+    batch_size: int = 8,
+    num_gpus: int = 8,
     debug_mode: str = "false",
 ):
-    """MIND SFT Training Pipeline
+    """MIND Model Evaluation Pipeline
 
     Args:
         msndni_input: Datastore 挂载路径
-        model_path: 预训练模型路径或 HuggingFace 模型 ID (default: Qwen/Qwen3-1.7B)
+        model_path: 模型checkpoint路径（相对于挂载路径）
         data_root: 数据集根目录（相对于挂载路径）(default: shares/users/wuc/data/MIND_small)
-        batch_size: 全局批次大小 (default: 256)
-        micro_batch_size: 每个 GPU 的 micro batch 大小 (default: 4)
-        num_epochs: 训练轮数 (default: 3)
-        neg_ratio: 负样本比例 (default: 2.0)
-        max_history: 最大历史记录长度 (default: 30)
+        eval_type: 评估类型 (pointwise/ranking) (default: pointwise)
+        split: 评估数据集 (dev/test) (default: dev)
         use_chat_template: 是否使用 chat template (1=是, 0=否) (default: 1)
+        max_history: 最大历史记录长度 (default: 30)
+        batch_size: 评估batch size (default: 8)
+        num_gpus: 使用的GPU数量 (default: 8)
         debug_mode: 调试模式 (true/false) - 出错继续 + sleep infinity (default: false)
     """
 
-    train_node = mind_train_component(
+    eval_node = mind_eval_component(
         msndni=msndni_input,
         model_path=model_path,
         data_root=data_root,
-        batch_size=batch_size,
-        micro_batch_size=micro_batch_size,
-        num_epochs=num_epochs,
-        neg_ratio=neg_ratio,
-        max_history=max_history,
+        eval_type=eval_type,
+        split=split,
         use_chat_template=use_chat_template,
+        max_history=max_history,
+        batch_size=batch_size,
+        num_gpus=num_gpus,
         debug_mode=debug_mode,
     )
 
     # Bind Virtual Cluster and resource configuration
-    train_node.compute = VC_ARM_ID
-    train_node.resources = res_cfg
+    eval_node.compute = VC_ARM_ID
+    eval_node.resources = res_cfg
 
 
 # ============================================================================
 # 6) Parse Args and Submit
 # ============================================================================
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="MIND SFT Training Pipeline 提交脚本")
-    parser.add_argument("--experiment-name", default="mind_sft_training",
-                        help="AML experiment 名称 (default: mind_sft_training)")
-    parser.add_argument("--model-path", default="Qwen/Qwen3-1.7B",
-                        help="预训练模型路径或 HuggingFace 模型 ID (default: Qwen/Qwen3-1.7B)")
+    parser = argparse.ArgumentParser(description="MIND Model Evaluation Pipeline 提交脚本")
+    parser.add_argument("--experiment-name", default="mind_evaluation",
+                        help="AML experiment 名称 (default: mind_evaluation)")
+    parser.add_argument("--model-path", required=True,
+                        help="模型checkpoint路径（相对于 datastore 挂载路径）")
     parser.add_argument("--data-root", default="shares/users/wuc/data/MIND_small",
                         help="数据集根目录，相对于 datastore 挂载路径 (default: shares/users/wuc/data/MIND_small)")
-    parser.add_argument("--batch-size", type=int, default=256,
-                        help="全局批次大小 (default: 256)")
-    parser.add_argument("--micro-batch-size", type=int, default=4,
-                        help="每个 GPU 的 micro batch 大小 (default: 4)")
-    parser.add_argument("--num-epochs", type=int, default=3,
-                        help="训练轮数 (default: 3)")
-    parser.add_argument("--neg-ratio", type=float, default=2.0,
-                        help="负样本比例 (default: 2.0)")
-    parser.add_argument("--max-history", type=int, default=30,
-                        help="最大历史记录长度 (default: 30)")
+    parser.add_argument("--eval-type", default="pointwise", choices=["pointwise", "ranking"],
+                        help="评估类型 (default: pointwise)")
+    parser.add_argument("--split", default="dev", choices=["dev", "test"],
+                        help="评估数据集 (default: dev)")
     parser.add_argument("--use-chat-template", type=int, default=1, choices=[0, 1],
                         help="是否使用 chat template, 1=是 0=否 (default: 1)")
+    parser.add_argument("--max-history", type=int, default=30,
+                        help="最大历史记录长度 (default: 30)")
+    parser.add_argument("--batch-size", type=int, default=8,
+                        help="评估batch size (default: 8)")
+    parser.add_argument("--num-gpus", type=int, default=8,
+                        help="使用的GPU数量 (default: 8)")
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun",
                         help="Datastore 名称 (default: adls_msn_dni_09_rankfun)")
     parser.add_argument("--debug", action="store_true",
@@ -148,7 +141,7 @@ if __name__ == "__main__":
     debug_mode = "true" if args.debug else "false"
 
     # Create pipeline instance
-    job = mind_train_pipeline(
+    job = mind_eval_pipeline(
         msndni_input=Input(
             type="uri_folder",
             path=f"azureml://datastores/{args.datastore}/paths/",
@@ -156,12 +149,12 @@ if __name__ == "__main__":
         ),
         model_path=args.model_path,
         data_root=args.data_root,
-        batch_size=args.batch_size,
-        micro_batch_size=args.micro_batch_size,
-        num_epochs=args.num_epochs,
-        neg_ratio=args.neg_ratio,
-        max_history=args.max_history,
+        eval_type=args.eval_type,
+        split=args.split,
         use_chat_template=args.use_chat_template,
+        max_history=args.max_history,
+        batch_size=args.batch_size,
+        num_gpus=args.num_gpus,
         debug_mode=debug_mode,
     )
 
@@ -173,17 +166,17 @@ if __name__ == "__main__":
     created = ml_client.jobs.create_or_update(job)
 
     print("=" * 60)
-    print("Pipeline submitted successfully!")
+    print("Evaluation Pipeline submitted successfully!")
     print("=" * 60)
     print(f"Run ID:            {created.name}")
     print(f"Studio URL:        {created.studio_url}")
     print(f"Experiment:        {args.experiment_name}")
     print(f"Model Path:        {args.model_path}")
     print(f"Data Root:         {args.data_root}")
-    print(f"Batch Size:        {args.batch_size}")
-    print(f"Micro Batch Size:  {args.micro_batch_size}")
-    print(f"Num Epochs:        {args.num_epochs}")
-    print(f"Neg Ratio:         {args.neg_ratio}")
-    print(f"Max History:       {args.max_history}")
+    print(f"Eval Type:         {args.eval_type}")
+    print(f"Split:             {args.split}")
     print(f"Use Chat Template: {args.use_chat_template}")
+    print(f"Max History:       {args.max_history}")
+    print(f"Batch Size:        {args.batch_size}")
+    print(f"Num GPUs:          {args.num_gpus}")
     print(f"Debug Mode:        {debug_mode}")

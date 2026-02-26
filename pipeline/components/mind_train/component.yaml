@@ -1,9 +1,9 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
-name: minionerec_train
-display_name: MiniOneRec SFT Training
+name: mind_train
+display_name: MIND SFT Training
 version: "1"
 type: command
-description: MiniOneRec SFT pointwise training on MIND dataset using DeepSpeed
+description: MIND SFT pointwise training using DeepSpeed
 
 inputs:
   msndni:
@@ -52,7 +52,7 @@ environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
 
 command: >-
   python pipeline_executor.py
-  --config config_minionerec_train.json
+  --config config_mind_train.json
   --mount-dir ${{inputs.msndni}}
   --model-path ${{inputs.model_path}}
   --data-root ${{inputs.data_root}}

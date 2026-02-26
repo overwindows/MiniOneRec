@@ -1,6 +1,6 @@
 {
-  "pipeline_name": "MiniOneRec SFT Training",
-  "description": "克隆 MiniOneRec 仓库、配置多节点环境、启动 SFT pointwise 训练",
+  "pipeline_name": "MIND SFT Training",
+  "description": "克隆 MiniOneRec 仓库、配置多节点环境、启动 MIND SFT pointwise 训练",
 
   "commands": [
     {

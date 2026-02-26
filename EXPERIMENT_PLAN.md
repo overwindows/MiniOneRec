@@ -1,9 +1,32 @@
 # MIND Experiment Plan: Path to SOTA
 
 > Generated: 2026-02-25
+> Updated: 2026-02-26 (Azure ML Pipeline Integration)
 > Current Best: 69.69% AUC (Point-wise + RL)
 > Target: 72.72% AUC (MIND Leaderboard SOTA)
 > Gap: ~3%
+
+## 🚀 Azure ML Pipeline Support
+
+This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.
+
+**Available Pipelines:**
+- ✅ **Training Pipeline** (`pipeline/run_pipeline.py`) - Point-wise SFT with DeepSpeed
+- ✅ **Evaluation Pipeline** (`pipeline/run_eval_pipeline.py`) - Point-wise & Ranking evaluation
+
+**Pipeline Features:**
+- 8x A100 80GB GPUs per job
+- Automatic environment setup
+- DeepSpeed multi-GPU training
+- Parallel evaluation across GPUs
+- Experiment tracking in Azure ML Studio
+
+**Coming Soon:**
+- Multi-task training pipeline
+- RL fine-tuning pipeline
+- Ensemble & cascade evaluation
+
+See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 ---
 
@@ -134,95 +157,171 @@
 # ============================================
 # P1.1: More negatives (NEG_RATIO=3.0)
 # ============================================
-MIND_SIZE=large \
-NEG_RATIO=3.0 \
-USE_CHAT_TEMPLATE=1 \
-bash scripts/sft_mind_pointwise_ds.sh
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1.1_neg3.0 \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 3.0 \
+  --max-history 30 \
+  --use-chat-template 1
 
 # Evaluate
-MIND_SIZE=large USE_CHAT_TEMPLATE=1 \
-CUDA_VISIBLE_DEVICES=0,1,2,3 \
-bash scripts/eval_mind_pointwise.sh \
-  output_dir/sft_mind_pointwise_large_*_neg3.0_*/final_checkpoint dev
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_p1.1 \
+  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg3.0_hist30/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
 
 # ============================================
 # P1.2: Longer training (NUM_EPOCHS=7)
 # ============================================
-MIND_SIZE=large \
-NUM_EPOCHS=7 \
-USE_CHAT_TEMPLATE=1 \
-bash scripts/sft_mind_pointwise_ds.sh
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1.2_ep7 \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 7 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-chat-template 1
+
+# Evaluate
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_p1.2 \
+  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
 
 # ============================================
-# P1.3: Add abstracts
+# P1.3: Add abstracts (Note: requires pipeline update)
 # ============================================
-MIND_SIZE=large \
-USE_ABSTRACT=True \
-USE_CHAT_TEMPLATE=1 \
-bash scripts/sft_mind_pointwise_ds.sh
+# TODO: Add USE_ABSTRACT parameter to pipeline
+# For now, use local script:
+# MIND_SIZE=large USE_ABSTRACT=True USE_CHAT_TEMPLATE=1 bash scripts/sft_mind_pointwise_ds.sh
 
 # ============================================
 # P1.4: More history (MAX_HISTORY=50)
 # ============================================
-MIND_SIZE=large \
-MAX_HISTORY=50 \
-USE_CHAT_TEMPLATE=1 \
-bash scripts/sft_mind_pointwise_ds.sh
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1.4_hist50 \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 2.0 \
+  --max-history 50 \
+  --use-chat-template 1
+
+# Evaluate
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_p1.4 \
+  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist50/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev \
+  --max-history 50
 
 # ============================================
 # P1.5: Combined best settings
 # ============================================
-MIND_SIZE=large \
-NEG_RATIO=3.0 \
-NUM_EPOCHS=7 \
-MAX_HISTORY=50 \
-USE_CHAT_TEMPLATE=1 \
-bash scripts/sft_mind_pointwise_ds.sh
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1.5_combined \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 7 \
+  --neg-ratio 3.0 \
+  --max-history 50 \
+  --use-chat-template 1
+
+# Evaluate
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_p1.5 \
+  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev \
+  --max-history 50
 
 # ============================================
 # P1.6: Scale to 8B model
 # ============================================
-MIND_SIZE=large \
-MODEL_PATH=Qwen/Qwen3-8B-Instruct \
-MICRO_BATCH_SIZE=1 \
-LEARNING_RATE=1e-5 \
-USE_CHAT_TEMPLATE=1 \
-bash scripts/sft_mind_pointwise_ds.sh
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1.6_8b \
+  --model-path Qwen/Qwen3-8B-Instruct \
+  --data-root shares/users/wuc/data/MIND_large \
+  --batch-size 256 \
+  --micro-batch-size 1 \
+  --num-epochs 5 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-chat-template 1
+
+# Evaluate
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_p1.6 \
+  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-8B-Instruct_bs256_ep5_neg2.0_hist30/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
 ```
 
 ### Phase 2: RL Commands
 
 ```bash
 # ============================================
-# R2.1: Asymmetric reward
+# R2.1-R2.3: RL Fine-tuning
 # ============================================
+# Note: RL training is not yet integrated into Azure ML pipeline
+# Use local scripts for RL experiments:
+
+# R2.1: Asymmetric reward
 MODEL_PATH=<best_phase1_checkpoint> \
+MIND_SIZE=large \
 REWARD_TYPE=pointwise_asymmetric \
 bash scripts/rl_mind_pointwise.sh
 
-# ============================================
 # R2.2: Lower KL penalty
-# ============================================
 MODEL_PATH=<best_phase1_checkpoint> \
+MIND_SIZE=large \
 REWARD_TYPE=pointwise_asymmetric \
 KL_COEF=0.05 \
 bash scripts/rl_mind_pointwise.sh
 
-# ============================================
 # R2.3: More RL epochs
-# ============================================
 MODEL_PATH=<best_phase1_checkpoint> \
+MIND_SIZE=large \
 REWARD_TYPE=pointwise_asymmetric \
 TOTAL_EPOCHS=2 \
 bash scripts/rl_mind_pointwise.sh
+
+# Evaluate RL models
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_r2.x \
+  --model-path shares/users/wuc/models/<rl_checkpoint>/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
 ```
 
 ### Phase 3: Ensemble & Cascade Commands
 
 ```bash
 # ============================================
-# E3.1: Ensemble with α=0.7 (more point-wise)
+# E3.1-E3.5: Ensemble & Cascade Experiments
 # ============================================
+# Note: Ensemble and cascade evaluation are not yet integrated into Azure ML pipeline
+# Use local scripts for these experiments:
+
+# E3.1: Ensemble with α=0.7 (more point-wise)
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 ALPHA=0.7 \
@@ -230,22 +329,36 @@ MIND_SIZE=large \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_ensemble.sh dev
 
-# ============================================
 # E3.2: Ensemble with α=0.5 (balanced)
-# ============================================
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 ALPHA=0.5 \
 MIND_SIZE=large \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_ensemble.sh dev
 
-# ============================================
+# E3.3: Ensemble with α=0.3 (more ranking)
+POINTWISE_MODEL=<best_pointwise_checkpoint> \
+RANKING_MODEL=<best_ranking_checkpoint> \
+ALPHA=0.3 \
+MIND_SIZE=large \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
+bash scripts/eval_mind_ensemble.sh dev
+
 # E3.4: Cascade with TOP_K=15
-# ============================================
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 TOP_K=15 \
 MIND_SIZE=large \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
+bash scripts/eval_mind_cascade.sh dev
+
+# E3.5: Cascade with TOP_K=10
+POINTWISE_MODEL=<best_pointwise_checkpoint> \
+RANKING_MODEL=<best_ranking_checkpoint> \
+TOP_K=10 \
+MIND_SIZE=large \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_cascade.sh dev
 ```
 
@@ -253,22 +366,56 @@ bash scripts/eval_mind_cascade.sh dev
 
 ```bash
 # ============================================
-# M4.1: Multi-task with 70% point-wise
+# M4.1-M4.3: Multi-task Experiments
 # ============================================
-MIND_SIZE=large \
+# Note: Multi-task training is not yet integrated into Azure ML pipeline
+# Use local scripts for these experiments:
+
+# M4.1: Multi-task with 70% point-wise
 POINTWISE_RATIO=0.7 \
+MIND_SIZE=large \
+DATA_ROOT=../data/MIND_large \
 USE_CHAT_TEMPLATE=1 \
 MAX_HISTORY=30 \
 bash scripts/sft_mind_multitask.sh
 
-# ============================================
 # M4.2: Multi-task with 80% point-wise
-# ============================================
-MIND_SIZE=large \
 POINTWISE_RATIO=0.8 \
+MIND_SIZE=large \
+DATA_ROOT=../data/MIND_large \
 USE_CHAT_TEMPLATE=1 \
 MAX_HISTORY=30 \
 bash scripts/sft_mind_multitask.sh
+
+# M4.3: Two-stage training
+# Stage 1: Pointwise (2 epochs)
+MIND_SIZE=large \
+NUM_EPOCHS=2 \
+USE_CHAT_TEMPLATE=1 \
+bash scripts/sft_mind_pointwise_ds.sh
+
+# Stage 2: Ranking (3 epochs)
+MODEL_PATH=<stage1_checkpoint> \
+MIND_SIZE=large \
+NUM_EPOCHS=3 \
+USE_CHAT_TEMPLATE=1 \
+bash scripts/sft_mind_ranking.sh
+
+# Evaluate multi-task/two-stage models (pointwise)
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_m4.x_pointwise \
+  --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
+
+# Evaluate multi-task/two-stage models (ranking)
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_eval_m4.x_ranking \
+  --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type ranking \
+  --split dev
 ```
 
 ---
@@ -345,6 +492,38 @@ bash scripts/sft_mind_multitask.sh
 ### Quick Evaluation Commands
 
 ```bash
+# ============================================
+# Azure ML Pipeline Evaluation (Recommended)
+# ============================================
+
+# Point-wise evaluation on dev set
+python pipeline/run_eval_pipeline.py \
+  --experiment-name quick_eval_pointwise \
+  --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split dev
+
+# Ranking evaluation on dev set
+python pipeline/run_eval_pipeline.py \
+  --experiment-name quick_eval_ranking \
+  --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type ranking \
+  --split dev
+
+# Test set evaluation (for submission)
+python pipeline/run_eval_pipeline.py \
+  --experiment-name test_eval \
+  --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_large \
+  --eval-type pointwise \
+  --split test
+
+# ============================================
+# Local Evaluation (Alternative)
+# ============================================
+
 # Point-wise evaluation (multi-GPU)
 MIND_SIZE=large USE_CHAT_TEMPLATE=1 \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
@@ -406,7 +585,20 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 
 ```
 MiniOneRec/
-├── scripts/
+├── pipeline/                       # 🆕 Azure ML Pipelines
+│   ├── run_pipeline.py            # Training pipeline submission
+│   ├── run_eval_pipeline.py       # Evaluation pipeline submission
+│   ├── README.md                  # Pipeline documentation
+│   └── components/
+│       ├── mind_train/            # Training component
+│       │   ├── component.yaml
+│       │   ├── config_mind_train.json
+│       │   └── pipeline_executor.py
+│       └── mind_eval/             # Evaluation component
+│           ├── component.yaml
+│           ├── config_mind_eval.json
+│           └── pipeline_executor.py
+├── scripts/                        # Local execution scripts
 │   ├── sft_mind_pointwise.sh      # Point-wise SFT
 │   ├── sft_mind_pointwise_ds.sh   # Point-wise + DeepSpeed
 │   ├── sft_mind_ranking.sh        # Ranking SFT
@@ -429,6 +621,18 @@ MiniOneRec/
 └── EXPERIMENT_PLAN.md             # This file
 ```
 
+## Experiment Execution Modes
+
+### Azure ML Pipeline (Recommended for Production)
+- **Pros**: Scalable, tracked, reproducible, 8x A100 GPUs
+- **Cons**: Requires Azure setup, slightly slower iteration
+- **Use for**: Main experiments, SOTA attempts, final evaluations
+
+### Local Scripts (For Quick Iteration)
+- **Pros**: Fast iteration, full control, easy debugging
+- **Cons**: Limited to local GPUs, manual tracking
+- **Use for**: Development, debugging, quick tests
+
 ---
 
-*Last updated: 2026-02-25*
+*Last updated: 2026-02-26*

@@ -1,0 +1,64 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: mind_eval
+display_name: MIND Model Evaluation
+version: "1"
+type: command
+description: MIND model evaluation using pointwise or ranking format
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  model_path:
+    type: string
+    description: 模型checkpoint路径（相对于挂载路径）
+  data_root:
+    type: string
+    default: "shares/users/wuc/data/MIND_small"
+    description: 数据集根目录（相对于挂载路径）
+  eval_type:
+    type: string
+    default: "pointwise"
+    description: 评估类型 (pointwise/ranking)
+  split:
+    type: string
+    default: "dev"
+    description: 评估数据集 (dev/test)
+  use_chat_template:
+    type: integer
+    default: 1
+    description: 是否使用chat template (1=是, 0=否)
+  max_history:
+    type: integer
+    default: 30
+    description: 最大历史记录长度
+  batch_size:
+    type: integer
+    default: 8
+    description: 评估batch size
+  num_gpus:
+    type: integer
+    default: 8
+    description: 使用的GPU数量（用于并行评估）
+  debug_mode:
+    type: string
+    default: "false"
+    description: 调试模式 (true/false) - 出错继续 + sleep infinity
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_mind_eval.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --eval-type ${{inputs.eval_type}}
+  --split ${{inputs.split}}
+  --use-chat-template ${{inputs.use_chat_template}}
+  --max-history ${{inputs.max_history}}
+  --batch-size ${{inputs.batch_size}}
+  --num-gpus ${{inputs.num_gpus}}
+  --debug-mode ${{inputs.debug_mode}}

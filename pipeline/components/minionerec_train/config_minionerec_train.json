@@ -1,0 +1,58 @@
+{
+  "pipeline_name": "MiniOneRec SFT Training",
+  "description": "克隆 MiniOneRec 仓库、配置多节点环境、启动 SFT pointwise 训练",
+
+  "commands": [
+    {
+      "name": "切换到 home 目录",
+      "command": "cd /home/aiscuser",
+      "working_dir": ".",
+      "is_cd_command": true,
+      "new_working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "删除旧的 MiniOneRec 目录",
+      "description": "如果已存在则删除，确保干净克隆",
+      "command": "rm -rf /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "克隆 MiniOneRec 仓库",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "切换到 dev 分支",
+      "command": "git checkout dev",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "配置多节点环境",
+      "command": "bash scripts/setup_multi_node.sh",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "启动 SFT 训练",
+      "command": "MODEL_PATH={model_path} DATA_ROOT={data_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} MAX_HISTORY={max_history} USE_CHAT_TEMPLATE={use_chat_template} bash scripts/sft_mind_pointwise_ds.sh",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "调试模式-保持容器运行",
+      "description": "保持容器运行以便进入调试，完成后可手动取消任务",
+      "command": "echo '=== 调试模式: 容器将保持运行，可通过 AML Portal 进入容器调试 ===' && sleep infinity",
+      "working_dir": "/home/aiscuser/MiniOneRec",
+      "enabled": true
+    }
+  ],
+
+  "error_handling": {
+    "stop_on_error": true,
+    "retry_failed_commands": false,
+    "max_retries": 1
+  },
+
+  "logging": {
+    "log_level": "INFO",
+    "save_command_outputs": true
+  }
+}

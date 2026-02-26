@@ -1,0 +1,65 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: minionerec_train
+display_name: MiniOneRec SFT Training
+version: "1"
+type: command
+description: MiniOneRec SFT pointwise training on MIND dataset using DeepSpeed
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  model_path:
+    type: string
+    default: "Qwen/Qwen3-1.7B"
+    description: 预训练模型路径或HuggingFace模型ID
+  data_root:
+    type: string
+    default: "shares/users/wuc/data/MIND_small"
+    description: 数据集根目录（相对于挂载路径）
+  batch_size:
+    type: integer
+    default: 256
+    description: 全局批次大小
+  micro_batch_size:
+    type: integer
+    default: 4
+    description: 每个GPU的micro batch大小
+  num_epochs:
+    type: integer
+    default: 3
+    description: 训练轮数
+  neg_ratio:
+    type: number
+    default: 2.0
+    description: 负样本比例
+  max_history:
+    type: integer
+    default: 30
+    description: 最大历史记录长度
+  use_chat_template:
+    type: integer
+    default: 1
+    description: 是否使用chat template (1=是, 0=否)
+  debug_mode:
+    type: string
+    default: "false"
+    description: 调试模式 (true/false) - 出错继续 + sleep infinity
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_minionerec_train.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --batch-size ${{inputs.batch_size}}
+  --micro-batch-size ${{inputs.micro_batch_size}}
+  --num-epochs ${{inputs.num_epochs}}
+  --neg-ratio ${{inputs.neg_ratio}}
+  --max-history ${{inputs.max_history}}
+  --use-chat-template ${{inputs.use_chat_template}}
+  --debug-mode ${{inputs.debug_mode}}

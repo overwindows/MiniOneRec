@@ -70,16 +70,20 @@ RANKING_NEG_RATIO=${RANKING_NEG_RATIO:-4.0}
 # Other settings
 MAX_HISTORY=${MAX_HISTORY:-0}
 USE_ABSTRACT=${USE_ABSTRACT:-0}
+USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Set to 1 for instruct models
 SAMPLE=${SAMPLE:--1}
 
 # Output
 MODEL_BASENAME=$(basename ${MODEL_PATH})
 OUTPUT_NAME="sft_mind_multitask_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_pw${POINTWISE_RATIO}"
+if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_chat"
+fi
 DEFAULT_OUTPUT_DIR="output_dir/${OUTPUT_NAME}"
 OUTPUT_DIR="${OUTPUT_DIR:-$DEFAULT_OUTPUT_DIR}"
 
 # Wandb
-WANDB_PROJECT=${WANDB_PROJECT:-"MiniOneRec"}
+WANDB_PROJECT=${WANDB_PROJECT:-"MIND"}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-"${OUTPUT_NAME}"}
 
 echo "========================================="
@@ -99,6 +103,7 @@ echo "  Batch size: ${BATCH_SIZE}"
 echo "  Epochs: ${NUM_EPOCHS}"
 echo "  Learning rate: ${LEARNING_RATE}"
 echo "  Cutoff length: ${CUTOFF_LEN}"
+echo "  Chat template: $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "enabled"; else echo "disabled"; fi)"
 echo ""
 echo "GPUs: ${PROCESS_NUM}"
 echo "========================================="
@@ -139,7 +144,8 @@ torchrun --nproc_per_node ${PROCESS_NUM} \
     --wandb_project ${WANDB_PROJECT} \
     --wandb_run_name ${WANDB_RUN_NAME} \
     --seed 42 \
-    ${ABSTRACT_FLAG}
+    ${ABSTRACT_FLAG} \
+    $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi)
 
 echo ""
 echo "========================================="

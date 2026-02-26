@@ -26,6 +26,7 @@ import math
 import os
 import random
 import re
+import sys
 from typing import List, Tuple, Optional
 
 import numpy as np
@@ -33,6 +34,10 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
+
+# Add parent dir for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mind_utils import build_ranking_prompt
 
 
 def set_seed(seed: int) -> None:
@@ -73,8 +78,8 @@ def build_prompt_content(history: List[dict], candidates: List[dict]) -> str:
     """
     Build prompt content (without final formatting).
 
-    Returns content that can be wrapped in chat template or used directly.
-    MUST match training format exactly!
+    NOTE: For standard evaluation, use build_ranking_prompt from mind_utils instead.
+    This function is kept for CoT mode and backward compatibility.
     """
     lines = []
     lines.append("A user read these news articles:")
@@ -105,13 +110,22 @@ def build_prompt_content(history: List[dict], candidates: List[dict]) -> str:
 
 def format_prompt_for_eval(content: str, tokenizer, use_chat_template: bool) -> str:
     """
-    Format content for evaluation.
+    Format content for evaluation (used for CoT mode).
 
-    If use_chat_template is True, applies chat template.
-    Otherwise, uses raw text format with "Answer:" suffix.
+    NOTE: For standard evaluation, use build_ranking_prompt from mind_utils instead.
+    This function is kept for CoT mode which has a different prompt structure.
     """
     if use_chat_template:
-        messages = [{"role": "user", "content": content}]
+        system_prompt = (
+            "You are a news recommendation assistant. "
+            "Based on a user's reading history, select the article they are most likely to read. "
+            "Each article includes its category and title. "
+            "Answer with the article number."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content}
+        ]
         prompt = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -676,8 +690,11 @@ def main():
                 scores = cot_scores_from_prediction(predicted_idx, len(candidate_objs))
             else:
                 # Standard: score each option by probability
-                content = build_prompt_content(history_objs, candidate_objs)
-                prompt = format_prompt_for_eval(content, tokenizer, args.use_chat_template)
+                # Use shared prompt builder from mind_utils for consistency with training
+                prompt = build_ranking_prompt(
+                    history_objs, candidate_objs,
+                    tokenizer=tokenizer, use_chat_template=args.use_chat_template
+                )
                 scores = score_candidates_multiple_choice(
                     model, tokenizer, prompt, len(candidate_objs), device
                 )

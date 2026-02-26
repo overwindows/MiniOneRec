@@ -84,8 +84,8 @@ def score_candidate_pointwise_sambanova(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt + "\nAnswer with Yes or No only."},
+            {"role": "system", "content": "You are a news recommendation assistant. Based on a user's reading history, predict whether they will read a given article. Each article includes its category and title. Answer with Yes or No."},
+            {"role": "user", "content": prompt},
         ],
         temperature=temperature,
         top_p=top_p,

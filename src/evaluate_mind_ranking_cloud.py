@@ -179,7 +179,7 @@ def score_candidates_multiple_choice_sambanova(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "system", "content": "You are a news recommendation assistant. Based on a user's reading history, select the article they are most likely to read. Each article includes its category and title."},
             {
                 "role": "user",
                 "content": (
@@ -252,7 +252,7 @@ def score_candidates_cot_sambanova(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "You are a helpful news recommendation assistant. Think step by step before giving your answer."},
+            {"role": "system", "content": "You are a news recommendation assistant. Based on a user's reading history, select the article they are most likely to read. Each article includes its category and title. Think step by step before giving your answer."},
             {"role": "user", "content": prompt},
         ],
         temperature=temperature,
@@ -287,7 +287,7 @@ def score_candidates_top1_sambanova(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant. Be concise."},
+            {"role": "system", "content": "You are a news recommendation assistant. Based on a user's reading history, select the article they are most likely to read. Each article includes its category and title. Answer with the article number."},
             {"role": "user", "content": prompt},
         ],
         temperature=temperature,

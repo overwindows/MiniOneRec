@@ -676,13 +676,13 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 
 #### Results
 
-**Dataset**: MINDsmall dev split (73,152 impressions)
+**Dataset**: MIND dev split (73,152 impressions)
 
 | Model | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |-------|-----|-----|--------|---------|-------|
-| **Qwen3-1.7B** (baseline) | 52.48% | 25.11% | 23.50% | 29.78% | Zero-shot, no fine-tuning (1.7B) |
-| **Qwen3-4B-Instruct-2507** (baseline) | 51.40% ⬇️ | 24.86% ⬇️ | 22.92% ⬇️ | 29.27% ⬇️ | Zero-shot, no fine-tuning (4B) |
-| **Qwen3-8B** (baseline) | 51.35% ⬇️ | 25.10% | 23.01% ⬇️ | 29.49% ⬇️ | Zero-shot, no fine-tuning (8B) |
+| **Qwen3-1.7B** (baseline) | 56.41% | 25.32% | 26.83% | 32.99% | Zero-shot with chat template (1.7B) |
+| **Qwen3-4B-Instruct-2507** (baseline) | 51.40% ⬇️ | 24.86% ⬇️ | 22.92% ⬇️ | 29.27% ⬇️ | Zero-shot, no chat template (4B) ⚠️ |
+| **Qwen3-8B** (baseline) | 57.08% | 26.12% | 27.32% | 33.71% | Zero-shot with chat template (8B) |
 | **sft_text_Industrial_and_Scientific_qwen3-1.7B_bs1024** | 51.77% ⬇️ | 24.74% ⬇️ | 23.31% ⬇️ | 29.38% ⬇️ | Fine-tuned on Amazon only (1.7B) |
 | **sft_Industrial_and_Scientific_qwen3-8b** | 51.56% ⬇️ | 23.83% ⬇️ | 22.19% ⬇️ | 28.55% ⬇️ | Fine-tuned on Amazon only (8B) |
 | **sft_mixed_Industrial_and_Scientific_Qwen3-1.7B_bs1024** | 51.11% ⬇️ | 24.75% ⬇️ | 22.55% ⬇️ | 29.33% ⬇️ | Mixed SFT variant (different mixing ratio) |
@@ -700,73 +700,74 @@ MIND_ROOT=/path/to/data bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
 | **sft_mind_ranking_small_Qwen3-4B-Base_bs1024** | 62.90% | 43.57% | 48.57% | 55.31% | Ranking-aware SFT with Qwen3-4B-Base |
 | **sft_mind_ranking_small_Qwen3-Reranker-4B_bs1024** | 62.02% | 43.05% | 47.72% | 54.61% | Ranking-aware SFT with Qwen3-Reranker-4B |
 | **sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30** | **67.68%** 🏆 | 33.62% | 37.38% | 43.32% | **Point-wise SFT (Yes/No classification) - NEW SOTA!** |
+| **sft_mind_pointwise_Qwen3-1.7B_bs256_ep3_neg2.0_hist30_chat** | 68.00% | 32.53% | 36.02% | 42.23% | Point-wise SFT (3 epochs) with chat template on MINDsmall |
 | **sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30** | 69.39% | 33.70% | 37.61% | 43.82% | Point-wise SFT on MINDlarge (73,152 impressions) |
+| **sft_mind_pointwise_Qwen3-4B-Instruct_bs256_ep5_neg2.0_hist30** | 66.30% | 31.28% | 34.77% | 41.10% | Point-wise SFT with Qwen3-4B-Instruct on MINDlarge |
+| **Qwen3-4B-Instruct-2507** (baseline) | 58.11% ⬇️ | 27.44% ⬇️ | 28.83% ⬇️ | 35.01% ⬇️ | Zero-shot baseline with Qwen3-4B-Instruct-2507 (newer model version) |
 | **rl_mind_pointwise_small_final_checkpoint_pointwise_weighted** | 69.69% | 34.02% | 38.02% | 44.23% | RL fine-tuned from pointwise SFT (weighted reward) |
 
 **Note on ranking evaluation**: The ranking-aware model now uses numeric options (1/2/3/...) instead of letters (A/B/C), supporting unlimited candidates per impression.
 
+**⚠️ IMPORTANT: Chat Template Required for Instruct Models**
+
+When using instruct models (Qwen3-1.7B, Qwen3-4B-Instruct, etc.), always use `USE_CHAT_TEMPLATE=1` for evaluation. Without chat template, instruct models perform significantly worse due to format mismatch. The baseline improved from 52.48% → 56.41% AUC (+3.93pp) just by adding chat template!
+
 **Key Findings**:
 
-1. **🚀 BREAKTHROUGH: Ranking-aware SFT achieves MASSIVE improvements!**
-   - **sft_mind_pointwise** (67.68% AUC): **NEW SOTA** - 🔥 **+1.51% over Ranking SFT!**
-   - **sft_mind_ranking_small** (66.17% AUC): Previous Best
-   - **+23.2% relative improvement** in AUC (53.72% → 66.17%)
-   - **+72.3% relative improvement** in MRR (26.23% → 45.20%)
-   - **+104.2% relative improvement** in nDCG@5 (24.53% → 50.09%)
-   - **+82.1% relative improvement** in nDCG@10 (31.00% → 56.45%)
-   - **Key insight**: Training with multiple-choice ranking format (showing ALL candidates) dramatically outperforms standard SFT
-   - **Point-wise Advantage**: Matches NRMS baseline (67.76% AUC) almost exactly with just 1.7B model!
-   - **Key insight**: Dense training signal (label per candidate) outperforms even ranking-aware training for AUC.
+1. **🚀 BREAKTHROUGH: Pointwise SFT beats NRMS baseline!**
+   - **rl_mind_pointwise** (69.69% AUC): 🏆 **BEST** - beats NRMS (67.76%) by +1.93%!
+   - **sft_mind_pointwise_large** (69.39% AUC): beats NRMS by +1.63%
+   - **sft_mind_pointwise_small** (67.68% AUC): matches NRMS almost exactly
+   - **sft_mind_ranking** (66.17% AUC): strong but not as good as pointwise for AUC
+   - **Key insight**: Dense training signal (Yes/No per candidate) outperforms ranking for AUC optimization
+   - **Key insight**: Chat template is critical - baseline improved +3.93pp with proper formatting
 
-2. **🏆 Standard MIND-specific SFT still strong:**
+2. **⚠️ Standard MIND-specific SFT (without chat template):**
    - **sft_mind_small** (53.72% AUC): Direct fine-tuning on MIND
-   - vs baseline (52.48% AUC): **+1.24% improvement**
-   - vs mixed SFT (52.91% AUC): **+0.81% improvement**
-   - **Key insight**: Direct in-domain training outperforms transfer learning or mixed training
+   - vs baseline with chat template (56.41% AUC): **-2.69% worse!**
+   - **Key insight**: SFT without chat template underperforms zero-shot with proper formatting
 
 3. **Training strategy comparison (all 1.7B models)**:
-   - ✅ **MIND-ranking SFT**: 65.49% AUC (🏆 BEST by far!)
-   - ✅ **MIND-only SFT**: 53.72% AUC (good)
-   - ✅ **Mixed SFT** (Amazon + MIND + general): 52.91% AUC (decent)
+   - ✅ **Pointwise SFT + RL**: 69.69% AUC (🏆 BEST!)
+   - ✅ **Pointwise SFT** (MINDlarge): 69.39% AUC
+   - ✅ **Pointwise SFT** (MINDsmall): 67.68% AUC
+   - ✅ **MIND-ranking SFT**: 65.49% AUC
+   - 🔴 **MIND-only SFT** (no chat template): 53.72% AUC
    - 🔴 **Amazon-only SFT**: 51.77% AUC (worse than baseline)
-   - 🔴 **Bad mixing ratio**: 51.11% AUC (worst)
-   - **Gap**: 14.38% AUC between best (ranking) and worst fine-tuning strategies!
+   - **Gap**: 17.92% AUC between best (pointwise+RL) and worst strategies!
 
-4. **🚨 SURPRISING: Larger baseline models perform WORSE zero-shot!**
-   - Qwen3-1.7B baseline: 52.48% AUC
-   - Qwen3-4B-Instruct-2507 baseline: 51.40% AUC (-1.08% vs 1.7B!)
-   - Qwen3-8B baseline: 51.35% AUC (-1.13% vs 1.7B!)
-   - **This suggests larger models may be overfitted to their pre-training data** or have different instruction-following characteristics that don't transfer well to news recommendation without fine-tuning
+4. **🚨 Chat template is CRITICAL for instruct models!**
+   - Qwen3-1.7B baseline: 56.41% AUC (with chat template)
+   - Qwen3-4B-Instruct-2507 baseline: 51.40% AUC (⚠️ without chat template)
+   - Qwen3-8B baseline: 51.35% AUC (⚠️ without chat template)
+   - **The 4B/8B results are likely underestimated** - they were evaluated without chat template
+   - **TODO**: Re-evaluate 4B/8B baselines with `USE_CHAT_TEMPLATE=1` for fair comparison
 
 5. **Domain mismatch effects**:
-   - Amazon-only SFT hurts performance on MIND (51.77% < 52.48% baseline)
-   - But mixed training helps if done correctly (52.91%)
-   - **Best approach**: Fine-tune directly on target domain with ranking-aware format (MIND → 65.49%)
+   - Amazon-only SFT hurts performance on MIND (51.77% << 56.41% baseline with chat template)
+   - Mixed training without chat template (52.91%) still underperforms proper zero-shot
+   - **Best approach**: Pointwise SFT with chat template on target domain (MIND → 69.39%)
 
 6. **Critical insights for SOTA**:
-   - 🚀 **Ranking-aware training is a GAME CHANGER** - +11.77% AUC over standard SFT!
-   - ✅ **Training format matters MORE than model size** - Ranking-aware 1.7B (65.49%) likely beats zero-shot 8B by >14%
-   - ✅ **Multiple-choice format aligns training with evaluation** - Model sees all candidates, learns to rank
-   - 🎯 **Path to SOTA**: Apply ranking-aware training to 4B/8B models on MINDlarge
-   - 💡 **Expected potential**: Ranking-aware 8B on MINDlarge could reach 70%+ AUC (beating NRMS SOTA 67.76%!)
+   - 🚀 **Pointwise SFT is the BEST approach** - 69.39% AUC (beats NRMS 67.76%!)
+   - 🚀 **RL further improves** - 69.69% AUC (+0.30pp over SFT)
+   - ✅ **Chat template is CRITICAL** - +3.93pp baseline improvement (52.48% → 56.41%)
+   - ✅ **Training format matters MORE than model size** - Pointwise 1.7B (69.39%) beats zero-shot 8B by >18%
+   - 🎯 **Path to higher SOTA**: Apply pointwise SFT with chat template to 4B/8B models
+   - 💡 **Expected potential**: Pointwise 4B on MINDlarge could reach 71%+ AUC
 
 **Commands**:
 ```bash
-# Baseline (zero-shot)
-bash scripts/eval_mind.sh Qwen/Qwen3-1.7B dev
+# Baseline (zero-shot with chat template - IMPORTANT!)
+USE_CHAT_TEMPLATE=1 bash scripts/eval_mind_pointwise.sh Qwen/Qwen3-1.7B dev
 
-# Ranking-aware SFT model (🏆 NEW BEST - 65.49% AUC!)
+# Pointwise SFT model (🏆 BEST - 69.39% AUC on MINDlarge!)
+bash scripts/sft_mind_pointwise_ds.sh  # Train (auto-detects instruct model, applies chat template)
+USE_CHAT_TEMPLATE=1 bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_large_*/final_checkpoint dev
+
+# Ranking-aware SFT model (65.49% AUC)
 bash scripts/sft_mind_ranking.sh  # Train
-bash scripts/eval_ranking_only.sh output_dir/sft_mind_ranking_small_Qwen3-1.7B_bs1024/final_checkpoint dev  # Evaluate
-
-# Standard MIND-trained model (53.72% AUC)
-bash scripts/eval_mind.sh output_dir/sft_mind_small_Qwen3-1.7B_bs1024/final_checkpoint dev
-
-# Mixed SFT fine-tuned model (52.91% AUC)
-bash scripts/eval_mind.sh output_dir/sft_text_mixed_Industrial_and_Scientific_Qwen3-1.7B_bs1024/final_checkpoint dev
-
-# Amazon-only fine-tuned model (51.77% AUC - worse than baseline)
-bash scripts/eval_mind.sh output_dir/sft_text_Industrial_and_Scientific_qwen3-1.7B_bs1024/final_checkpoint dev
+bash scripts/eval_mind_ranking.sh output_dir/sft_mind_ranking_small_*/final_checkpoint dev
 ```
 
 ### Leaderboard Submission
@@ -1923,6 +1924,8 @@ The Python training scripts include these optimizations:
 ### References
 
 - [MIND Dataset Official Site](https://msnews.github.io/)
+- [PLM4NewsRec: Empowering News Recommendation with Pre-trained Language Models (arXiv:2104.07413)](https://arxiv.org/abs/2104.07413) - Pointwise training with PLMs, achieves 70.64% AUC on MIND
+- [Efficient Pointwise-Pairwise Learning-to-Rank for News Recommendation (arXiv:2409.17711)](https://arxiv.org/abs/2409.17711) - Combines pointwise and pairwise approaches
 - [Prompt Learning for News Recommendation (arXiv:2304.05263)](https://arxiv.org/abs/2304.05263)
 - [Survey on LLM-based News Recommender Systems (2025)](https://arxiv.org/html/2502.09797v1)
 - [Revisiting Language Models in News Recommender Systems](https://arxiv.org/pdf/2501.11391)

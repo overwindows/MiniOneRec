@@ -86,9 +86,18 @@ if [ -z "$HOSTFILE" ]; then
 fi
 
 # Model and data paths
-# Model and data paths
 MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-8B-Instruct}
 DATA_ROOT=${DATA_ROOT:-/home/aiscuser/MiniOneRec/data/MIND}
+
+# Detect MIND size from DATA_ROOT or use explicit setting
+MIND_SIZE=${MIND_SIZE:-}
+if [[ -z "${MIND_SIZE}" ]]; then
+    if [[ "${DATA_ROOT}" == *"large"* ]] || [[ "${DATA_ROOT}" == *"MIND_large"* ]]; then
+        MIND_SIZE="large"
+    else
+        MIND_SIZE="small"
+    fi
+fi
 
 # Training hyperparameters (configurable via environment variables)
 # SOTA defaults (8B model, 30 history, 2.0 negs)
@@ -126,7 +135,7 @@ EVAL_NEWS=${DATA_ROOT}/dev/news.tsv
 
 # Output directory (configurable)
 MODEL_BASENAME=$(basename ${MODEL_PATH})
-OUTPUT_NAME="sft_mind_pointwise_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}_hist${MAX_HISTORY}"
+OUTPUT_NAME="sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}_hist${MAX_HISTORY}"
 if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_chat"
 fi
@@ -134,6 +143,7 @@ OUTPUT_DIR=${OUTPUT_DIR:-output_dir/${OUTPUT_NAME}}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-${OUTPUT_NAME}}
 
 echo "DATA_ROOT: ${DATA_ROOT}"
+echo "MIND size: ${MIND_SIZE}"
 echo "Train behaviors: ${TRAIN_BEHAVIORS}"
 echo "Train news: ${TRAIN_NEWS}"
 echo "Eval behaviors: ${EVAL_BEHAVIORS}"

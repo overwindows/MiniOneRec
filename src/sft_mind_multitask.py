@@ -90,6 +90,7 @@ class MINDMultiTaskDataset(Dataset):
         ranking_neg_ratio: float = 4.0,
         pointwise_ratio: float = 0.5,  # Ratio of point-wise vs ranking samples
         use_abstract: bool = False,
+        use_chat_template: bool = False,  # Use chat template for instruct models
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -98,6 +99,7 @@ class MINDMultiTaskDataset(Dataset):
         self.ranking_neg_ratio = ranking_neg_ratio
         self.pointwise_ratio = pointwise_ratio
         self.use_abstract = use_abstract
+        self.use_chat_template = use_chat_template
         self.seed = seed
 
         self.news = load_news(news_path, use_abstract)
@@ -202,48 +204,48 @@ class MINDMultiTaskDataset(Dataset):
         return all_samples
 
     def _build_pointwise_prompt(self, history, candidate, label):
-        """Build point-wise Yes/No prompt."""
-        prompt = "Role: You are a news recommendation assistant.\n"
-        prompt += "Task: Determine if the candidate article matches the user's interests.\n\n"
+        """Build point-wise Yes/No prompt (matches mind_utils.build_pointwise_prompt)."""
+        prompt = "A user read these news articles:\n"
 
-        prompt += "User History:\n"
         if history:
-            for i, h in enumerate(history, 1):
-                cat = f" ({h.get('category', '')})" if h.get('category') else ""
-                prompt += f"{i}. [Title] {h['text']}{cat}\n"
+            # Limit to last 30 for token efficiency (matches mind_utils)
+            recent_history = history[-30:] if len(history) > 30 else history
+            for i, h in enumerate(recent_history, 1):
+                cat = h.get('category', 'General')
+                prompt += f"{i}. [{cat}] {h['text']}\n"
         else:
             prompt += "(No reading history)\n"
 
-        prompt += "\nCandidate Article:\n"
-        cat = f" ({candidate.get('category', '')})" if candidate.get('category') else ""
-        prompt += f"[Title] {candidate['text']}{cat}\n"
+        prompt += "\n"
+        prompt += "Candidate article:\n"
+        cat = candidate.get('category', 'General')
+        prompt += f"[{cat}] {candidate['text']}\n"
 
-        prompt += "\nBased on the user's reading history, is this article relevant to them?\n"
-        prompt += "Answer with Yes or No.\n\nAnswer:"
+        prompt += "\n"
+        prompt += "Will this user read this article? Answer:"
 
         target = " Yes" if label == 1 else " No"
         return prompt, target
 
     def _build_ranking_prompt(self, history, candidates, correct_idx):
-        """Build ranking selection prompt."""
-        prompt = "Role: You are a news recommendation assistant.\n"
-        prompt += "Task: Select the article that best matches the user's reading interests.\n\n"
+        """Build ranking selection prompt (matches mind_utils.build_ranking_prompt)."""
+        prompt = "A user read these news articles:\n"
 
-        prompt += "User History:\n"
         if history:
-            for i, h in enumerate(history, 1):
-                cat = f" ({h.get('category', '')})" if h.get('category') else ""
-                prompt += f"{i}. [Title] {h['text']}{cat}\n"
+            # Limit to last 30 for token efficiency (matches mind_utils)
+            recent_history = history[-30:] if len(history) > 30 else history
+            for i, h in enumerate(recent_history, 1):
+                cat = h.get('category', 'General')
+                prompt += f"{i}. [{cat}] {h['text']}\n"
         else:
             prompt += "(No reading history)\n"
 
-        prompt += "\nCandidate Articles:\n"
+        prompt += "\nCandidate articles:\n"
         for i, cand in enumerate(candidates, 1):
-            cat = f" ({cand.get('category', '')})" if cand.get('category') else ""
-            prompt += f"{i}. [Title] {cand['text']}{cat}\n"
+            cat = cand.get('category', 'General')
+            prompt += f"{i}. [{cat}] {cand['text']}\n"
 
-        prompt += "\nWhich article number would this user most likely click on?\n"
-        prompt += "Answer with the article number only.\n\nAnswer:"
+        prompt += "\nWhich article will the user read? Answer:"
 
         target = f" {correct_idx + 1}"
         return prompt, target
@@ -255,21 +257,59 @@ class MINDMultiTaskDataset(Dataset):
         sample = self.samples[idx]
 
         if sample['task'] == 'pointwise':
-            prompt, target = self._build_pointwise_prompt(
+            content, target = self._build_pointwise_prompt(
                 sample['history'], sample['candidate'], sample['label']
             )
         else:  # ranking
-            prompt, target = self._build_ranking_prompt(
+            content, target = self._build_ranking_prompt(
                 sample['history'], sample['candidates'], sample['correct_idx']
             )
 
-        full_text = prompt + target
-        input_ids = self.tokenizer.encode(
-            full_text, max_length=self.max_len, truncation=True, add_special_tokens=True
-        )
-        prompt_ids = self.tokenizer.encode(
-            prompt, max_length=self.max_len, truncation=True, add_special_tokens=True
-        )
+        if self.use_chat_template:
+            # Apply chat template for instruct models with system prompt
+            task_type = sample['task']
+            if task_type == 'pointwise':
+                system_prompt = (
+                    "You are a news recommendation assistant. "
+                    "Based on a user's reading history, predict whether they will read a given article. "
+                    "Each article includes its category and title. "
+                    "Answer with Yes or No."
+                )
+            else:  # ranking
+                system_prompt = (
+                    "You are a news recommendation assistant. "
+                    "Based on a user's reading history, select the article they are most likely to read. "
+                    "Each article includes its category and title. "
+                    "Answer with the article number."
+                )
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ]
+            prompt = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            full_text = prompt + target
+            # Chat template already includes special tokens
+            input_ids = self.tokenizer.encode(full_text, add_special_tokens=False)
+            prompt_ids = self.tokenizer.encode(prompt, add_special_tokens=False)
+        else:
+            # Raw text format (for base models)
+            prompt = content
+            full_text = prompt + target
+            input_ids = self.tokenizer.encode(
+                full_text, max_length=self.max_len, truncation=True, add_special_tokens=True
+            )
+            prompt_ids = self.tokenizer.encode(
+                prompt, max_length=self.max_len, truncation=True, add_special_tokens=True
+            )
+
+        # Truncate if needed
+        if len(input_ids) > self.max_len:
+            input_ids = input_ids[:self.max_len]
+        if len(prompt_ids) > len(input_ids):
+            prompt_ids = prompt_ids[:len(input_ids)]
 
         train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
 
@@ -311,6 +351,7 @@ def train(
     cutoff_len: int = 4096,
     wandb_project: str = "",
     wandb_run_name: str = "",
+    use_chat_template: bool = None,  # Auto-detect if None
 ):
     """Multi-task training with joint point-wise and ranking objectives."""
 
@@ -318,6 +359,19 @@ def train(
 
     if not base_model:
         raise ValueError("Please specify --base_model")
+
+    # Auto-detect if model is instruct variant (if use_chat_template not explicitly set)
+    if use_chat_template is None:
+        model_lower = base_model.lower()
+        use_chat_template = (
+            "instruct" in model_lower or
+            "chat" in model_lower or
+            ("qwen3" in model_lower and "base" not in model_lower)
+        )
+        if use_chat_template:
+            print(f"Auto-detected instruct model: will use chat template")
+        else:
+            print(f"Using raw text format (no chat template)")
 
     gradient_accumulation_steps = batch_size // micro_batch_size
     world_size = int(os.environ.get("WORLD_SIZE", 1))
@@ -332,6 +386,7 @@ def train(
     print(f"Point-wise ratio: {pointwise_ratio}")
     print(f"Point-wise neg_ratio: {pointwise_neg_ratio}")
     print(f"Ranking neg_ratio: {ranking_neg_ratio}")
+    print(f"Chat template: {'enabled' if use_chat_template else 'disabled'}")
     print("=" * 60)
 
     # Load model
@@ -354,6 +409,7 @@ def train(
         ranking_neg_ratio=ranking_neg_ratio,
         pointwise_ratio=pointwise_ratio,
         use_abstract=use_abstract,
+        use_chat_template=use_chat_template,
     )
 
     val_data = MINDMultiTaskDataset(
@@ -368,6 +424,7 @@ def train(
         ranking_neg_ratio=ranking_neg_ratio,
         pointwise_ratio=pointwise_ratio,
         use_abstract=use_abstract,
+        use_chat_template=use_chat_template,
     )
 
     print(f"\nTraining samples: {len(train_data)}")

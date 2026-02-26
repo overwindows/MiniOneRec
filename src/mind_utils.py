@@ -101,7 +101,75 @@ def build_pointwise_prompt(
     if use_chat_template:
         if tokenizer is None:
             raise ValueError("tokenizer must be provided when use_chat_template=True")
-        messages = [{"role": "user", "content": content}]
+        system_prompt = (
+            "You are a news recommendation assistant. "
+            "Based on a user's reading history, predict whether they will read a given article. "
+            "Each article includes its category and title. "
+            "Answer with Yes or No."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content}
+        ]
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+    return content
+
+
+def build_ranking_prompt(
+    history: List[Dict[str, str]],
+    candidates: List[Dict[str, str]],
+    tokenizer=None,
+    use_chat_template: bool = False
+) -> str:
+    """
+    Build ranking selection prompt matching SFT training format.
+
+    Args:
+        history: List of news dicts with 'text' and 'category' keys
+        candidates: List of candidate news dicts
+        tokenizer: Tokenizer object (required if use_chat_template=True)
+        use_chat_template: Whether to format using chat template for instruct models
+
+    Returns:
+        Prompt string ending with "Answer:" (raw) or chat-formatted prompt
+    """
+    # Build the base content
+    content = "A user read these news articles:\n"
+
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            cat = h.get("category", "General")
+            content += f"{i}. [{cat}] {h['text']}\n"
+    else:
+        content += "(No reading history)\n"
+
+    content += "\nCandidate articles:\n"
+    for i, cand in enumerate(candidates, 1):
+        cat = cand.get("category", "General")
+        content += f"{i}. [{cat}] {cand['text']}\n"
+
+    content += "\nWhich article will the user read? Answer:"
+
+    # Apply chat template if requested
+    if use_chat_template:
+        if tokenizer is None:
+            raise ValueError("tokenizer must be provided when use_chat_template=True")
+        system_prompt = (
+            "You are a news recommendation assistant. "
+            "Based on a user's reading history, select the article they are most likely to read. "
+            "Each article includes its category and title. "
+            "Answer with the article number."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content}
+        ]
         return tokenizer.apply_chat_template(
             messages,
             tokenize=False,

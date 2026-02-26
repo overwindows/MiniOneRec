@@ -384,9 +384,17 @@ class MINDPointwiseSFTDataset:
         )
 
         if self.use_chat_template:
-            # Use chat template for instruct models
-            # Format: <|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n{target}<|im_end|>
-            messages = [{"role": "user", "content": prompt}]
+            # Use chat template for instruct models with system prompt
+            system_prompt = (
+                "You are a news recommendation assistant. "
+                "Based on a user's reading history, predict whether they will read a given article. "
+                "Each article includes its category and title. "
+                "Answer with Yes or No."
+            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
 
             # Apply chat template to get the formatted prompt with generation prompt
             formatted_prompt = self.tokenizer.apply_chat_template(

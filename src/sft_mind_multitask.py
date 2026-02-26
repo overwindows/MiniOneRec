@@ -349,7 +349,7 @@ def train(
     num_epochs: int = 3,
     learning_rate: float = 3e-4,
     cutoff_len: int = 4096,
-    wandb_project: str = "",
+    wandb_project: str = "MIND",
     wandb_run_name: str = "",
     use_chat_template: bool = None,  # Auto-detect if None
 ):

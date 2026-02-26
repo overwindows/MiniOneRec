@@ -39,21 +39,21 @@ MODEL_PATH=${MODEL_PATH:-"Qwen/Qwen3-1.7B-Base"}
 
 # MIND dataset
 MIND_SIZE=${MIND_SIZE:-"small"}
-if [[ -z "${MIND_ROOT:-}" ]]; then
+if [[ -z "${DATA_ROOT:-}" ]]; then
     if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
-        MIND_ROOT="../data/MIND_large"
+        DATA_ROOT="../data/MIND_large"
     elif [[ "${MIND_SIZE}" == "small" && -d "../data/MIND_small" ]]; then
-        MIND_ROOT="../data/MIND_small"
+        DATA_ROOT="../data/MIND_small"
     else
-        MIND_ROOT="../data/MIND"
+        DATA_ROOT="../data/MIND"
     fi
 fi
 
 # Data paths
-TRAIN_BEHAVIORS="${MIND_ROOT}/train/behaviors.tsv"
-TRAIN_NEWS="${MIND_ROOT}/train/news.tsv"
-DEV_BEHAVIORS="${MIND_ROOT}/dev/behaviors.tsv"
-DEV_NEWS="${MIND_ROOT}/dev/news.tsv"
+TRAIN_BEHAVIORS="${DATA_ROOT}/train/behaviors.tsv"
+TRAIN_NEWS="${DATA_ROOT}/train/news.tsv"
+DEV_BEHAVIORS="${DATA_ROOT}/dev/behaviors.tsv"
+DEV_NEWS="${DATA_ROOT}/dev/news.tsv"
 
 # Training hyperparameters
 BATCH_SIZE=${BATCH_SIZE:-1024}
@@ -90,7 +90,7 @@ echo "========================================="
 echo "Multi-Task MIND Training"
 echo "========================================="
 echo "Model: ${MODEL_PATH}"
-echo "MIND: ${MIND_ROOT} (${MIND_SIZE})"
+echo "DATA_ROOT: ${DATA_ROOT} (${MIND_SIZE})"
 echo "Output: ${OUTPUT_DIR}"
 echo ""
 echo "Multi-Task Settings:"

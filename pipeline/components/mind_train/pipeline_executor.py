@@ -206,6 +206,7 @@ def main():
     parser.add_argument("--max-history", help="最大历史记录长度")
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
     parser.add_argument("--debug-mode", help="调试模式 (true/false)")
+    parser.add_argument("--output-root", help="输出目录根路径（相对于挂载路径）")
 
     args = parser.parse_args()
 
@@ -224,6 +225,12 @@ def main():
         cli_variables['data_root'] = f"{args.mount_dir}/{args.data_root}"
     elif args.data_root:
         cli_variables['data_root'] = args.data_root
+
+    # 合成完整的 output_root 路径
+    if args.mount_dir and args.output_root:
+        cli_variables['output_root'] = f"{args.mount_dir}/{args.output_root}"
+    elif args.output_root:
+        cli_variables['output_root'] = args.output_root
 
     debug_mode = bool(args.debug_mode and args.debug_mode.lower() in ('true', '1', 'yes'))
 

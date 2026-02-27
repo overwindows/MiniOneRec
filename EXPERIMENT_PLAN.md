@@ -279,12 +279,15 @@ Copy and paste this template when updating:
 
 ### Phase 1: Point-wise SFT Commands
 
+> **Debug Mode**: Add `--debug` to any command to keep the container running after errors for debugging.
+
 ```bash
 # ============================================
 # P1.1: More negatives (NEG_RATIO=3.0)
 # ============================================
-python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1.1_neg3.0 \
+python3 pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1-1_neg3-0 \
+  --display-name "P1.1: More negatives (neg=3.0)" \
   --model-path Qwen/Qwen3-1.7B \
   --data-root shares/users/wuc/data/MIND_large \
   --batch-size 256 \
@@ -293,20 +296,24 @@ python pipeline/run_pipeline.py \
   --neg-ratio 3.0 \
   --max-history 30 \
   --use-chat-template 1
+  # --debug  # Uncomment to enable debug mode
 
 # Evaluate
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1.1 \
+  --experiment-name mind_eval_p1-1 \
+  --display-name "P1.1 Eval: neg=3.0" \
   --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg3.0_hist30/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug  # Uncomment to enable debug mode
 
 # ============================================
 # P1.2: Longer training (NUM_EPOCHS=7)
 # ============================================
 python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1.2_ep7 \
+  --experiment-name mind_sft_p1-2_ep7 \
+  --display-name "P1.2: Longer training (ep=7)" \
   --model-path Qwen/Qwen3-1.7B \
   --data-root shares/users/wuc/data/MIND_large \
   --batch-size 256 \
@@ -315,14 +322,17 @@ python pipeline/run_pipeline.py \
   --neg-ratio 2.0 \
   --max-history 30 \
   --use-chat-template 1
+  # --debug
 
 # Evaluate
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1.2 \
+  --experiment-name mind_eval_p1-2 \
+  --display-name "P1.2 Eval: ep=7" \
   --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug
 
 # ============================================
 # P1.3: Add abstracts (Note: requires pipeline update)
@@ -335,7 +345,8 @@ python pipeline/run_eval_pipeline.py \
 # P1.4: More history (MAX_HISTORY=50)
 # ============================================
 python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1.4_hist50 \
+  --experiment-name mind_sft_p1-4_hist50 \
+  --display-name "P1.4: More history (hist=50)" \
   --model-path Qwen/Qwen3-1.7B \
   --data-root shares/users/wuc/data/MIND_large \
   --batch-size 256 \
@@ -344,21 +355,25 @@ python pipeline/run_pipeline.py \
   --neg-ratio 2.0 \
   --max-history 50 \
   --use-chat-template 1
+  # --debug
 
 # Evaluate
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1.4 \
+  --experiment-name mind_eval_p1-4 \
+  --display-name "P1.4 Eval: hist=50" \
   --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist50/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev \
   --max-history 50
+  # --debug
 
 # ============================================
 # P1.5: Combined best settings
 # ============================================
 python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1.5_combined \
+  --experiment-name mind_sft_p1-5_combined \
+  --display-name "P1.5: Combined best settings" \
   --model-path Qwen/Qwen3-1.7B \
   --data-root shares/users/wuc/data/MIND_large \
   --batch-size 256 \
@@ -367,21 +382,25 @@ python pipeline/run_pipeline.py \
   --neg-ratio 3.0 \
   --max-history 50 \
   --use-chat-template 1
+  # --debug
 
 # Evaluate
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1.5 \
+  --experiment-name mind_eval_p1-5 \
+  --display-name "P1.5 Eval: combined" \
   --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev \
   --max-history 50
+  # --debug
 
 # ============================================
 # P1.6: Scale to 8B model
 # ============================================
 python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1.6_8b \
+  --experiment-name mind_sft_p1-6_8b \
+  --display-name "P1.6: Scale to 8B model" \
   --model-path Qwen/Qwen3-8B-Instruct \
   --data-root shares/users/wuc/data/MIND_large \
   --batch-size 256 \
@@ -390,14 +409,17 @@ python pipeline/run_pipeline.py \
   --neg-ratio 2.0 \
   --max-history 30 \
   --use-chat-template 1
+  # --debug
 
 # Evaluate
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1.6 \
+  --experiment-name mind_eval_p1-6 \
+  --display-name "P1.6 Eval: 8B model" \
   --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-8B-Instruct_bs256_ep5_neg2.0_hist30/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug
 ```
 
 ### Phase 2: RL Commands
@@ -431,11 +453,13 @@ bash scripts/rl_mind_pointwise.sh
 
 # Evaluate RL models
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_r2.x \
+  --experiment-name mind_eval_r2-x \
+  --display-name "R2.x Eval: RL model" \
   --model-path shares/users/wuc/models/<rl_checkpoint>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug
 ```
 
 ### Phase 3: Ensemble & Cascade Commands
@@ -529,19 +553,23 @@ bash scripts/sft_mind_ranking.sh
 
 # Evaluate multi-task/two-stage models (pointwise)
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_m4.x_pointwise \
+  --experiment-name mind_eval_m4-x_pointwise \
+  --display-name "M4.x Eval: multi-task (pointwise)" \
   --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug
 
 # Evaluate multi-task/two-stage models (ranking)
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_m4.x_ranking \
+  --experiment-name mind_eval_m4-x_ranking \
+  --display-name "M4.x Eval: multi-task (ranking)" \
   --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type ranking \
   --split dev
+  # --debug
 ```
 
 ---
@@ -625,26 +653,32 @@ python pipeline/run_eval_pipeline.py \
 # Point-wise evaluation on dev set
 python pipeline/run_eval_pipeline.py \
   --experiment-name quick_eval_pointwise \
+  --display-name "Quick Eval: pointwise (dev)" \
   --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug
 
 # Ranking evaluation on dev set
 python pipeline/run_eval_pipeline.py \
   --experiment-name quick_eval_ranking \
+  --display-name "Quick Eval: ranking (dev)" \
   --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type ranking \
   --split dev
+  # --debug
 
 # Test set evaluation (for submission)
 python pipeline/run_eval_pipeline.py \
   --experiment-name test_eval \
+  --display-name "Test Eval: submission" \
   --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split test
+  # --debug
 
 # ============================================
 # Local Evaluation (Alternative)
@@ -781,7 +815,8 @@ MiniOneRec/
 ```bash
 # Example: P1.1 (More negatives)
 python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1.1_neg3.0 \
+  --experiment-name mind_sft_p1-1_neg3-0 \
+  --display-name "P1.1: More negatives (neg=3.0)" \
   --model-path Qwen/Qwen3-1.7B \
   --data-root shares/users/wuc/data/MIND_large \
   --batch-size 256 \
@@ -790,6 +825,7 @@ python pipeline/run_pipeline.py \
   --neg-ratio 3.0 \
   --max-history 30 \
   --use-chat-template 1
+  # --debug
 ```
 
 ### Evaluate Experiment
@@ -797,11 +833,13 @@ python pipeline/run_pipeline.py \
 ```bash
 # Example: Evaluate P1.1
 python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1.1 \
+  --experiment-name mind_eval_p1-1 \
+  --display-name "P1.1 Eval: neg=3.0" \
   --model-path shares/users/wuc/models/[checkpoint_name]/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_large \
   --eval-type pointwise \
   --split dev
+  # --debug
 ```
 
 ### Update Progress Summary

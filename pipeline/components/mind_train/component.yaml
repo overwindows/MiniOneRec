@@ -46,6 +46,10 @@ inputs:
     type: string
     default: "false"
     description: 调试模式 (true/false) - 出错继续 + sleep infinity
+  output_root:
+    type: string
+    default: "shares/users/wuc/output_dir"
+    description: 输出目录根路径（相对于挂载路径）
 
 code: .
 environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
@@ -63,3 +67,4 @@ command: >-
   --max-history ${{inputs.max_history}}
   --use-chat-template ${{inputs.use_chat_template}}
   --debug-mode ${{inputs.debug_mode}}
+  --output-root ${{inputs.output_root}}

@@ -33,7 +33,7 @@
     },
     {
       "name": "启动 SFT 训练",
-      "command": "MODEL_PATH={model_path} DATA_ROOT={data_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} MAX_HISTORY={max_history} USE_CHAT_TEMPLATE={use_chat_template} bash scripts/sft_mind_pointwise_ds.sh",
+      "command": "MODEL_PATH={model_path} DATA_ROOT={data_root} OUTPUT_DIR={output_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} MAX_HISTORY={max_history} USE_CHAT_TEMPLATE={use_chat_template} bash scripts/sft_mind_pointwise_ds.sh",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {

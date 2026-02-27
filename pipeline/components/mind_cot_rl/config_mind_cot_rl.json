@@ -1,0 +1,72 @@
+{
+  "pipeline_name": "MIND CoT RL Training",
+  "description": "克隆 MiniOneRec 仓库、准备 CoT 数据、启动 MIND CoT RL 训练",
+
+  "commands": [
+    {
+      "name": "切换到 home 目录",
+      "command": "cd /home/aiscuser",
+      "working_dir": ".",
+      "is_cd_command": true,
+      "new_working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "删除旧的 MiniOneRec 目录",
+      "description": "如果已存在则删除，确保干净克隆",
+      "command": "rm -rf /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "克隆 MiniOneRec 仓库",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "切换到 dev 分支",
+      "command": "git checkout dev",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "准备 CoT 训练数据",
+      "description": "生成 CoT RL 训练所需的 parquet 数据",
+      "command": "python prepare_mind_rl_cot.py --behaviors_path {data_root}/train/behaviors.tsv --news_path {data_root}/train/news.tsv --output_parquet {data_root}/train/rl_cot_train.parquet --max_history {max_history} --max_candidates {max_candidates} --cot_style {cot_style}",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "准备 CoT 评估数据",
+      "description": "生成 CoT RL 评估所需的 parquet 数据",
+      "command": "python prepare_mind_rl_cot.py --behaviors_path {data_root}/dev/behaviors.tsv --news_path {data_root}/dev/news.tsv --output_parquet {data_root}/dev/rl_cot_dev.parquet --max_history {max_history} --max_candidates {max_candidates} --cot_style {cot_style} --max_samples 2000",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "启动 CoT RL 训练",
+      "description": "运行 CoT RL 训练",
+      "command": "python src/rl_mind_verl.py --model_path {sft_model} --train_parquet {data_root}/train/rl_cot_train.parquet --eval_parquet {data_root}/dev/rl_cot_dev.parquet --output_dir {output_root}/rl_mind_cot_{cot_style}_{reward_type} --reward_type {reward_type} --max_response_length {max_response_length} --max_prompt_length {max_prompt_length} --train_batch_size {train_batch_size} --learning_rate {learning_rate} --kl_loss_coef {kl_loss_coef} --total_epochs {total_epochs} --num_generations {num_generations} --n_gpus_per_node 8 --wandb_project MiniOneRec_MIND --wandb_run_name rl_mind_cot_{cot_style}_{reward_type}",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "运行模型评估",
+      "description": "训练完成后自动评估模型（如果 run_eval=1）",
+      "command": "if [ \"{run_eval}\" = \"1\" ]; then CHECKPOINT_DIR={output_root}/rl_mind_cot_{cot_style}_{reward_type} && if [ -d \"$CHECKPOINT_DIR\" ]; then echo \"=== 开始模型评估 ===\" && echo \"Checkpoint: $CHECKPOINT_DIR\" && mkdir -p $CHECKPOINT_DIR/eval_results && MIND_SIZE=$(echo {data_root} | grep -q 'large' && echo 'large' || echo 'small') && python evaluate_mind_ranking.py --model_path $CHECKPOINT_DIR/final_checkpoint --behaviors_path {data_root}/{eval_split}/behaviors.tsv --news_path {data_root}/{eval_split}/news.tsv --use_cot True --output_file $CHECKPOINT_DIR/eval_results/{eval_split}_cot_predictions.txt && echo \"=== 评估结果已保存到 $CHECKPOINT_DIR/eval_results/ ===\"; else echo \"ERROR: Checkpoint directory not found: $CHECKPOINT_DIR\"; fi; else echo '=== 跳过评估 (run_eval=0) ==='; fi",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "调试模式-保持容器运行",
+      "description": "保持容器运行以便进入调试，完成后可手动取消任务",
+      "command": "echo '=== 调试模式: 容器将保持运行，可通过 AML Portal 进入容器调试 ===' && sleep infinity",
+      "working_dir": "/home/aiscuser/MiniOneRec",
+      "enabled": true
+    }
+  ],
+
+  "error_handling": {
+    "stop_on_error": true,
+    "retry_failed_commands": false,
+    "max_retries": 1
+  },
+
+  "logging": {
+    "log_level": "INFO",
+    "save_command_outputs": true
+  }
+}

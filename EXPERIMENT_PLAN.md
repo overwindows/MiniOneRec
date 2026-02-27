@@ -13,6 +13,7 @@ This experiment plan has been updated to use **Azure ML pipelines** for scalable
 **Available Pipelines:**
 - ✅ **Training Pipeline** (`pipeline/run_pipeline.py`) - Point-wise SFT with DeepSpeed + **integrated evaluation**
 - ✅ **Evaluation Pipeline** (`pipeline/run_eval_pipeline.py`) - Standalone evaluation (optional, for re-evaluation)
+- ✅ **CoT RL Pipeline** (`pipeline/run_cot_rl_pipeline.py`) - Chain-of-Thought RL training + **integrated evaluation**
 
 **Pipeline Features:**
 - 8x A100 80GB GPUs per job
@@ -183,7 +184,7 @@ Copy and paste this template when updating:
 | **R2.1-R2.4** | ❌ Training / ✅ Eval | ✅ Required | RL not yet in pipeline |
 | **E3.1-E3.5** | ❌ Not applicable | ✅ Required | Ensemble/cascade local only |
 | **M4.1-M4.3** | ❌ Training / ✅ Eval | ✅ Required | Multi-task not yet in pipeline |
-| **A5.1** | ❌ All | ✅ Required | CoT RL local only |
+| **A5.1** | ✅ Training + Eval | ✅ Available | Full pipeline support (CoT RL) |
 | **A5.2** | ✅ Training + Eval | ✅ Available | Full pipeline support (14B/32B) |
 | **A5.3** | ❌ TBD | ❌ TBD | Research exploration |
 
@@ -551,6 +552,83 @@ python pipeline/run_eval_pipeline.py \
   --eval-type ranking \
   --split dev
   # --debug
+```
+
+### Phase 5: Advanced Commands (CoT RL)
+
+> **Note**: CoT RL pipeline now available via `pipeline/run_cot_rl_pipeline.py`.
+> Training includes **integrated evaluation** by default (`--run-eval 1`).
+
+```bash
+# ============================================
+# A5.1a: Standard CoT style (Azure ML Pipeline)
+# ============================================
+python pipeline/run_cot_rl_pipeline.py \
+  --experiment-name mind_cot_rl_a5-1a_standard \
+  --display-name "A5.1a: CoT RL (standard)" \
+  --sft-model shares/users/wuc/output_dir/sft_mind_pointwise_*/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
+  --cot-style standard \
+  --reward-type mind_cot_binary \
+  --max-response-length 256 \
+  --train-batch-size 32 \
+  --learning-rate 1e-7 \
+  --kl-loss-coef 0.5 \
+  --total-epochs 1 \
+  --run-eval 1 \
+  --eval-split dev
+  # --debug
+
+# ============================================
+# A5.1b: Category-based CoT style (Azure ML Pipeline)
+# ============================================
+python pipeline/run_cot_rl_pipeline.py \
+  --experiment-name mind_cot_rl_a5-1b_category \
+  --display-name "A5.1b: CoT RL (category)" \
+  --sft-model shares/users/wuc/output_dir/sft_mind_pointwise_*/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
+  --cot-style category \
+  --reward-type mind_cot_binary \
+  --max-response-length 256 \
+  --train-batch-size 32 \
+  --learning-rate 1e-7 \
+  --kl-loss-coef 0.5 \
+  --total-epochs 1 \
+  --run-eval 1 \
+  --eval-split dev
+  # --debug
+
+# ============================================
+# A5.1c: Detailed CoT style (Azure ML Pipeline)
+# ============================================
+python pipeline/run_cot_rl_pipeline.py \
+  --experiment-name mind_cot_rl_a5-1c_detailed \
+  --display-name "A5.1c: CoT RL (detailed)" \
+  --sft-model shares/users/wuc/output_dir/sft_mind_pointwise_*/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
+  --cot-style detailed \
+  --reward-type mind_cot_ndcg \
+  --max-response-length 256 \
+  --train-batch-size 32 \
+  --learning-rate 1e-7 \
+  --kl-loss-coef 0.5 \
+  --total-epochs 1 \
+  --run-eval 1 \
+  --eval-split dev
+  # --debug
+
+# CoT RL Hyperparameters:
+# - --cot-style: standard | category | detailed
+# - --reward-type: mind_cot_binary | mind_cot_ndcg | mind_cot_auc | mind_cot_margin
+# - --max-response-length: 256 (longer for CoT reasoning)
+# - --train-batch-size: 32 (reduced for longer sequences)
+# - --kl-loss-coef: 0.5
+
+# [Optional] Local scripts for quick iteration:
+# SFT_MODEL=<checkpoint> COT_STYLE=category REWARD_TYPE=mind_cot_binary bash scripts/rl_mind_cot.sh
 ```
 
 ---

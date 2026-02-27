@@ -1,0 +1,104 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: mind_cot_rl
+display_name: MIND CoT RL Training
+version: "1"
+type: command
+description: MIND Chain-of-Thought RL training
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  sft_model:
+    type: string
+    description: SFT checkpoint 路径（相对于挂载路径或 HuggingFace 模型 ID）
+  data_root:
+    type: string
+    default: "shares/users/wuc/data/MIND_small"
+    description: 数据集根目录（相对于挂载路径）
+  output_root:
+    type: string
+    default: "shares/users/wuc/output_dir"
+    description: 输出目录根路径（相对于挂载路径）
+  cot_style:
+    type: string
+    default: "category"
+    description: CoT 风格 (standard/category/detailed)
+  reward_type:
+    type: string
+    default: "mind_cot_binary"
+    description: 奖励类型 (mind_cot_binary/mind_cot_ndcg/mind_cot_auc/mind_cot_margin)
+  max_response_length:
+    type: integer
+    default: 256
+    description: 最大响应长度（CoT 需要更长）
+  max_prompt_length:
+    type: integer
+    default: 4096
+    description: 最大提示长度
+  train_batch_size:
+    type: integer
+    default: 32
+    description: 训练批次大小
+  learning_rate:
+    type: string
+    default: "1e-7"
+    description: 学习率
+  kl_loss_coef:
+    type: number
+    default: 0.5
+    description: KL 损失系数
+  total_epochs:
+    type: integer
+    default: 1
+    description: 训练轮数
+  num_generations:
+    type: integer
+    default: 4
+    description: 每个样本的生成数量
+  max_history:
+    type: integer
+    default: 30
+    description: 最大历史记录长度
+  max_candidates:
+    type: integer
+    default: 30
+    description: 最大候选新闻数量
+  debug_mode:
+    type: string
+    default: "false"
+    description: 调试模式 (true/false) - 出错继续 + sleep infinity
+  run_eval:
+    type: integer
+    default: 1
+    description: 训练后是否运行评估 (1=是, 0=否)
+  eval_split:
+    type: string
+    default: "dev"
+    description: 评估数据集 (dev/test)
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_mind_cot_rl.json
+  --mount-dir ${{inputs.msndni}}
+  --sft-model ${{inputs.sft_model}}
+  --data-root ${{inputs.data_root}}
+  --output-root ${{inputs.output_root}}
+  --cot-style ${{inputs.cot_style}}
+  --reward-type ${{inputs.reward_type}}
+  --max-response-length ${{inputs.max_response_length}}
+  --max-prompt-length ${{inputs.max_prompt_length}}
+  --train-batch-size ${{inputs.train_batch_size}}
+  --learning-rate ${{inputs.learning_rate}}
+  --kl-loss-coef ${{inputs.kl_loss_coef}}
+  --total-epochs ${{inputs.total_epochs}}
+  --num-generations ${{inputs.num_generations}}
+  --max-history ${{inputs.max_history}}
+  --max-candidates ${{inputs.max_candidates}}
+  --debug-mode ${{inputs.debug_mode}}
+  --run-eval ${{inputs.run_eval}}
+  --eval-split ${{inputs.eval_split}}

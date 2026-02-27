@@ -139,7 +139,12 @@ OUTPUT_NAME="sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_e
 if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_chat"
 fi
-OUTPUT_DIR=${OUTPUT_DIR:-output_dir/${OUTPUT_NAME}}
+# If OUTPUT_DIR is provided (e.g., from pipeline), append OUTPUT_NAME; otherwise use default
+if [[ -n "${OUTPUT_DIR}" ]]; then
+    OUTPUT_DIR="${OUTPUT_DIR}/${OUTPUT_NAME}"
+else
+    OUTPUT_DIR="output_dir/${OUTPUT_NAME}"
+fi
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-${OUTPUT_NAME}}
 
 echo "DATA_ROOT: ${DATA_ROOT}"

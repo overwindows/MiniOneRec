@@ -50,6 +50,14 @@ inputs:
     type: string
     default: "shares/users/wuc/output_dir"
     description: 输出目录根路径（相对于挂载路径）
+  run_eval:
+    type: integer
+    default: 1
+    description: 训练后是否运行评估 (1=是, 0=否)
+  eval_split:
+    type: string
+    default: "dev"
+    description: 评估数据集 (dev/test)
 
 code: .
 environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
@@ -68,3 +76,5 @@ command: >-
   --use-chat-template ${{inputs.use_chat_template}}
   --debug-mode ${{inputs.debug_mode}}
   --output-root ${{inputs.output_root}}
+  --run-eval ${{inputs.run_eval}}
+  --eval-split ${{inputs.eval_split}}

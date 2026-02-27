@@ -37,6 +37,12 @@
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {
+      "name": "运行模型评估",
+      "description": "训练完成后自动评估模型（如果 run_eval=1）",
+      "command": "if [ \"{run_eval}\" = \"1\" ]; then CHECKPOINT_DIR=$(ls -td {output_root}/sft_mind_pointwise_* 2>/dev/null | head -1) && if [ -n \"$CHECKPOINT_DIR\" ]; then echo \"=== 开始模型评估 ===\" && echo \"Checkpoint: $CHECKPOINT_DIR\" && mkdir -p $CHECKPOINT_DIR/eval_results && MIND_SIZE=$(echo {data_root} | grep -q 'large' && echo 'large' || echo 'small') && CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=$MIND_SIZE MIND_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} MAX_HISTORY={max_history} BATCH_SIZE=8 OUTPUT_FILE=$CHECKPOINT_DIR/eval_results/{eval_split}_pointwise_predictions.txt bash scripts/eval_mind_pointwise.sh $CHECKPOINT_DIR {eval_split} && echo \"=== 评估结果已保存到 $CHECKPOINT_DIR/eval_results/ ===\"; else echo \"ERROR: No checkpoint found in {output_root}\"; fi; else echo '=== 跳过评估 (run_eval=0) ==='; fi",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
       "name": "调试模式-保持容器运行",
       "description": "保持容器运行以便进入调试，完成后可手动取消任务",
       "command": "echo '=== 调试模式: 容器将保持运行，可通过 AML Portal 进入容器调试 ===' && sleep infinity",

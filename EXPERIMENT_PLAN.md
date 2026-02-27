@@ -11,15 +11,21 @@
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.
 
 **Available Pipelines:**
-- ✅ **Training Pipeline** (`pipeline/run_pipeline.py`) - Point-wise SFT with DeepSpeed
-- ✅ **Evaluation Pipeline** (`pipeline/run_eval_pipeline.py`) - Point-wise & Ranking evaluation
+- ✅ **Training Pipeline** (`pipeline/run_pipeline.py`) - Point-wise SFT with DeepSpeed + **integrated evaluation**
+- ✅ **Evaluation Pipeline** (`pipeline/run_eval_pipeline.py`) - Standalone evaluation (optional, for re-evaluation)
 
 **Pipeline Features:**
 - 8x A100 80GB GPUs per job
 - Automatic environment setup
 - DeepSpeed multi-GPU training
-- Parallel evaluation across GPUs
+- **Integrated evaluation** after training (saves results to checkpoint directory)
+- Model checkpoints saved to mounted datastore (`shares/users/wuc/output_dir/`)
 - Experiment tracking in Azure ML Studio
+
+**New Parameters:**
+- `--output-root`: Model output directory (default: `shares/users/wuc/output_dir`)
+- `--run-eval`: Run evaluation after training (default: 1)
+- `--eval-split`: Evaluation split - dev/test (default: dev)
 
 **Coming Soon:**
 - Multi-task training pipeline
@@ -48,11 +54,11 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | Approach | Model | Dataset | AUC | MRR | nDCG@5 | nDCG@10 |
 |----------|-------|---------|-----|-----|--------|---------|
 | Zero-shot baseline | Qwen3-1.7B | MINDsmall | 56.41% | 25.32% | 26.83% | 32.99% |
-| Zero-shot baseline | Qwen3-4B-Instruct-2507 | MINDlarge | 58.11% | 27.44% | 28.83% | 35.01% |
-| Point-wise SFT | Qwen3-4B-Instruct | MINDlarge | 66.30% | 31.28% | 34.77% | 41.10% |
+| Zero-shot baseline | Qwen3-4B-Instruct-2507 | MINDsmall | 58.11% | 27.44% | 28.83% | 35.01% |
+| Point-wise SFT | Qwen3-4B-Instruct | MINDsmall | 66.30% | 31.28% | 34.77% | 41.10% |
 | Point-wise SFT | Qwen3-1.7B | MINDsmall | 67.68% | 33.62% | 37.38% | 43.32% |
-| Point-wise SFT | Qwen3-1.7B-Base | MINDlarge | 69.39% | 33.70% | 37.61% | 43.82% |
-| Point-wise + RL | Qwen3-1.7B-Base | MINDlarge | **69.69%** | 34.02% | 38.02% | 44.23% |
+| Point-wise SFT | Qwen3-1.7B-Base | MINDsmall | 69.39% | 33.70% | 37.61% | 43.82% |
+| Point-wise + RL | Qwen3-1.7B-Base | MINDsmall | **69.69%** | 34.02% | 38.02% | 44.23% |
 | Ranking SFT | Qwen3-1.7B-Base | MINDsmall | 66.17% | 45.20% | 50.09% | 56.45% |
 
 ### Reference Baselines
@@ -85,7 +91,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Date | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **Baseline** | 2026-02 | Qwen3-1.7B-Base | MINDlarge | Point-wise + RL | 69.69% | 34.02% | 38.02% | 44.23% | Starting point |
+| **Baseline** | 2026-02 | Qwen3-1.7B-Base | MINDsmall | Point-wise + RL | 69.69% | 34.02% | 38.02% | 44.23% | Starting point |
 
 ---
 
@@ -93,12 +99,12 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **P1.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0 | - | - | - | - | More negatives |
-| **P1.2** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | - | - | - | - | Longer training |
-| **P1.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | - | - | - | - | With abstracts (local only) |
-| **P1.4** | ⬜ Pending | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | - | - | - | - | More history |
-| **P1.5** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | - | - | - | - | Combined best |
-| **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDlarge | Default + 8B model | - | - | - | - | Scale to 8B |
+| **P1.1** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | - | - | - | - | More negatives |
+| **P1.2** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NUM_EPOCHS=7 | - | - | - | - | Longer training |
+| **P1.3** | ⬜ Pending | Qwen3-1.7B | MINDsmall | USE_ABSTRACT=1 | - | - | - | - | With abstracts (local only) |
+| **P1.4** | ⬜ Pending | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | - | - | - | - | More history |
+| **P1.5** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | - | - | - | - | Combined best |
+| **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
 
@@ -125,9 +131,9 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **M4.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.7 | - | - | - | - | 70% pointwise |
-| **M4.2** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.8 | - | - | - | - | 80% pointwise |
-| **M4.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | Two-stage: PW(2ep)+RK(3ep) | - | - | - | - | Two-stage training |
+| **M4.1** | ⬜ Pending | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7 | - | - | - | - | 70% pointwise |
+| **M4.2** | ⬜ Pending | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.8 | - | - | - | - | 80% pointwise |
+| **M4.3** | ⬜ Pending | Qwen3-1.7B | MINDsmall | Two-stage: PW(2ep)+RK(3ep) | - | - | - | - | Two-stage training |
 
 ### Phase 5: Advanced Experiments
 
@@ -151,7 +157,7 @@ After completing an experiment:
 ### Example Update:
 
 ```markdown
-| **P1.1** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0 | **69.85%** 🏆 | 33.45% | 37.89% | 43.67% | Best AUC! 8h train, checkpoint: sft_mind_pointwise_large_neg3.0 |
+| **P1.1** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | **69.85%** 🏆 | 33.45% | 37.89% | 43.67% | Best AUC! 8h train, checkpoint: sft_mind_pointwise_large_neg3.0 |
 ```
 
 ### Quick Update Template:
@@ -279,6 +285,9 @@ Copy and paste this template when updating:
 
 ### Phase 1: Point-wise SFT Commands
 
+> **Note**: Training pipeline now includes **integrated evaluation** by default (`--run-eval 1`).
+> Results are saved to `{output_root}/sft_mind_pointwise_*/eval_results/`.
+>
 > **Debug Mode**: Add `--debug` to any command to keep the container running after errors for debugging.
 
 ```bash
@@ -289,24 +298,26 @@ python3 pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-1_neg3-0 \
   --display-name "P1.1: More negatives (neg=3.0)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
   --num-epochs 5 \
   --neg-ratio 3.0 \
   --max-history 30 \
-  --use-chat-template 1
+  --use-chat-template 1 \
+  --run-eval 1 \
+  --eval-split dev
   # --debug  # Uncomment to enable debug mode
 
-# Evaluate
-python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1-1 \
-  --display-name "P1.1 Eval: neg=3.0" \
-  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg3.0_hist30/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
-  --eval-type pointwise \
-  --split dev
-  # --debug  # Uncomment to enable debug mode
+# [Optional] Re-evaluate with standalone pipeline (if needed)
+# python pipeline/run_eval_pipeline.py \
+#   --experiment-name mind_eval_p1-1 \
+#   --display-name "P1.1 Eval: neg=3.0" \
+#   --model-path shares/users/wuc/output_dir/sft_mind_pointwise_*/final_checkpoint \
+#   --data-root shares/users/wuc/data/MIND_small \
+#   --eval-type pointwise \
+#   --split dev
 
 # ============================================
 # P1.2: Longer training (NUM_EPOCHS=7)
@@ -315,23 +326,16 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-2_ep7 \
   --display-name "P1.2: Longer training (ep=7)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
   --num-epochs 7 \
   --neg-ratio 2.0 \
   --max-history 30 \
-  --use-chat-template 1
-  # --debug
-
-# Evaluate
-python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1-2 \
-  --display-name "P1.2 Eval: ep=7" \
-  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
-  --eval-type pointwise \
-  --split dev
+  --use-chat-template 1 \
+  --run-eval 1 \
+  --eval-split dev
   # --debug
 
 # ============================================
@@ -339,7 +343,7 @@ python pipeline/run_eval_pipeline.py \
 # ============================================
 # TODO: Add USE_ABSTRACT parameter to pipeline
 # For now, use local script:
-# MIND_SIZE=large USE_ABSTRACT=True USE_CHAT_TEMPLATE=1 bash scripts/sft_mind_pointwise_ds.sh
+# MIND_SIZE=small USE_ABSTRACT=True USE_CHAT_TEMPLATE=1 bash scripts/sft_mind_pointwise_ds.sh
 
 # ============================================
 # P1.4: More history (MAX_HISTORY=50)
@@ -348,24 +352,16 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-4_hist50 \
   --display-name "P1.4: More history (hist=50)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
   --num-epochs 5 \
   --neg-ratio 2.0 \
   --max-history 50 \
-  --use-chat-template 1
-  # --debug
-
-# Evaluate
-python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1-4 \
-  --display-name "P1.4 Eval: hist=50" \
-  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist50/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
-  --eval-type pointwise \
-  --split dev \
-  --max-history 50
+  --use-chat-template 1 \
+  --run-eval 1 \
+  --eval-split dev
   # --debug
 
 # ============================================
@@ -375,24 +371,16 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-5_combined \
   --display-name "P1.5: Combined best settings" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
   --num-epochs 7 \
   --neg-ratio 3.0 \
   --max-history 50 \
-  --use-chat-template 1
-  # --debug
-
-# Evaluate
-python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1-5 \
-  --display-name "P1.5 Eval: combined" \
-  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
-  --eval-type pointwise \
-  --split dev \
-  --max-history 50
+  --use-chat-template 1 \
+  --run-eval 1 \
+  --eval-split dev
   # --debug
 
 # ============================================
@@ -402,23 +390,16 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-6_8b \
   --display-name "P1.6: Scale to 8B model" \
   --model-path Qwen/Qwen3-8B-Instruct \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 1 \
   --num-epochs 5 \
   --neg-ratio 2.0 \
   --max-history 30 \
-  --use-chat-template 1
-  # --debug
-
-# Evaluate
-python pipeline/run_eval_pipeline.py \
-  --experiment-name mind_eval_p1-6 \
-  --display-name "P1.6 Eval: 8B model" \
-  --model-path shares/users/wuc/models/sft_mind_pointwise_large_Qwen3-8B-Instruct_bs256_ep5_neg2.0_hist30/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
-  --eval-type pointwise \
-  --split dev
+  --use-chat-template 1 \
+  --run-eval 1 \
+  --eval-split dev
   # --debug
 ```
 
@@ -433,20 +414,20 @@ python pipeline/run_eval_pipeline.py \
 
 # R2.1: Asymmetric reward
 MODEL_PATH=<best_phase1_checkpoint> \
-MIND_SIZE=large \
+MIND_SIZE=small \
 REWARD_TYPE=pointwise_asymmetric \
 bash scripts/rl_mind_pointwise.sh
 
 # R2.2: Lower KL penalty
 MODEL_PATH=<best_phase1_checkpoint> \
-MIND_SIZE=large \
+MIND_SIZE=small \
 REWARD_TYPE=pointwise_asymmetric \
 KL_COEF=0.05 \
 bash scripts/rl_mind_pointwise.sh
 
 # R2.3: More RL epochs
 MODEL_PATH=<best_phase1_checkpoint> \
-MIND_SIZE=large \
+MIND_SIZE=small \
 REWARD_TYPE=pointwise_asymmetric \
 TOTAL_EPOCHS=2 \
 bash scripts/rl_mind_pointwise.sh
@@ -456,7 +437,7 @@ python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_r2-x \
   --display-name "R2.x Eval: RL model" \
   --model-path shares/users/wuc/models/<rl_checkpoint>/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
   # --debug
@@ -475,7 +456,7 @@ python pipeline/run_eval_pipeline.py \
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 ALPHA=0.7 \
-MIND_SIZE=large \
+MIND_SIZE=small \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_ensemble.sh dev
 
@@ -483,7 +464,7 @@ bash scripts/eval_mind_ensemble.sh dev
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 ALPHA=0.5 \
-MIND_SIZE=large \
+MIND_SIZE=small \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_ensemble.sh dev
 
@@ -491,7 +472,7 @@ bash scripts/eval_mind_ensemble.sh dev
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 ALPHA=0.3 \
-MIND_SIZE=large \
+MIND_SIZE=small \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_ensemble.sh dev
 
@@ -499,7 +480,7 @@ bash scripts/eval_mind_ensemble.sh dev
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 TOP_K=15 \
-MIND_SIZE=large \
+MIND_SIZE=small \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_cascade.sh dev
 
@@ -507,7 +488,7 @@ bash scripts/eval_mind_cascade.sh dev
 POINTWISE_MODEL=<best_pointwise_checkpoint> \
 RANKING_MODEL=<best_ranking_checkpoint> \
 TOP_K=10 \
-MIND_SIZE=large \
+MIND_SIZE=small \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_cascade.sh dev
 ```
@@ -523,30 +504,30 @@ bash scripts/eval_mind_cascade.sh dev
 
 # M4.1: Multi-task with 70% point-wise
 POINTWISE_RATIO=0.7 \
-MIND_SIZE=large \
-DATA_ROOT=../data/MIND_large \
+MIND_SIZE=small \
+DATA_ROOT=../data/MIND_small \
 USE_CHAT_TEMPLATE=1 \
 MAX_HISTORY=30 \
 bash scripts/sft_mind_multitask.sh
 
 # M4.2: Multi-task with 80% point-wise
 POINTWISE_RATIO=0.8 \
-MIND_SIZE=large \
-DATA_ROOT=../data/MIND_large \
+MIND_SIZE=small \
+DATA_ROOT=../data/MIND_small \
 USE_CHAT_TEMPLATE=1 \
 MAX_HISTORY=30 \
 bash scripts/sft_mind_multitask.sh
 
 # M4.3: Two-stage training
 # Stage 1: Pointwise (2 epochs)
-MIND_SIZE=large \
+MIND_SIZE=small \
 NUM_EPOCHS=2 \
 USE_CHAT_TEMPLATE=1 \
 bash scripts/sft_mind_pointwise_ds.sh
 
 # Stage 2: Ranking (3 epochs)
 MODEL_PATH=<stage1_checkpoint> \
-MIND_SIZE=large \
+MIND_SIZE=small \
 NUM_EPOCHS=3 \
 USE_CHAT_TEMPLATE=1 \
 bash scripts/sft_mind_ranking.sh
@@ -556,7 +537,7 @@ python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_m4-x_pointwise \
   --display-name "M4.x Eval: multi-task (pointwise)" \
   --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
   # --debug
@@ -566,7 +547,7 @@ python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_m4-x_ranking \
   --display-name "M4.x Eval: multi-task (ranking)" \
   --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type ranking \
   --split dev
   # --debug
@@ -655,7 +636,7 @@ python pipeline/run_eval_pipeline.py \
   --experiment-name quick_eval_pointwise \
   --display-name "Quick Eval: pointwise (dev)" \
   --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
   # --debug
@@ -665,7 +646,7 @@ python pipeline/run_eval_pipeline.py \
   --experiment-name quick_eval_ranking \
   --display-name "Quick Eval: ranking (dev)" \
   --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type ranking \
   --split dev
   # --debug
@@ -675,7 +656,7 @@ python pipeline/run_eval_pipeline.py \
   --experiment-name test_eval \
   --display-name "Test Eval: submission" \
   --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split test
   # --debug
@@ -685,17 +666,17 @@ python pipeline/run_eval_pipeline.py \
 # ============================================
 
 # Point-wise evaluation (multi-GPU)
-MIND_SIZE=large USE_CHAT_TEMPLATE=1 \
+MIND_SIZE=small USE_CHAT_TEMPLATE=1 \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_pointwise.sh <checkpoint> dev
 
 # Ranking evaluation (multi-GPU)
-MIND_SIZE=large USE_CHAT_TEMPLATE=1 \
+MIND_SIZE=small USE_CHAT_TEMPLATE=1 \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 bash scripts/eval_mind_ranking.sh <checkpoint> dev
 
 # Quick test (100 impressions)
-MIND_SIZE=large USE_CHAT_TEMPLATE=1 \
+MIND_SIZE=small USE_CHAT_TEMPLATE=1 \
 bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 ```
 
@@ -723,7 +704,7 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 ### Critical Settings
 
 - **USE_CHAT_TEMPLATE=1**: Essential for instruct models (+5% AUC!)
-- **MIND_SIZE=large**: Use large dataset for SOTA attempts
+- **MIND_SIZE=small**: Use large dataset for SOTA attempts
 - **Flash Attention**: Enable for faster training/eval
 
 ---
@@ -813,30 +794,33 @@ MiniOneRec/
 ### Submit Experiment (Phase 1)
 
 ```bash
-# Example: P1.1 (More negatives)
+# Example: P1.1 (More negatives) - with integrated evaluation
 python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-1_neg3-0 \
   --display-name "P1.1: More negatives (neg=3.0)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
   --num-epochs 5 \
   --neg-ratio 3.0 \
   --max-history 30 \
-  --use-chat-template 1
+  --use-chat-template 1 \
+  --run-eval 1 \
+  --eval-split dev
   # --debug
 ```
 
-### Evaluate Experiment
+### Re-evaluate Experiment (Optional)
 
 ```bash
-# Example: Evaluate P1.1
+# Use standalone eval pipeline only if re-evaluation is needed
 python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_p1-1 \
   --display-name "P1.1 Eval: neg=3.0" \
-  --model-path shares/users/wuc/models/[checkpoint_name]/final_checkpoint \
-  --data-root shares/users/wuc/data/MIND_large \
+  --model-path shares/users/wuc/output_dir/sft_mind_pointwise_*/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
   # --debug
@@ -856,4 +840,4 @@ When an experiment is completed, copy the row from active table to "Completed Ex
 
 ---
 
-*Last updated: 2026-02-26*
+*Last updated: 2026-02-27*

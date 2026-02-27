@@ -207,6 +207,8 @@ def main():
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
     parser.add_argument("--debug-mode", help="调试模式 (true/false)")
     parser.add_argument("--output-root", help="输出目录根路径（相对于挂载路径）")
+    parser.add_argument("--run-eval", help="训练后是否运行评估 (1/0)")
+    parser.add_argument("--eval-split", help="评估数据集 (dev/test)")
 
     args = parser.parse_args()
 
@@ -231,6 +233,12 @@ def main():
         cli_variables['output_root'] = f"{args.mount_dir}/{args.output_root}"
     elif args.output_root:
         cli_variables['output_root'] = args.output_root
+
+    # 评估参数
+    if args.run_eval:
+        cli_variables['run_eval'] = args.run_eval
+    if args.eval_split:
+        cli_variables['eval_split'] = args.eval_split
 
     debug_mode = bool(args.debug_mode and args.debug_mode.lower() in ('true', '1', 'yes'))
 

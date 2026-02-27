@@ -116,6 +116,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MIND Model Evaluation Pipeline 提交脚本")
     parser.add_argument("--experiment-name", default="mind_evaluation",
                         help="AML experiment 名称 (default: mind_evaluation)")
+    parser.add_argument("--display-name", default=None,
+                        help="Job 显示名称，支持空格和特殊字符 (default: auto-generated)")
     parser.add_argument("--model-path", required=True,
                         help="模型checkpoint路径（相对于 datastore 挂载路径）")
     parser.add_argument("--data-root", default="shares/users/wuc/data/MIND_small",
@@ -161,6 +163,8 @@ if __name__ == "__main__":
     # Pipeline-level settings
     job.settings.default_compute = VC_ARM_ID
     job.experiment_name = args.experiment_name
+    if args.display_name:
+        job.display_name = args.display_name
 
     # Submit job
     created = ml_client.jobs.create_or_update(job)
@@ -171,6 +175,7 @@ if __name__ == "__main__":
     print(f"Run ID:            {created.name}")
     print(f"Studio URL:        {created.studio_url}")
     print(f"Experiment:        {args.experiment_name}")
+    print(f"Display Name:      {args.display_name or created.display_name}")
     print(f"Model Path:        {args.model_path}")
     print(f"Data Root:         {args.data_root}")
     print(f"Eval Type:         {args.eval_type}")

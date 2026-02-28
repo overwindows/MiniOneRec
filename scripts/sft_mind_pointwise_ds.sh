@@ -108,7 +108,13 @@ CUTOFF_LEN=${CUTOFF_LEN:-2048}
 NUM_EPOCHS=${NUM_EPOCHS:-5}
 MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-2.0}
-USE_ABSTRACT=${USE_ABSTRACT:-False}
+USE_ABSTRACT=${USE_ABSTRACT:-0}
+# Convert 1/0 to True/False for Python
+if [[ "$USE_ABSTRACT" == "1" || "$USE_ABSTRACT" == "True" || "$USE_ABSTRACT" == "true" ]]; then
+    USE_ABSTRACT="True"
+else
+    USE_ABSTRACT="False"
+fi
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Set to 1 for instruct models (e.g., Qwen3-1.7B, Qwen3-4B-Instruct)
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-}  # Will be set after OUTPUT_NAME is constructed
 DS_CONFIG=${DS_CONFIG:-ds_configs/ds_config_zero2.json}

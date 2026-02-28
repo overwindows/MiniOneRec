@@ -42,6 +42,10 @@ inputs:
     type: integer
     default: 1
     description: 是否使用chat template (1=是, 0=否)
+  use_abstract:
+    type: integer
+    default: 0
+    description: 是否使用新闻摘要 (1=是, 0=否)
   debug_mode:
     type: string
     default: "false"
@@ -74,6 +78,7 @@ command: >-
   --neg-ratio ${{inputs.neg_ratio}}
   --max-history ${{inputs.max_history}}
   --use-chat-template ${{inputs.use_chat_template}}
+  --use-abstract ${{inputs.use_abstract}}
   --debug-mode ${{inputs.debug_mode}}
   --output-root ${{inputs.output_root}}
   --run-eval ${{inputs.run_eval}}

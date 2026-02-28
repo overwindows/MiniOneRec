@@ -27,6 +27,7 @@ This experiment plan has been updated to use **Azure ML pipelines** for scalable
 - `--output-root`: Model output directory (default: `shares/users/wuc/output_dir`)
 - `--run-eval`: Run evaluation after training (default: 1)
 - `--eval-split`: Evaluation split - dev/test (default: dev)
+- `--use-abstract`: Use news abstracts in addition to titles (default: 0)
 
 **Coming Soon:**
 - Multi-task training pipeline
@@ -177,7 +178,7 @@ Copy and paste this template when updating:
 |------------|-------------------|---------------|-------|
 | **P1.1** | ✅ Training + Eval | ✅ Available | Full pipeline support |
 | **P1.2** | ✅ Training + Eval | ✅ Available | Full pipeline support |
-| **P1.3** | ❌ Training / ✅ Eval | ✅ Required | Abstract parameter not in pipeline |
+| **P1.3** | ✅ Training + Eval | ✅ Available | Full pipeline support (use_abstract) |
 | **P1.4** | ✅ Training + Eval | ✅ Available | Full pipeline support |
 | **P1.5** | ✅ Training + Eval | ✅ Available | Full pipeline support |
 | **P1.6** | ✅ Training + Eval | ✅ Available | Full pipeline support (8B model) |
@@ -340,11 +341,24 @@ python pipeline/run_pipeline.py \
   # --debug
 
 # ============================================
-# P1.3: Add abstracts (Note: requires pipeline update)
+# P1.3: Add abstracts (USE_ABSTRACT=1)
 # ============================================
-# TODO: Add USE_ABSTRACT parameter to pipeline
-# For now, use local script:
-# MIND_SIZE=small USE_ABSTRACT=True USE_CHAT_TEMPLATE=1 bash scripts/sft_mind_pointwise_ds.sh
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1-3_abstract \
+  --display-name "P1.3: With abstracts" \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-chat-template 1 \
+  --use-abstract 1 \
+  --run-eval 1 \
+  --eval-split dev
+  # --debug
 
 # ============================================
 # P1.4: More history (MAX_HISTORY=50)

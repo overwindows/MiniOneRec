@@ -205,6 +205,7 @@ def main():
     parser.add_argument("--neg-ratio", help="负样本比例")
     parser.add_argument("--max-history", help="最大历史记录长度")
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
+    parser.add_argument("--use-abstract", help="是否使用新闻摘要 (1/0)")
     parser.add_argument("--debug-mode", help="调试模式 (true/false)")
     parser.add_argument("--output-root", help="输出目录根路径（相对于挂载路径）")
     parser.add_argument("--run-eval", help="训练后是否运行评估 (1/0)")
@@ -220,6 +221,7 @@ def main():
         'neg_ratio': args.neg_ratio,
         'max_history': args.max_history,
         'use_chat_template': args.use_chat_template,
+        'use_abstract': args.use_abstract,
     }
 
     # 合成完整的 data_root 路径

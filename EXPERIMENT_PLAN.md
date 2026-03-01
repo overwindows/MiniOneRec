@@ -451,7 +451,7 @@ bash scripts/rl_mind_pointwise.sh
 python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_r2-x \
   --display-name "R2.x Eval: RL model" \
-  --model-path shares/users/wuc/models/<rl_checkpoint>/final_checkpoint \
+  --model-path shares/users/wuc/output_dir/<rl_checkpoint>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
@@ -551,7 +551,7 @@ bash scripts/sft_mind_ranking.sh
 python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_m4-x_pointwise \
   --display-name "M4.x Eval: multi-task (pointwise)" \
-  --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
+  --model-path shares/users/wuc/output_dir/<multitask_checkpoint>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
@@ -561,7 +561,7 @@ python pipeline/run_eval_pipeline.py \
 python pipeline/run_eval_pipeline.py \
   --experiment-name mind_eval_m4-x_ranking \
   --display-name "M4.x Eval: multi-task (ranking)" \
-  --model-path shares/users/wuc/models/<multitask_checkpoint>/final_checkpoint \
+  --model-path shares/users/wuc/output_dir/<multitask_checkpoint>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_small \
   --eval-type ranking \
   --split dev
@@ -716,6 +716,47 @@ python pipeline/run_cot_rl_pipeline.py \
 -
 ```
 
+### Finding the Best Checkpoint
+
+Training creates multiple checkpoint folders. Here's how to find and use the best one:
+
+**Checkpoint Types:**
+| Folder | Description | When Created |
+|--------|-------------|--------------|
+| `checkpoint-512`, `checkpoint-1024`, ... | Intermediate checkpoints | Every N steps during training |
+| `final_checkpoint` | Best model (if `load_best_model_at_end=True`) | End of training (new scripts only) |
+
+**Option 1: Check `best_model_checkpoint` in trainer_state.json** (Recommended)
+
+```bash
+# Find the last checkpoint
+LAST_CKPT=$(ls -d output_dir/sft_mind_pointwise_xxx/checkpoint-* | sort -t- -k2 -n | tail -1)
+
+# Get the best checkpoint path
+grep "best_model_checkpoint" "$LAST_CKPT/trainer_state.json"
+# Output: "best_model_checkpoint": "/path/to/checkpoint-1536"
+```
+
+**Option 2: Compare eval_loss across checkpoints**
+
+```bash
+for ckpt in output_dir/sft_mind_pointwise_xxx/checkpoint-*/trainer_state.json; do
+  loss=$(grep -o '"eval_loss": [0-9.]*' "$ckpt" | tail -1 | grep -o '[0-9.]*')
+  echo "$(dirname $ckpt): eval_loss=$loss"
+done | sort -t= -k2 -n | head -5
+```
+
+**Note:** Both `checkpoint-xxxx` and `final_checkpoint` folders work for evaluation. Just pass the checkpoint path directly:
+
+```bash
+# Using intermediate checkpoint (works fine!)
+python pipeline/run_eval_pipeline.py \
+  --model-path shares/users/wuc/output_dir/sft_mind_pointwise_xxx/checkpoint-1024 \
+  --use-chat-template 1
+```
+
+---
+
 ### Quick Evaluation Commands
 
 ```bash
@@ -727,7 +768,7 @@ python pipeline/run_cot_rl_pipeline.py \
 python pipeline/run_eval_pipeline.py \
   --experiment-name quick_eval_pointwise \
   --display-name "Quick Eval: pointwise (dev)" \
-  --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
+  --model-path shares/users/wuc/output_dir/<checkpoint_name>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split dev
@@ -737,7 +778,7 @@ python pipeline/run_eval_pipeline.py \
 python pipeline/run_eval_pipeline.py \
   --experiment-name quick_eval_ranking \
   --display-name "Quick Eval: ranking (dev)" \
-  --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
+  --model-path shares/users/wuc/output_dir/<checkpoint_name>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_small \
   --eval-type ranking \
   --split dev
@@ -747,7 +788,7 @@ python pipeline/run_eval_pipeline.py \
 python pipeline/run_eval_pipeline.py \
   --experiment-name test_eval \
   --display-name "Test Eval: submission" \
-  --model-path shares/users/wuc/models/<checkpoint_name>/final_checkpoint \
+  --model-path shares/users/wuc/output_dir/<checkpoint_name>/final_checkpoint \
   --data-root shares/users/wuc/data/MIND_small \
   --eval-type pointwise \
   --split test
@@ -932,4 +973,4 @@ When an experiment is completed, copy the row from active table to "Completed Ex
 
 ---
 
-*Last updated: 2026-02-27*
+*Last updated: 2026-03-01*

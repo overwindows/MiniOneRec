@@ -212,12 +212,13 @@ def train(
     # Train
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 
-    # Save final model
-    model.save_pretrained(os.path.join(output_dir, "final_checkpoint"))
-    tokenizer.save_pretrained(os.path.join(output_dir, "final_checkpoint"))
+    # Save final model (use trainer.save_model for proper DeepSpeed ZeRO handling)
+    final_checkpoint_path = os.path.join(output_dir, "final_checkpoint")
+    trainer.save_model(final_checkpoint_path)
+    tokenizer.save_pretrained(final_checkpoint_path)
 
     print(f"\n✓ Point-wise SFT training completed!")
-    print(f"  Model saved to: {output_dir}/final_checkpoint")
+    print(f"  Model saved to: {final_checkpoint_path}")
     print(f"\nTo evaluate:")
     print(f"  bash scripts/eval_mind_pointwise.sh {output_dir}/final_checkpoint dev")
 

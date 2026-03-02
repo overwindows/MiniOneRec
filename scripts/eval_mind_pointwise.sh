@@ -65,6 +65,12 @@ if [[ -z "${MIND_ROOT:-}" ]]; then
     MIND_ROOT="../data/MIND"
   fi
 fi
+# Use MiniOneRec conda env python if available, otherwise fall back to system python
+PYTHON="${PYTHON:-/home/aiscuser/.conda/envs/MiniOneRec/bin/python}"
+if [[ ! -x "${PYTHON}" ]]; then
+  PYTHON="python"
+fi
+
 USE_ABSTRACT="${USE_ABSTRACT:-0}"
 MAX_HISTORY="${MAX_HISTORY:-0}"  # 0 = no limit (use all history)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
@@ -126,7 +132,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
   # Split behaviors across GPUs
   echo "Splitting behaviors across GPUs..."
-  python src/split_mind.py \
+  "${PYTHON}" src/split_mind.py \
     --input_path "${BEHAVIORS_PATH}" \
     --output_path "${TEMP_DIR}" \
     --cuda_list "${CUDA_LIST}"
@@ -147,7 +153,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
     echo "[GPU $gpu_id] Starting evaluation"
 
     # Build command
-    cmd="CUDA_VISIBLE_DEVICES=$gpu_id python -u src/evaluate_mind_pointwise.py \
+    cmd="CUDA_VISIBLE_DEVICES=$gpu_id \"${PYTHON}\" -u src/evaluate_mind_pointwise.py \
       --model_path \"${MODEL_PATH}\" \
       --behaviors_path \"${TEMP_DIR}/${gpu_id}.tsv\" \
       --news_path \"${NEWS_PATH}\" \
@@ -213,7 +219,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   echo "Merging predictions..."
   actual_cuda_list=$(ls "${TEMP_DIR}"/*.txt 2>/dev/null | sed 's/.*\///g' | sed 's/\.txt//g' | tr '\n' ',' | sed 's/,$//')
 
-  python src/merge_mind.py \
+  "${PYTHON}" src/merge_mind.py \
     --input_path "${TEMP_DIR}" \
     --output_path "${OUTPUT_FILE}" \
     --cuda_list "${actual_cuda_list}" \
@@ -229,7 +235,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   if [[ "${SPLIT}" == "dev" ]] && [[ -f "${BEHAVIORS_PATH}" ]]; then
     echo ""
     echo "Calculating metrics from predictions..."
-    python src/calc_mind_metrics.py \
+    "${PYTHON}" src/calc_mind_metrics.py \
       --predictions "${OUTPUT_FILE}" \
       --behaviors "${BEHAVIORS_PATH}"
   elif [[ "${SPLIT}" == "test" ]]; then
@@ -247,7 +253,7 @@ else
   echo ""
 
   # Build command
-  CMD="python src/evaluate_mind_pointwise.py \
+  CMD="${PYTHON} src/evaluate_mind_pointwise.py \
     --model_path ${MODEL_PATH} \
     --behaviors_path ${BEHAVIORS_PATH} \
     --news_path ${NEWS_PATH} \

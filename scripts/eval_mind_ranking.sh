@@ -65,6 +65,12 @@ if [[ -z "${MIND_ROOT:-}" ]]; then
     MIND_ROOT="../data/MIND"
   fi
 fi
+# Use MiniOneRec conda env python if available, otherwise fall back to system python
+PYTHON="${PYTHON:-/home/aiscuser/.conda/envs/MiniOneRec/bin/python}"
+if [[ ! -x "${PYTHON}" ]]; then
+  PYTHON="python"
+fi
+
 USE_ABSTRACT="${USE_ABSTRACT:-0}"
 MAX_HISTORY="${MAX_HISTORY:-30}"  # Default to 30 to match training
 NEG_RATIO="${NEG_RATIO:-4.0}"  # Default to 4.0 to match training (set to 0 for full evaluation)
@@ -125,7 +131,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
   # Split behaviors across GPUs
   echo "Splitting behaviors across GPUs..."
-  python split_mind.py \
+  "${PYTHON}" split_mind.py \
     --input_path "${BEHAVIORS_PATH}" \
     --output_path "${TEMP_DIR}" \
     --cuda_list "${CUDA_LIST}"
@@ -146,7 +152,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
     echo "[GPU $gpu_id] Starting evaluation"
 
     # Build command
-    cmd="CUDA_VISIBLE_DEVICES=$gpu_id python -u evaluate_mind_ranking.py \
+    cmd="CUDA_VISIBLE_DEVICES=$gpu_id \"${PYTHON}\" -u evaluate_mind_ranking.py \
       --model_path \"${MODEL_PATH}\" \
       --behaviors_path \"${TEMP_DIR}/${gpu_id}.tsv\" \
       --news_path \"${NEWS_PATH}\" \
@@ -208,7 +214,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   echo "Merging predictions..."
   actual_cuda_list=$(ls "${TEMP_DIR}"/*.txt 2>/dev/null | sed 's/.*\///g' | sed 's/\.txt//g' | tr '\n' ',' | sed 's/,$//')
 
-  python merge_mind.py \
+  "${PYTHON}" merge_mind.py \
     --input_path "${TEMP_DIR}" \
     --output_path "${OUTPUT_FILE}" \
     --cuda_list "${actual_cuda_list}" \
@@ -224,7 +230,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   if [[ "${SPLIT}" == "dev" ]] && [[ -f "${BEHAVIORS_PATH}" ]]; then
     echo ""
     echo "Calculating metrics from predictions..."
-    python calc_mind_metrics.py \
+    "${PYTHON}" calc_mind_metrics.py \
       --predictions "${OUTPUT_FILE}" \
       --behaviors "${BEHAVIORS_PATH}"
   elif [[ "${SPLIT}" == "test" ]]; then
@@ -242,7 +248,7 @@ else
   echo ""
 
   # Build command
-  CMD="python evaluate_mind_ranking.py \
+  CMD="${PYTHON} evaluate_mind_ranking.py \
     --model_path ${MODEL_PATH} \
     --behaviors_path ${BEHAVIORS_PATH} \
     --news_path ${NEWS_PATH} \

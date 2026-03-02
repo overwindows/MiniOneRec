@@ -341,13 +341,13 @@ python pipeline/run_pipeline.py \
   # --debug
 
 # [Optional] Re-evaluate with standalone pipeline (if needed)
-# python pipeline/run_eval_pipeline.py \
-#   --experiment-name mind_sft_p1-2_ep7 \
-#   --display-name "P1.2: Longer training (ep=7)" \
-#   --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat/final_checkpoint \
-#   --data-root shares/users/wuc/data/MIND_small \
-#   --eval-type pointwise \
-#   --split dev
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_sft_p1-2_ep7 \
+  --display-name "P1.2: Longer training (ep=7)" \
+  --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --eval-type pointwise \
+  --split dev
 
 # ============================================
 # P1.3: Add abstracts (USE_ABSTRACT=1)
@@ -387,6 +387,15 @@ python pipeline/run_pipeline.py \
   --run-eval 1 \
   --eval-split dev
   # --debug
+
+# [Optional] Re-evaluate with standalone pipeline (if needed)
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_sft_p1-4_hist50 \
+  --display-name "P1.4: More history (hist=50)" \
+  --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist50_chat/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --eval-type pointwise \
+  --split dev
 
 # ============================================
 # P1.5: Combined best settings

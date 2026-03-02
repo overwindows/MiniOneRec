@@ -55,7 +55,9 @@ fi
 # Configuration
 MIND_SIZE="${MIND_SIZE:-small}"
 if [[ -z "${MIND_ROOT:-}" ]]; then
-  if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
+  if [[ -n "${DATA_ROOT:-}" ]]; then
+    MIND_ROOT="${DATA_ROOT}"
+  elif [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
     MIND_ROOT="../data/MIND_large"
   elif [[ "${MIND_SIZE}" == "small" && -d "../data/MIND_small" ]]; then
     MIND_ROOT="../data/MIND_small"

@@ -142,6 +142,9 @@ EVAL_NEWS=${DATA_ROOT}/dev/news.tsv
 # Output directory (configurable)
 MODEL_BASENAME=$(basename ${MODEL_PATH})
 OUTPUT_NAME="sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}_hist${MAX_HISTORY}"
+if [[ "${USE_ABSTRACT}" == "True" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_abstract"
+fi
 if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_chat"
 fi

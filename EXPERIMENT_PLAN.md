@@ -300,7 +300,7 @@ python3 pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-1_neg3-0 \
   --display-name "P1.1: More negatives (neg=3.0)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_small \
+  --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -328,7 +328,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-2_ep7 \
   --display-name "P1.2: Longer training (ep=7)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_small \
+  --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -356,7 +356,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-3_abstract \
   --display-name "P1.3: With abstracts" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_small \
+  --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -386,7 +386,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-4_hist50 \
   --display-name "P1.4: More history (hist=50)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_small \
+  --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -414,7 +414,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-5_combined \
   --display-name "P1.5: Combined best settings" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_small \
+  --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -442,7 +442,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-6_8b \
   --display-name "P1.6: Scale to 8B model" \
   --model-path Qwen/Qwen3-8B-Instruct \
-  --data-root shares/users/wuc/data/MIND_small \
+  --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 1 \

@@ -300,7 +300,7 @@ python3 pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-1_neg3-0 \
   --display-name "P1.1: More negatives (neg=3.0)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -313,13 +313,13 @@ python3 pipeline/run_pipeline.py \
   # --debug  # Uncomment to enable debug mode
 
 # [Optional] Re-evaluate with standalone pipeline (if needed)
-# python pipeline/run_eval_pipeline.py \
-#   --experiment-name mind_eval_p1-1 \
-#   --display-name "P1.1 Eval: neg=3.0" \
-#   --model-path shares/users/wuc/output_dir/sft_mind_pointwise_*/final_checkpoint \
-#   --data-root shares/users/wuc/data/MIND_small \
-#   --eval-type pointwise \
-#   --split dev
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_sft_p1-1_neg3-0 \
+  --display-name "P1.1: More negatives (neg=3.0)" \
+  --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg3.0_hist30_chat/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --eval-type pointwise \
+  --split dev
 
 # ============================================
 # P1.2: Longer training (NUM_EPOCHS=7)
@@ -328,7 +328,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-2_ep7 \
   --display-name "P1.2: Longer training (ep=7)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -356,7 +356,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-3_abstract \
   --display-name "P1.3: With abstracts" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -386,7 +386,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-4_hist50 \
   --display-name "P1.4: More history (hist=50)" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -414,7 +414,7 @@ python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-5_combined \
   --display-name "P1.5: Combined best settings" \
   --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
+  --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 4 \
@@ -441,8 +441,8 @@ python pipeline/run_eval_pipeline.py \
 python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-6_8b \
   --display-name "P1.6: Scale to 8B model" \
-  --model-path Qwen/Qwen3-8B-Instruct \
-  --data-root shares/users/wuc/data/MIND_large \
+  --model-path Qwen/Qwen3-8B \
+  --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
   --micro-batch-size 1 \

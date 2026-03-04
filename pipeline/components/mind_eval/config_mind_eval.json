@@ -34,7 +34,7 @@
     {
       "name": "启动模型评估",
       "description": "根据 eval_type 选择 pointwise 或 ranking 评估",
-      "command": "if [ \"{eval_type}\" = \"pointwise\" ]; then CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} bash scripts/eval_mind_pointwise.sh {model_path} {split}; else CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} bash scripts/eval_mind_ranking.sh {model_path} {split}; fi",
+      "command": "EVAL_OUTPUT_DIR=$(dirname {model_path})/eval_results && mkdir -p $EVAL_OUTPUT_DIR && if [ \"{eval_type}\" = \"pointwise\" ]; then CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} OUTPUT_FILE=$EVAL_OUTPUT_DIR/{split}_pointwise_predictions.txt bash scripts/eval_mind_pointwise.sh {model_path} {split}; else CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} OUTPUT_FILE=$EVAL_OUTPUT_DIR/{split}_ranking_predictions.txt bash scripts/eval_mind_ranking.sh {model_path} {split}; fi && echo \"=== 评估结果已保存到 $EVAL_OUTPUT_DIR/ ===\"",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {

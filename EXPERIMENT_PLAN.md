@@ -369,6 +369,16 @@ python pipeline/run_pipeline.py \
   --eval-split dev
   # --debug
 
+# [Optional] Re-evaluate with standalone pipeline (if needed)
+# Note: checkpoint folder includes "_abstract" suffix due to USE_ABSTRACT=1
+# python pipeline/run_eval_pipeline.py \
+#   --experiment-name mind_sft_p1-3_abstract \
+#   --display-name "P1.3: With abstracts" \
+#   --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
+#   --data-root shares/users/wuc/data/MIND_small \
+#   --eval-type pointwise \
+#   --split dev
+
 # ============================================
 # P1.4: More history (MAX_HISTORY=50)
 # ============================================
@@ -415,6 +425,15 @@ python pipeline/run_pipeline.py \
   --run-eval 1 \
   --eval-split dev
   # --debug
+
+# [Optional] Re-evaluate with standalone pipeline (if needed)
+python pipeline/run_eval_pipeline.py \
+  --experiment-name mind_sft_p1-5_combined \
+  --display-name "P1.5: Combined best settings" \
+  --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat/final_checkpoint \
+  --data-root shares/users/wuc/data/MIND_small \
+  --eval-type pointwise \
+  --split dev
 
 # ============================================
 # P1.6: Scale to 8B model

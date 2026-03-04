@@ -102,10 +102,10 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
 | **P1.1** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | - | - | - | - | More negatives |
-| **P1.2** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NUM_EPOCHS=7 | - | - | - | - | Longer training |
+| **P1.2** | ✅ Completed | Qwen3-1.7B | MINDsmall | NUM_EPOCHS=7 | 0.6886 | 0.3363 | 0.3738 | 0.4345 | Longer training |
 | **P1.3** | ⬜ Pending | Qwen3-1.7B | MINDsmall | USE_ABSTRACT=1 | - | - | - | - | With abstracts (local only) |
-| **P1.4** | ⬜ Pending | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | - | - | - | - | More history |
-| **P1.5** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | - | - | - | - | Combined best |
+| **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history |
+| **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best |
 | **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed

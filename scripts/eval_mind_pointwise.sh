@@ -72,6 +72,7 @@ if [[ ! -x "${PYTHON}" ]]; then
 fi
 
 USE_ABSTRACT="${USE_ABSTRACT:-0}"
+USE_SUBCATEGORY="${USE_SUBCATEGORY:-0}"
 MAX_HISTORY="${MAX_HISTORY:-0}"  # 0 = no limit (use all history)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
 FLASH_ATTN="${FLASH_ATTN:-1}"  # Use Flash Attention 2 by default
@@ -163,6 +164,10 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
       cmd="${cmd} --use_abstract"
+    fi
+
+    if [[ "${USE_SUBCATEGORY}" -eq 1 ]]; then
+      cmd="${cmd} --use_subcategory"
     fi
 
     if [[ "${FLASH_ATTN}" -eq 1 ]]; then
@@ -262,6 +267,10 @@ else
 
   if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
     CMD="${CMD} --use_abstract"
+  fi
+
+  if [[ "${USE_SUBCATEGORY}" -eq 1 ]]; then
+    CMD="${CMD} --use_subcategory"
   fi
 
   if [[ -n "${MAX_IMPRESSIONS}" ]] && [[ "${MAX_IMPRESSIONS}" -gt 0 ]]; then

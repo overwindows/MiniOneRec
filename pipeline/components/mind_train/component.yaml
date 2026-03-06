@@ -46,6 +46,10 @@ inputs:
     type: integer
     default: 0
     description: 是否使用新闻摘要 (1=是, 0=否)
+  use_subcategory:
+    type: integer
+    default: 0
+    description: 是否在提示中使用子类别 (1=是, 0=否)
   debug_mode:
     type: string
     default: "false"
@@ -79,6 +83,7 @@ command: >-
   --max-history ${{inputs.max_history}}
   --use-chat-template ${{inputs.use_chat_template}}
   --use-abstract ${{inputs.use_abstract}}
+  --use-subcategory ${{inputs.use_subcategory}}
   --debug-mode ${{inputs.debug_mode}}
   --output-root ${{inputs.output_root}}
   --run-eval ${{inputs.run_eval}}

@@ -183,6 +183,7 @@ class MINDPointwiseSFTDataset:
         neg_ratio: float = 1.0,  # Ratio of negatives to positives per impression
         use_abstract: bool = False,
         use_chat_template: bool = False,  # Use chat template for instruct models
+        use_subcategory: bool = False,  # Include subcategory in [cat/subcat] format
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -190,6 +191,7 @@ class MINDPointwiseSFTDataset:
         self.neg_ratio = neg_ratio
         self.use_abstract = use_abstract
         self.use_chat_template = use_chat_template
+        self.use_subcategory = use_subcategory
         self.seed = seed
 
         # Load news articles
@@ -223,7 +225,8 @@ class MINDPointwiseSFTDataset:
 
                 news[news_id] = {
                     'text': text,
-                    'category': category
+                    'category': category,
+                    'subcategory': parts[2] if len(parts) > 2 else "",
                 }
         return news
 
@@ -370,6 +373,32 @@ class MINDPointwiseSFTDataset:
 
         return prompt, target
 
+    def _build_pointwise_prompt_subcategory(self, history, candidate, label):
+        """
+        Variant of _build_pointwise_prompt that uses [category/subcategory] format.
+        """
+        def _fmt(item):
+            cat = item.get('category', 'General')
+            subcat = item.get('subcategory', '')
+            return f"{cat}/{subcat}" if subcat else cat
+
+        prompt = "A user read these news articles:\n"
+        if history:
+            recent_history = history[-30:] if len(history) > 30 else history
+            for i, h in enumerate(recent_history, 1):
+                prompt += f"{i}. [{_fmt(h)}] {h['text']}\n"
+        else:
+            prompt += "(No reading history)\n"
+
+        prompt += "\n"
+        prompt += "Candidate article:\n"
+        prompt += f"[{_fmt(candidate)}] {candidate['text']}\n"
+        prompt += "\n"
+        prompt += "Will this user read this article? Answer:"
+
+        target = " Yes" if label == 1 else " No"
+        return prompt, target
+
     def __len__(self):
         return len(self.samples)
 
@@ -377,7 +406,8 @@ class MINDPointwiseSFTDataset:
         sample = self.samples[idx]
 
         # Build prompt
-        prompt, target = self._build_pointwise_prompt(
+        build_fn = self._build_pointwise_prompt_subcategory if self.use_subcategory else self._build_pointwise_prompt
+        prompt, target = build_fn(
             sample['history'],
             sample['candidate'],
             sample['label']

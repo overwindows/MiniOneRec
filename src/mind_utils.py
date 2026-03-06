@@ -51,6 +51,7 @@ def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str,
             news[news_id] = {
                 "text": text,
                 "category": category,
+                "subcategory": parts[2] if len(parts) > 2 else "",
                 "title": title,
             }
     return news
@@ -105,6 +106,59 @@ def build_pointwise_prompt(
             "You are a news recommendation assistant. "
             "Based on a user's reading history, predict whether they will read a given article. "
             "Each article includes its category and title. "
+            "Answer with Yes or No."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content}
+        ]
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+    return content
+
+
+def build_pointwise_prompt_subcategory(
+    history: List[Dict[str, str]],
+    candidate: Dict[str, str],
+    tokenizer=None,
+    use_chat_template: bool = False
+) -> str:
+    """
+    Build pointwise Yes/No prompt with [category/subcategory] format.
+
+    Identical to build_pointwise_prompt but exposes subcategory for finer-grained
+    user interest signals (e.g., [Sports/NBA] instead of [Sports]).
+    """
+    def _fmt(item: Dict[str, str]) -> str:
+        cat = item.get("category", "General")
+        subcat = item.get("subcategory", "")
+        return f"{cat}/{subcat}" if subcat else cat
+
+    content = "A user read these news articles:\n"
+    if history:
+        recent_history = history[-30:] if len(history) > 30 else history
+        for i, h in enumerate(recent_history, 1):
+            content += f"{i}. [{_fmt(h)}] {h['text']}\n"
+    else:
+        content += "(No reading history)\n"
+
+    content += "\n"
+    content += "Candidate article:\n"
+    content += f"[{_fmt(candidate)}] {candidate['text']}\n"
+    content += "\n"
+    content += "Will this user read this article? Answer:"
+
+    if use_chat_template:
+        if tokenizer is None:
+            raise ValueError("tokenizer must be provided when use_chat_template=True")
+        system_prompt = (
+            "You are a news recommendation assistant. "
+            "Based on a user's reading history, predict whether they will read a given article. "
+            "Each article includes its category, subcategory and title. "
             "Answer with Yes or No."
         )
         messages = [

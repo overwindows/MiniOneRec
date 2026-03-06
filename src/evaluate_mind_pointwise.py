@@ -35,6 +35,7 @@ from tqdm import tqdm
 from mind_utils import (
     load_news,
     build_pointwise_prompt,
+    build_pointwise_prompt_subcategory,
     parse_behaviors_line,
     auc_score,
     mrr_score,
@@ -61,6 +62,7 @@ def batch_score_candidates_pointwise(
     no_token_id: int,
     batch_size: int = 8,
     use_chat_template: bool = False,
+    use_subcategory: bool = False,
 ) -> List[float]:
     """
     Score multiple candidates in batches for efficiency.
@@ -69,8 +71,9 @@ def batch_score_candidates_pointwise(
         List of scores for each candidate
     """
     # Build all prompts
+    prompt_fn = build_pointwise_prompt_subcategory if use_subcategory else build_pointwise_prompt
     prompts = [
-        build_pointwise_prompt(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
+        prompt_fn(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
         for cand in candidates
     ]
 
@@ -122,6 +125,7 @@ def main():
     parser.add_argument("--behaviors_path", required=True)
     parser.add_argument("--news_path", required=True)
     parser.add_argument("--use_abstract", action="store_true")
+    parser.add_argument("--use_subcategory", action="store_true", help="Use [category/subcategory] format in prompts")
     parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for scoring candidates")
@@ -239,7 +243,8 @@ def main():
             # Score all candidates using batched point-wise scoring
             scores = batch_score_candidates_pointwise(
                 model, tokenizer, history_objs, candidate_objs, device,
-                yes_token_id, no_token_id, args.batch_size, args.use_chat_template
+                yes_token_id, no_token_id, args.batch_size, args.use_chat_template,
+                args.use_subcategory
             )
 
             # Compute metrics (only if we have positive labels)

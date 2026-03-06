@@ -85,6 +85,7 @@ def mind_train_pipeline(
     max_history: int = 30,
     use_chat_template: int = 1,
     use_abstract: int = 0,
+    use_subcategory: int = 0,
     debug_mode: str = "false",
     run_eval: int = 1,
     eval_split: str = "dev",
@@ -103,6 +104,7 @@ def mind_train_pipeline(
         max_history: 最大历史记录长度 (default: 30)
         use_chat_template: 是否使用 chat template (1=是, 0=否) (default: 1)
         use_abstract: 是否使用新闻摘要 (1=是, 0=否) (default: 0)
+        use_subcategory: 是否在提示中使用子类别 (1=是, 0=否) (default: 0)
         debug_mode: 调试模式 (true/false) - 出错继续 + sleep infinity (default: false)
         run_eval: 训练后是否运行评估 (1=是, 0=否) (default: 1)
         eval_split: 评估数据集 (dev/test) (default: dev)
@@ -120,6 +122,7 @@ def mind_train_pipeline(
         max_history=max_history,
         use_chat_template=use_chat_template,
         use_abstract=use_abstract,
+        use_subcategory=use_subcategory,
         debug_mode=debug_mode,
         run_eval=run_eval,
         eval_split=eval_split,
@@ -159,6 +162,8 @@ if __name__ == "__main__":
                         help="是否使用 chat template, 1=是 0=否 (default: 1)")
     parser.add_argument("--use-abstract", type=int, default=0, choices=[0, 1],
                         help="是否使用新闻摘要, 1=是 0=否 (default: 0)")
+    parser.add_argument("--use-subcategory", type=int, default=0, choices=[0, 1],
+                        help="是否在提示中使用子类别, 1=是 0=否 (default: 0)")
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun",
                         help="Datastore 名称 (default: adls_msn_dni_09_rankfun)")
     parser.add_argument("--debug", action="store_true",
@@ -188,6 +193,7 @@ if __name__ == "__main__":
         max_history=args.max_history,
         use_chat_template=args.use_chat_template,
         use_abstract=args.use_abstract,
+        use_subcategory=args.use_subcategory,
         debug_mode=debug_mode,
         run_eval=args.run_eval,
         eval_split=args.eval_split,
@@ -219,6 +225,7 @@ if __name__ == "__main__":
     print(f"Max History:       {args.max_history}")
     print(f"Use Chat Template: {args.use_chat_template}")
     print(f"Use Abstract:      {args.use_abstract}")
+    print(f"Use Subcategory:   {args.use_subcategory}")
     print(f"Run Eval:          {args.run_eval}")
     print(f"Eval Split:        {args.eval_split}")
     print(f"Debug Mode:        {debug_mode}")

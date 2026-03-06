@@ -107,6 +107,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history |
 | **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best |
 | **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
+| **P1.7** | ⬜ Pending | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | - | - | - | - | Add subcategory to prompt |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
 
@@ -453,6 +454,36 @@ python pipeline/run_pipeline.py \
   --run-eval 1 \
   --eval-split dev
   # --debug
+```
+
+# ============================================
+# P1.7: Add subcategory to prompt (USE_SUBCATEGORY=1)
+# ============================================
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_p1-7_subcat \
+  --display-name "P1.7: With subcategory" \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_small \
+  --output-root shares/users/wuc/output_dir \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-chat-template 1 \
+  --use-subcategory 1 \
+  --run-eval 1 \
+  --eval-split dev
+  # --debug
+
+# [Optional] Re-evaluate with standalone pipeline (if needed)
+# python pipeline/run_eval_pipeline.py \
+#   --experiment-name mind_sft_p1-7_subcat \
+#   --display-name "P1.7: With subcategory" \
+#   --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_subcat_chat/final_checkpoint \
+#   --data-root shares/users/wuc/data/MIND_small \
+#   --eval-type pointwise \
+#   --split dev
 ```
 
 ### Phase 2: RL Commands
@@ -889,6 +920,43 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 | +1.5% | 71.2% | ⬜ Pending |
 | +2.0% | 71.7% | ⬜ Pending |
 | SOTA | 72.7% | ⬜ Target |
+
+---
+
+## 💡 Future Work / Ideas
+
+### F1: LLM-Generated Narrative User Profiles
+
+**Idea**: Instead of feeding raw reading history (a numbered list of article titles), use an LLM to generate a concise narrative profile summarizing the user's interests, then use that summary as the user representation.
+
+**Example**:
+
+Current input:
+```
+1. [Sports] LeBron James scores 40 points in Lakers win
+2. [Sports] NBA playoffs preview
+3. [Technology] Apple iPhone review
+...
+```
+
+Proposed input:
+```
+"This user is primarily interested in NBA basketball and follows player
+performances closely. They also have moderate interest in consumer technology."
+```
+
+**Why it may help**:
+- Compresses very long histories into compact, generalized representations
+- Captures higher-level interests that generalize across similar articles
+- Related work: PALR (arXiv:2305.07622), UP5 (arXiv:2304.14399) show gains
+
+**Why it may not help (for current setup)**:
+- History is already capped at 30 short items — token cost is manageable
+- The fine-tuned model already learns to implicitly summarize user interests
+- Adds offline preprocessing step + error propagation from profile generation
+- More useful when histories are very long (500+) or very sparse (1–2 clicks)
+
+**When to revisit**: After Phase 1–2 ablations are complete and diminishing returns are observed. Worth trying as a separate ablation (e.g., A5.4) if the gap to SOTA remains >1.5%.
 
 ---
 

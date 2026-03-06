@@ -64,6 +64,7 @@ def train(
     eval_news_path: str = "",
     output_dir: str = "",
     use_abstract: bool = False,
+    use_subcategory: bool = False,
     max_history: int = 0,  # 0 = no limit
     neg_ratio: float = 1.0,  # Negatives per positive
     sample: int = -1,
@@ -136,6 +137,7 @@ def train(
         max_history=max_history,
         neg_ratio=neg_ratio,
         use_abstract=use_abstract,
+        use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,
     )
 
@@ -149,6 +151,7 @@ def train(
         max_history=max_history,
         neg_ratio=neg_ratio,
         use_abstract=use_abstract,
+        use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,
     )
 

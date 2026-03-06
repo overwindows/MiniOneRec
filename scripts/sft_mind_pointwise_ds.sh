@@ -115,6 +115,12 @@ if [[ "$USE_ABSTRACT" == "1" || "$USE_ABSTRACT" == "True" || "$USE_ABSTRACT" == 
 else
     USE_ABSTRACT="False"
 fi
+USE_SUBCATEGORY=${USE_SUBCATEGORY:-0}
+if [[ "$USE_SUBCATEGORY" == "1" || "$USE_SUBCATEGORY" == "True" || "$USE_SUBCATEGORY" == "true" ]]; then
+    USE_SUBCATEGORY="True"
+else
+    USE_SUBCATEGORY="False"
+fi
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Set to 1 for instruct models (e.g., Qwen3-1.7B, Qwen3-4B-Instruct)
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-}  # Will be set after OUTPUT_NAME is constructed
 DS_CONFIG=${DS_CONFIG:-ds_configs/ds_config_zero2.json}
@@ -144,6 +150,9 @@ MODEL_BASENAME=$(basename ${MODEL_PATH})
 OUTPUT_NAME="sft_mind_pointwise_${MIND_SIZE}_${MODEL_BASENAME}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}_hist${MAX_HISTORY}"
 if [[ "${USE_ABSTRACT}" == "True" ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_abstract"
+fi
+if [[ "${USE_SUBCATEGORY}" == "True" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_subcat"
 fi
 if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_chat"
@@ -189,6 +198,7 @@ deepspeed --hostfile=$HOSTFILE \
         --max_history ${MAX_HISTORY} \
         --neg_ratio ${NEG_RATIO} \
         --use_abstract ${USE_ABSTRACT} \
+        --use_subcategory ${USE_SUBCATEGORY} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \
         --wandb_project MiniOneRec_MIND \
         --wandb_run_name ${WANDB_RUN_NAME} \

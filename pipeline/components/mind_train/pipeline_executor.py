@@ -204,6 +204,7 @@ def main():
     parser.add_argument("--num-epochs", help="训练轮数")
     parser.add_argument("--neg-ratio", help="负样本比例")
     parser.add_argument("--max-history", help="最大历史记录长度")
+    parser.add_argument("--cutoff-len", help="最大序列长度", default="8192")
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
     parser.add_argument("--use-abstract", help="是否使用新闻摘要 (1/0)")
     parser.add_argument("--use-subcategory", help="是否在提示中使用子类别 (1/0)", default="0")
@@ -221,6 +222,7 @@ def main():
         'num_epochs': args.num_epochs,
         'neg_ratio': args.neg_ratio,
         'max_history': args.max_history,
+        'cutoff_len': args.cutoff_len,
         'use_chat_template': args.use_chat_template,
         'use_abstract': args.use_abstract,
         'use_subcategory': args.use_subcategory,

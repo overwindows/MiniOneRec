@@ -83,6 +83,7 @@ def mind_train_pipeline(
     num_epochs: int = 3,
     neg_ratio: float = 2.0,
     max_history: int = 30,
+    cutoff_len: int = 8192,
     use_chat_template: int = 1,
     use_abstract: int = 0,
     use_subcategory: int = 0,
@@ -102,6 +103,7 @@ def mind_train_pipeline(
         num_epochs: 训练轮数 (default: 3)
         neg_ratio: 负样本比例 (default: 2.0)
         max_history: 最大历史记录长度 (default: 30)
+        cutoff_len: 最大序列长度 (default: 8192)
         use_chat_template: 是否使用 chat template (1=是, 0=否) (default: 1)
         use_abstract: 是否使用新闻摘要 (1=是, 0=否) (default: 0)
         use_subcategory: 是否在提示中使用子类别 (1=是, 0=否) (default: 0)
@@ -120,6 +122,7 @@ def mind_train_pipeline(
         num_epochs=num_epochs,
         neg_ratio=neg_ratio,
         max_history=max_history,
+        cutoff_len=cutoff_len,
         use_chat_template=use_chat_template,
         use_abstract=use_abstract,
         use_subcategory=use_subcategory,
@@ -158,6 +161,8 @@ if __name__ == "__main__":
                         help="负样本比例 (default: 2.0)")
     parser.add_argument("--max-history", type=int, default=30,
                         help="最大历史记录长度 (default: 30)")
+    parser.add_argument("--cutoff-len", type=int, default=8192,
+                        help="最大序列长度 (default: 8192)")
     parser.add_argument("--use-chat-template", type=int, default=1, choices=[0, 1],
                         help="是否使用 chat template, 1=是 0=否 (default: 1)")
     parser.add_argument("--use-abstract", type=int, default=0, choices=[0, 1],
@@ -191,6 +196,7 @@ if __name__ == "__main__":
         num_epochs=args.num_epochs,
         neg_ratio=args.neg_ratio,
         max_history=args.max_history,
+        cutoff_len=args.cutoff_len,
         use_chat_template=args.use_chat_template,
         use_abstract=args.use_abstract,
         use_subcategory=args.use_subcategory,

@@ -107,7 +107,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history |
 | **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best |
 | **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
-| **P1.7** | ⬜ Pending | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | - | - | - | - | Add subcategory to prompt |
+| **P1.7** | ✅ Completed | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | 0.6767 | 0.3303 | 0.3670 | 0.4281 | Add subcategory to prompt |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
 

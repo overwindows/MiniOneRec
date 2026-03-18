@@ -578,11 +578,10 @@ def main():
 
     print(f"Loading model from: {args.model_path}")
     import os as _os
-    _local = _os.path.isdir(args.model_path)
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.model_path, trust_remote_code=True,
-        local_files_only=_local
-    )
+    if _os.path.isdir(args.model_path):
+        # Local checkpoint: disable hub calls to avoid HFValidationError in newer huggingface_hub
+        _os.environ["HF_HUB_OFFLINE"] = "1"
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
@@ -591,7 +590,6 @@ def main():
     model_kwargs = {
         "torch_dtype": torch.bfloat16,
         "device_map": "auto",
-        "local_files_only": _local,
     }
     if args.flash_attn:
         model_kwargs["attn_implementation"] = "flash_attention_2"

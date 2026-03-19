@@ -152,6 +152,81 @@ python run_eval_pipeline.py \
 
 ---
 
+## Windows PowerShell Setup
+
+The pipeline scripts are pure Python (no bash required) and run directly in PowerShell.
+
+### 1. Create and activate environment
+
+**Option A: conda (recommended)**
+```powershell
+conda create -n MiniOneRec-pipeline python=3.11 -y
+conda activate MiniOneRec-pipeline
+```
+
+To deactivate when done:
+```powershell
+conda deactivate
+```
+
+**Option B: venv**
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+To deactivate when done:
+```powershell
+deactivate
+```
+
+> If you see a script execution error, run this once to allow local scripts:
+> ```powershell
+> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+
+### 2. Install dependencies
+
+```powershell
+pip install -r pipeline/requirements.txt
+```
+
+### 3. Authenticate with Azure
+
+Install the Azure CLI if you haven't already:
+```powershell
+winget install Microsoft.AzureCLI
+```
+
+Then log in:
+```powershell
+az login
+```
+
+`DefaultAzureCredential` in the scripts will automatically pick up your `az login` session.
+
+### 4. Run pipeline scripts
+
+```powershell
+# Submit training pipeline (default params)
+python pipeline/run_pipeline.py
+
+# Submit with custom params (use backtick ` for line continuation in PowerShell)
+python pipeline/run_pipeline.py `
+  --model-path Qwen/Qwen3-1.7B `
+  --batch-size 256 `
+  --num-epochs 3
+
+# Submit eval pipeline
+python pipeline/run_eval_pipeline.py `
+  --model-path shares/users/wuc/models/my_checkpoint/final_checkpoint
+
+# Debug mode
+python pipeline/run_pipeline.py --debug
+```
+
+---
+
 ## 环境配置
 
 - **AML Environment**: `azureml:torch251-cuda124-deepspeed-flashattn-training:5`

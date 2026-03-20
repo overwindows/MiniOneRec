@@ -101,15 +101,38 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **P1.1** | ⬜ Pending | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | - | - | - | - | More negatives |
+| **P1.1** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | 0.6845 | 0.3303 | 0.3665 | 0.4285 | More negatives; checkpoint-17835 |
 | **P1.2** | ✅ Completed | Qwen3-1.7B | MINDsmall | NUM_EPOCHS=7 | 0.6886 | 0.3363 | 0.3738 | 0.4345 | Longer training |
 | **P1.3** | 🔄 Re-run | Qwen3-1.7B | MINDsmall | USE_ABSTRACT=1, CUTOFF=4096 | 0.6662 | 0.3279 | 0.3648 | 0.4252 | With abstracts (prev cutoff=2048, re-running with 4096) |
 | **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history |
 | **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best |
 | **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
 | **P1.7** | ✅ Completed | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | 0.6767 | 0.3303 | 0.3670 | 0.4281 | Add subcategory to prompt |
+| **P1.B** | ✅ Completed | Qwen3-1.7B | MINDsmall | ep5 default baseline | 0.6861 | 0.3326 | 0.3702 | 0.4301 | anchor for all P1.x comparisons; `sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat` |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
+
+---
+
+### Phase 1L: Point-wise SFT on MINDlarge
+
+| Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
+| **L1.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0, HIST=30 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg3.0_hist30_chat` |
+| **L1.2** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat` |
+| **L1.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat` |
+| **L1.4** | ⬜ Pending | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist50_chat` |
+| **L1.5** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat` |
+| **L1.6** | ⬜ Pending | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | `sft_mind_pointwise_large_Qwen3-8B_bs256_ep5_neg2.0_hist30_chat` |
+| **L1.7** | ⬜ Pending | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30` |
+
+---
+
+### Phase 4M: Multi-task (Extra Checkpoints)
+
+| Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
+| **M4.0** | ⬜ Pending | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7, ep3 | - | - | - | - | `sft_mind_multitask_small_Qwen3-1.7B_bs256_ep3_pw0.7_chat` |
 
 ### Phase 2: RL Fine-tuning
 
@@ -169,6 +192,139 @@ Copy and paste this template when updating:
 
 ```markdown
 | **[EXP_ID]** | ✅ Completed | [MODEL] | [DATASET] | [CONFIG] | [AUC]% | [MRR]% | [nDCG@5]% | [nDCG@10]% | [NOTES] |
+```
+
+---
+
+## 🖥️ Manual Evaluation Commands
+
+> Run these on the compute node after `conda activate MiniOneRec` and `cd /home/aiscuser/MiniOneRec`.
+> Set the shared mount path first:
+> ```bash
+> SHARES="/scratch/azureml/cr/j/ef9a7f2099e947cab5fb282f38f685e3/cap/data-capability/wd/INPUT_msndni/shares"
+> OUTPUT_DIR="$SHARES/users/wuc/output_dir"
+> MIND_SMALL="$SHARES/users/wuc/data/MIND_small"
+> MIND_LARGE="$SHARES/users/wuc/data/MIND_large"
+>
+> # Helper: picks latest checkpoint (final_checkpoint may be corrupted if job was interrupted)
+> latest_ckpt() { ls -d "$1"/checkpoint-* 2>/dev/null | sort -V | tail -1; }
+> ```
+
+### Phase 1: MINDsmall
+
+```bash
+# P1.B — ep5 default baseline
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# P1.1 — NEG=3.0
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg3.0_hist30_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# P1.2 — EP=7
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# P1.3 — ABSTRACT
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# P1.4 — HIST=50
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist50_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=50 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# P1.5 — NEG=3.0, EP=7, HIST=50
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=50 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# P1.7 — SUBCATEGORY
+D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_subcat_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 USE_SUBCATEGORY=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+```
+
+### Phase 1L: MINDlarge
+
+```bash
+# L1.1 — NEG=3.0, HIST=30
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg3.0_hist30_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.2 — EP=7
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.3 — ABSTRACT
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.4 — HIST=50
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist50_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 MAX_HISTORY=50 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.5 — NEG=3.0, EP=7, HIST=50
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 MAX_HISTORY=50 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.6 — 8B model (BATCH_SIZE=4 for VRAM)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-8B_bs256_ep5_neg2.0_hist30_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=4 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.7 — Base model (no chat template)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+```
+
+### Phase 4M: Multitask
+
+```bash
+# M4.0 — multitask pw=0.7, ep3
+D=$OUTPUT_DIR/sft_mind_multitask_small_Qwen3-1.7B_bs256_ep3_pw0.7_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
 ```
 
 ---

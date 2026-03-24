@@ -118,13 +118,13 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **L1.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0, HIST=30 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg3.0_hist30_chat` |
-| **L1.2** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat` |
+| **L1.1** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0, HIST=30 | 0.6883 | 0.3316 | 0.3678 | 0.4310 | NEG=3.0 hurts on large too; worse than L1.2 and L1.7 |
+| **L1.2** | ✅ Completed | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | 0.6932 | 0.3359 | 0.3738 | 0.4373 | checkpoint-70144; `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat` |
 | **L1.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat` |
-| **L1.4** | ⬜ Pending | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist50_chat` |
+| **L1.4** | ✅ Completed | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 hurts on large; worse than L1.2 baseline |
 | **L1.5** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat` |
-| **L1.6** | ⬜ Pending | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | `sft_mind_pointwise_large_Qwen3-8B_bs256_ep5_neg2.0_hist30_chat` |
-| **L1.7** | ⬜ Pending | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30` |
+| **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | Training incomplete (checkpoint-15360 ~1 epoch only, AUC=0.4987); 8B consistently underperforms 1.7B |
+| **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | Best large so far; no chat template |
 
 ---
 

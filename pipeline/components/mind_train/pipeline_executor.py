@@ -208,6 +208,7 @@ def main():
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
     parser.add_argument("--use-abstract", help="是否使用新闻摘要 (1/0)")
     parser.add_argument("--use-subcategory", help="是否在提示中使用子类别 (1/0)", default="0")
+    parser.add_argument("--pointwise-ratio", help="多任务训练pointwise占比 (1.0=纯pointwise, <1.0=多任务)", default="1.0")
     parser.add_argument("--debug-mode", help="调试模式 (true/false)")
     parser.add_argument("--output-root", help="输出目录根路径（相对于挂载路径）")
     parser.add_argument("--run-eval", help="训练后是否运行评估 (1/0)")
@@ -226,6 +227,7 @@ def main():
         'use_chat_template': args.use_chat_template,
         'use_abstract': args.use_abstract,
         'use_subcategory': args.use_subcategory,
+        'pointwise_ratio': args.pointwise_ratio,
     }
 
     # 合成完整的 data_root 路径

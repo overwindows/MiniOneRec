@@ -33,7 +33,7 @@
     },
     {
       "name": "启动 SFT 训练",
-      "command": "MODEL_PATH={model_path} DATA_ROOT={data_root} OUTPUT_DIR={output_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} MAX_HISTORY={max_history} CUTOFF_LEN={cutoff_len} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} USE_SUBCATEGORY={use_subcategory} bash scripts/sft_mind_pointwise_ds.sh",
+      "command": "if python3 -c \"import sys; sys.exit(0 if float('{pointwise_ratio}') < 1.0 else 1)\"; then echo '=== 多任务训练模式 (pointwise_ratio={pointwise_ratio}) ===' && MODEL_PATH={model_path} DATA_ROOT={data_root} OUTPUT_DIR={output_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} POINTWISE_RATIO={pointwise_ratio} MAX_HISTORY={max_history} CUTOFF_LEN={cutoff_len} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} bash scripts/sft_mind_multitask.sh; else echo '=== Pointwise 训练模式 ===' && MODEL_PATH={model_path} DATA_ROOT={data_root} OUTPUT_DIR={output_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} MAX_HISTORY={max_history} CUTOFF_LEN={cutoff_len} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} USE_SUBCATEGORY={use_subcategory} bash scripts/sft_mind_pointwise_ds.sh; fi",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {

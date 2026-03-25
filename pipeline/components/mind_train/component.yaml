@@ -54,6 +54,10 @@ inputs:
     type: integer
     default: 0
     description: 是否在提示中使用子类别 (1=是, 0=否)
+  pointwise_ratio:
+    type: number
+    default: 1.0
+    description: 多任务训练中pointwise任务占比 (1.0=纯pointwise, <1.0=多任务)
   debug_mode:
     type: string
     default: "false"
@@ -89,6 +93,7 @@ command: >-
   --use-chat-template ${{inputs.use_chat_template}}
   --use-abstract ${{inputs.use_abstract}}
   --use-subcategory ${{inputs.use_subcategory}}
+  --pointwise-ratio ${{inputs.pointwise_ratio}}
   --debug-mode ${{inputs.debug_mode}}
   --output-root ${{inputs.output_root}}
   --run-eval ${{inputs.run_eval}}

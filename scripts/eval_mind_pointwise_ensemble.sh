@@ -94,7 +94,7 @@ for (( i=0; i<N_MODELS; i++ )); do
   for (( j=0; j<count && gpu_idx<N_GPUS; j++ )); do
     [[ -n "${gpu_subset}" ]] && gpu_subset="${gpu_subset},"
     gpu_subset="${gpu_subset}${GPU_LIST[$gpu_idx]}"
-    (( gpu_idx++ ))
+    gpu_idx=$(( gpu_idx + 1 ))
   done
   MODEL_GPUS[$i]="${gpu_subset}"
 done

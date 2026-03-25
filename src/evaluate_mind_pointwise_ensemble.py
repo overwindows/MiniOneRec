@@ -5,24 +5,32 @@ Each model scores candidates independently (Yes/No log probs).
 Models are loaded sequentially to keep VRAM manageable.
 Final score = weighted average of per-model scores.
 
+Per-model use_chat_template and use_abstract are supported so models
+trained with different settings can be correctly combined.
+If not specified, flags are auto-detected from the checkpoint path
+(contains "_chat" → chat_template=1, contains "_abstract" → abstract=1).
+
 Usage:
-    # Equal-weight ensemble of 2 models
+    # 2-model ensemble — auto-detect flags from path
     python src/evaluate_mind_pointwise_ensemble.py \
-        --model_paths path/to/model1/final_checkpoint path/to/model2/final_checkpoint \
+        --model_paths model_abstract_chat/final_checkpoint model_base/final_checkpoint \
         --behaviors_path data/MIND_large/dev/behaviors.tsv \
         --news_path data/MIND_large/dev/news.tsv
 
-    # 3-model ensemble with custom weights
+    # Explicit per-model flags
     python src/evaluate_mind_pointwise_ensemble.py \
         --model_paths model1 model2 model3 \
+        --use_chat_template 1 1 0 \
+        --use_abstract 1 0 0 \
         --weights 1.0 0.8 0.8 \
         --behaviors_path ... --news_path ...
 """
 
 import argparse
 import gc
+import os
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 import torch
@@ -45,6 +53,17 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+
+def autodetect_flags(model_path: str):
+    """Infer use_chat_template and use_abstract from checkpoint directory name."""
+    name = os.path.basename(os.path.normpath(model_path))
+    # walk up one level if path ends with final_checkpoint / checkpoint-XXXXX
+    if name in ("final_checkpoint",) or name.startswith("checkpoint-"):
+        name = os.path.basename(os.path.dirname(os.path.normpath(model_path)))
+    use_chat_template = 1 if "_chat" in name else 0
+    use_abstract = 1 if "_abstract" in name else 0
+    return use_chat_template, use_abstract
 
 
 def batch_score_pointwise(
@@ -93,18 +112,20 @@ def batch_score_pointwise(
 def score_all_impressions(
     model_path: str,
     behaviors_path: str,
-    news: dict,
+    news_with_abstract: dict,
+    news_without_abstract: dict,
+    use_abstract: bool,
+    use_chat_template: bool,
     max_history: int,
     max_impressions: int,
     batch_size: int,
     flash_attn: bool,
-    use_chat_template: bool,
-    use_abstract: bool,
 ) -> Dict[str, List[float]]:
-    """Load one model, score all impressions, return {impression_id: [scores]}."""
+    """Load one model, score all impressions, unload. Returns {impression_id: [scores]}."""
 
-    print(f"\n  Loading tokenizer...")
-    import os
+    news = news_with_abstract if use_abstract else news_without_abstract
+
+    print(f"  Loading tokenizer...")
     local_only = os.path.isdir(model_path)
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, trust_remote_code=True, local_files_only=local_only
@@ -123,7 +144,7 @@ def score_all_impressions(
     model = AutoModelForCausalLM.from_pretrained(model_path, **model_kwargs)
     model.eval()
     device = next(model.parameters()).device
-    print(f"  Model loaded on: {device}")
+    print(f"  Model on: {device}")
 
     yes_tokens = tokenizer.encode(" Yes", add_special_tokens=False)
     no_tokens = tokenizer.encode(" No", add_special_tokens=False)
@@ -134,19 +155,19 @@ def score_all_impressions(
     count = 0
 
     with open(behaviors_path, "r", encoding="utf-8") as f:
-        total_lines = None
         if not max_impressions:
             total_lines = sum(1 for _ in f)
             f.seek(0)
+        else:
+            total_lines = max_impressions
 
-        pbar = tqdm(total=total_lines or max_impressions, desc="  Scoring", unit="imp")
+        pbar = tqdm(total=total_lines, desc="  Scoring", unit="imp")
         for line in f:
             parsed = parse_behaviors_line(line)
             if parsed is None:
                 continue
 
             impression_id, _, _, history_ids, imp_list = parsed
-
             if max_history > 0:
                 history_ids = history_ids[-max_history:]
 
@@ -171,7 +192,6 @@ def score_all_impressions(
 
     print(f"  Scored {count} impressions")
 
-    # Unload model to free VRAM
     del model
     del tokenizer
     gc.collect()
@@ -185,87 +205,108 @@ def score_all_impressions(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_paths", nargs="+", required=True,
-                        help="Paths to pointwise model checkpoints (2 or more)")
+                        help="Paths to pointwise checkpoints (2 or more)")
     parser.add_argument("--weights", nargs="+", type=float, default=None,
-                        help="Per-model weights for score averaging (default: equal)")
+                        help="Per-model weights (default: equal). Length must match --model_paths.")
+    parser.add_argument("--use_chat_template", nargs="+", type=int, default=None,
+                        help="Per-model chat template flag (0/1). Auto-detected from path if omitted.")
+    parser.add_argument("--use_abstract", nargs="+", type=int, default=None,
+                        help="Per-model abstract flag (0/1). Auto-detected from path if omitted.")
     parser.add_argument("--behaviors_path", required=True)
     parser.add_argument("--news_path", required=True)
-    parser.add_argument("--use_abstract", action="store_true")
     parser.add_argument("--max_history", type=int, default=0)
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--flash_attn", action="store_true")
-    parser.add_argument("--use_chat_template", action="store_true")
     parser.add_argument("--output_file", default=None)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    if len(args.model_paths) < 2:
+    n = len(args.model_paths)
+    if n < 2:
         raise ValueError("Ensemble requires at least 2 model paths")
 
+    # Resolve per-model flags (auto-detect if not provided)
+    chat_flags = []
+    abstract_flags = []
+    for i, mp in enumerate(args.model_paths):
+        auto_chat, auto_abstract = autodetect_flags(mp)
+        c = args.use_chat_template[i] if args.use_chat_template and i < len(args.use_chat_template) else auto_chat
+        a = args.use_abstract[i] if args.use_abstract and i < len(args.use_abstract) else auto_abstract
+        chat_flags.append(bool(c))
+        abstract_flags.append(bool(a))
+
     # Normalize weights
-    weights = args.weights or [1.0] * len(args.model_paths)
-    if len(weights) != len(args.model_paths):
-        raise ValueError(f"--weights length ({len(weights)}) must match --model_paths ({len(args.model_paths)})")
+    weights = args.weights or [1.0] * n
+    if len(weights) != n:
+        raise ValueError(f"--weights length ({len(weights)}) must match --model_paths ({n})")
     total_w = sum(weights)
     weights = [w / total_w for w in weights]
 
     set_seed(args.seed)
 
+    # Load news — load both versions if models differ in use_abstract
+    need_abstract = any(abstract_flags)
+    need_plain = any(not f for f in abstract_flags)
+
     print(f"Loading news from: {args.news_path}")
-    news = load_news(args.news_path, args.use_abstract)
-    print(f"Loaded {len(news)} articles")
+    news_with_abstract = load_news(args.news_path, use_abstract=True) if need_abstract else {}
+    news_without_abstract = load_news(args.news_path, use_abstract=False) if need_plain else {}
+    total_news = len(news_with_abstract) or len(news_without_abstract)
+    print(f"Loaded {total_news} articles")
 
-    print(f"\n{'='*50}")
-    print(f"Ensemble of {len(args.model_paths)} models")
-    for i, (mp, w) in enumerate(zip(args.model_paths, weights)):
-        print(f"  [{i+1}] weight={w:.3f}  {mp}")
-    print(f"{'='*50}")
+    print(f"\n{'='*55}")
+    print(f"Ensemble of {n} models")
+    print(f"{'='*55}")
+    for i, mp in enumerate(args.model_paths):
+        print(f"  [{i+1}] w={weights[i]:.3f}  chat={int(chat_flags[i])}  abstract={int(abstract_flags[i])}")
+        print(f"       {mp}")
+    print(f"{'='*55}")
 
-    # Score impressions with each model sequentially
+    # Score each model sequentially
     all_model_scores: List[Dict[str, List[float]]] = []
     for i, model_path in enumerate(args.model_paths):
-        print(f"\n[Model {i+1}/{len(args.model_paths)}] {model_path}")
+        print(f"\n[Model {i+1}/{n}] chat={int(chat_flags[i])} abstract={int(abstract_flags[i])}")
+        print(f"  Path: {model_path}")
         model_scores = score_all_impressions(
             model_path=model_path,
             behaviors_path=args.behaviors_path,
-            news=news,
+            news_with_abstract=news_with_abstract,
+            news_without_abstract=news_without_abstract,
+            use_abstract=abstract_flags[i],
+            use_chat_template=chat_flags[i],
             max_history=args.max_history,
             max_impressions=args.max_impressions,
             batch_size=args.batch_size,
             flash_attn=args.flash_attn,
-            use_chat_template=args.use_chat_template,
-            use_abstract=args.use_abstract,
         )
         all_model_scores.append(model_scores)
 
-    # Collect impression IDs present in all models
+    # Only evaluate impressions present in all models
     common_ids = set(all_model_scores[0].keys())
     for ms in all_model_scores[1:]:
         common_ids &= set(ms.keys())
-    print(f"\n{len(common_ids)} impressions scored by all models")
+    print(f"\n{len(common_ids)} impressions scored by all {n} models")
 
     # Compute ensemble metrics
-    print("\nComputing ensemble metrics...")
+    print("Computing ensemble metrics...")
     aucs, mrrs, ndcg5s, ndcg10s = [], [], [], []
     predictions = []
 
-    # Re-read behaviors to get labels and candidate IDs
     with open(args.behaviors_path, "r", encoding="utf-8") as f:
         for line in f:
             parsed = parse_behaviors_line(line)
             if parsed is None:
                 continue
             impression_id, _, _, _, imp_list = parsed
-
             if impression_id not in common_ids:
                 continue
 
             labels = [label for _, label in imp_list]
             candidate_ids = [nid for nid, _ in imp_list]
-
-            # Weighted average of scores across models
             n_cands = len(labels)
+
+            # Weighted average across models
             ensemble_scores = [0.0] * n_cands
             for w, model_scores in zip(weights, all_model_scores):
                 m_scores = model_scores[impression_id]
@@ -279,25 +320,25 @@ def main():
                 ndcg10s.append(ndcg_score(labels, ensemble_scores, 10))
 
             if args.output_file:
-                ranked_indices = sorted(range(len(ensemble_scores)), key=lambda i: ensemble_scores[i], reverse=True)
-                predictions.append((impression_id, [candidate_ids[i] for i in ranked_indices]))
+                ranked = sorted(range(len(ensemble_scores)), key=lambda i: ensemble_scores[i], reverse=True)
+                predictions.append((impression_id, [candidate_ids[i] for i in ranked]))
 
     def _avg(xs):
         return float(np.mean(xs)) if xs else 0.0
 
-    print(f"\n{'='*50}")
-    print(f"MIND Ensemble Evaluation ({len(args.model_paths)} models)")
-    print(f"{'='*50}")
+    print(f"\n{'='*55}")
+    print(f"MIND Ensemble Evaluation ({n} models)")
+    print(f"{'='*55}")
+    for i, mp in enumerate(args.model_paths):
+        print(f"  [{i+1}] w={weights[i]:.3f}  {os.path.basename(os.path.dirname(mp))}")
     print(f"Impressions evaluated: {len(aucs)}")
-    print(f"Weights: {[f'{w:.3f}' for w in weights]}")
     print(f"AUC:     {_avg(aucs):.4f}")
     print(f"MRR:     {_avg(mrrs):.4f}")
     print(f"nDCG@5:  {_avg(ndcg5s):.4f}")
     print(f"nDCG@10: {_avg(ndcg10s):.4f}")
-    print(f"{'='*50}")
+    print(f"{'='*55}")
 
     if args.output_file and predictions:
-        import os
         os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
         with open(args.output_file, "w", encoding="utf-8") as f:
             for impression_id, ranked_news_ids in predictions:

@@ -830,38 +830,40 @@ python pipeline/run_eval_pipeline.py \
 ### Phase 3: Ensemble & Cascade Commands
 
 ```bash
-# ============================================
-# E3.A — L1.3 + L1.7 (Abstract + Base, equal weights)
-# ============================================
+# Per-model flags are AUTO-DETECTED from checkpoint directory name:
+#   _chat     → use_chat_template=1
+#   _abstract → use_abstract=1
+# Override with CHAT_TEMPLATES="1 0 1" and ABSTRACTS="1 0 0" if needed.
+
 SHARES=/scratch/azureml/cr/j/ef9a7f2099e947cab5fb282f38f685e3/cap/data-capability/wd/INPUT_msndni/shares
 OUTPUT_DIR=$SHARES/users/wuc/output_dir
 MIND_LARGE=$SHARES/users/wuc/data/MIND_large
 
+# ============================================
+# E3.A — L1.3 + L1.7 (Abstract+chat vs Base, auto-detect: chat=1,abstract=1 | chat=0,abstract=0)
+# ============================================
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE MAX_HISTORY=30 BATCH_SIZE=8 \
 OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3a_l13_l17.txt \
 bash scripts/eval_mind_pointwise_ensemble.sh \
   $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
   $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30/final_checkpoint
 
 # ============================================
-# E3.B — L1.3 + L1.2 (Abstract + EP7, equal weights)
+# E3.B — L1.3 + L1.2 (Abstract+chat vs EP7+chat, auto-detect: chat=1,abstract=1 | chat=1,abstract=0)
 # ============================================
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE MAX_HISTORY=30 BATCH_SIZE=8 \
 OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3b_l13_l12.txt \
 bash scripts/eval_mind_pointwise_ensemble.sh \
   $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
   $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat/final_checkpoint
 
 # ============================================
-# E3.C — L1.3 + L1.7 + L1.2 (Top-3, equal weights)
+# E3.C — L1.3 + L1.7 + L1.2 (Top-3, equal weights, all auto-detect)
 # ============================================
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE MAX_HISTORY=30 BATCH_SIZE=8 \
 OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3c_l13_l17_l12.txt \
 bash scripts/eval_mind_pointwise_ensemble.sh \
   $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
@@ -872,8 +874,7 @@ bash scripts/eval_mind_pointwise_ensemble.sh \
 # E3.D — L1.3 + L1.7 + L1.2 (L1.3-heavy: weights 1.0 0.8 0.8)
 # ============================================
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE MAX_HISTORY=30 BATCH_SIZE=8 \
 WEIGHTS="1.0 0.8 0.8" \
 OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3d_l13_l17_l12_weighted.txt \
 bash scripts/eval_mind_pointwise_ensemble.sh \

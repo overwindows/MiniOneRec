@@ -75,6 +75,7 @@ USE_ABSTRACT="${USE_ABSTRACT:-0}"
 USE_SUBCATEGORY="${USE_SUBCATEGORY:-0}"
 MAX_HISTORY="${MAX_HISTORY:-0}"  # 0 = no limit (use all history)
 OUTPUT_FILE="${OUTPUT_FILE:-}"
+OUTPUT_SCORES_FILE="${OUTPUT_SCORES_FILE:-}"
 FLASH_ATTN="${FLASH_ATTN:-1}"  # Use Flash Attention 2 by default
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Use chat template for instruct models
 BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates
@@ -184,6 +185,10 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       cmd="${cmd} --max_impressions ${per_gpu}"
     fi
 
+    if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
+      cmd="${cmd} --output_scores_file \"${TEMP_DIR}/${gpu_id}_scores.txt\""
+    fi
+
     # Run in background
     eval "$cmd 2>&1 | sed \"s/^/[GPU $gpu_id] /\"" &
     pid=$!
@@ -249,6 +254,14 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
     echo "Submit predictions to MIND leaderboard for evaluation."
   fi
 
+  # Merge raw score files if requested
+  if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
+    mkdir -p "$(dirname "${OUTPUT_SCORES_FILE}")"
+    echo "Merging score files..."
+    cat "${TEMP_DIR}"/*_scores.txt 2>/dev/null > "${OUTPUT_SCORES_FILE}" || true
+    echo "✓ Scores saved to: ${OUTPUT_SCORES_FILE}"
+  fi
+
   # Cleanup temp files
   rm -rf "${TEMP_DIR}"
 
@@ -279,6 +292,10 @@ else
 
   if [[ -n "${OUTPUT_FILE}" ]]; then
     CMD="${CMD} --output_file ${OUTPUT_FILE}"
+  fi
+
+  if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
+    CMD="${CMD} --output_scores_file ${OUTPUT_SCORES_FILE}"
   fi
 
   if [[ "${FLASH_ATTN}" -eq 1 ]]; then

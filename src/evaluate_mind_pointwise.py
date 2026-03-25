@@ -131,6 +131,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for scoring candidates")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
+    parser.add_argument("--output_scores_file", help="Output raw scores file for ensemble (impression_id score1 score2 ...)")
     parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2")
     parser.add_argument("--use_chat_template", action="store_true", help="Use chat template (for instruct models)")
     parser.add_argument("--quick", action="store_true", help="Quick mode: evaluate 500 impressions")
@@ -191,6 +192,7 @@ def main():
     ndcg5 = []
     ndcg10 = []
     predictions = []
+    raw_scores = []
 
     # Count total lines for progress bar
     total_lines = None
@@ -264,6 +266,11 @@ def main():
                 ranked_news_ids = [candidate_ids[i] for i in ranked_indices]
                 predictions.append((impression_id, ranked_news_ids))
 
+            # Save raw scores for ensemble
+            if args.output_scores_file:
+                scores_str = "\t".join(f"{s:.6f}" for s in scores)
+                raw_scores.append(f"{impression_id}\t{scores_str}")
+
             count += 1
 
             # Update progress bar
@@ -300,6 +307,16 @@ def main():
             for impression_id, ranked_news_ids in predictions:
                 f.write(f"{impression_id} {' '.join(ranked_news_ids)}\n")
         print(f"Wrote {len(predictions)} predictions")
+
+    # Write raw scores for ensemble
+    if args.output_scores_file and raw_scores:
+        import os as _os2
+        _os2.makedirs(_os2.path.dirname(_os2.path.abspath(args.output_scores_file)), exist_ok=True)
+        print(f"\nWriting raw scores to: {args.output_scores_file}")
+        with open(args.output_scores_file, "w", encoding="utf-8") as f:
+            for line in raw_scores:
+                f.write(line + "\n")
+        print(f"Wrote {len(raw_scores)} score lines")
 
 
 if __name__ == "__main__":

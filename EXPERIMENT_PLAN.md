@@ -120,11 +120,13 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
 | **L1.1** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0, HIST=30 | 0.6883 | 0.3316 | 0.3678 | 0.4310 | NEG=3.0 hurts on large too; worse than L1.2 and L1.7 |
 | **L1.2** | ✅ Completed | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | 0.6932 | 0.3359 | 0.3738 | 0.4373 | checkpoint-70144; `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat` |
-| **L1.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat` |
+| **L1.3** | ✅ Completed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | **0.7049** 🏆 | 0.3461 | 0.3847 | 0.4479 | **NEW BEST** — abstract on large is huge (+0.0103 vs L1.7) |
 | **L1.4** | ✅ Completed | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 hurts on large; worse than L1.2 baseline |
 | **L1.5** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat` |
 | **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | Training incomplete (checkpoint-15360 ~1 epoch only, AUC=0.4987); 8B consistently underperforms 1.7B |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | Best large so far; no chat template |
+| **L1.8** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7 | - | - | - | - | Abstract + longer training; expected to beat L1.3 |
+| **L1.9** | ⬜ Pending | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | - | - | - | - | Abstract + base model; combines best of L1.3 and L1.7 |
 
 ---
 
@@ -314,6 +316,51 @@ mkdir -p $D/eval_results
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE MAX_HISTORY=30 BATCH_SIZE=8 \
   OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
   bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# L1.8 — Abstract + EP=7 (TRAINING)
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_l1-8_abstract_ep7 \
+  --display-name "L1.8: Abstract + EP=7 (large)" \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --output-root shares/users/wuc/output_dir \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 7 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-chat-template 1 \
+  --use-abstract 1 \
+  --run-eval 0
+
+# L1.8 — EVAL (after training)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_abstract_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $D/final_checkpoint dev
+
+# L1.9 — Abstract + Base model (TRAINING)
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_l1-9_abstract_base \
+  --display-name "L1.9: Abstract + Base model (large)" \
+  --model-path Qwen/Qwen3-1.7B-Base \
+  --data-root shares/users/wuc/data/MIND_large \
+  --output-root shares/users/wuc/output_dir \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-abstract 1 \
+  --run-eval 0
+
+# L1.9 — EVAL (after training)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30_abstract
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $D/final_checkpoint dev
 ```
 
 ### Phase 4M: Multitask
@@ -610,10 +657,9 @@ python pipeline/run_pipeline.py \
   --run-eval 1 \
   --eval-split dev
   # --debug
-```
 
 # ============================================
-# P1.7: Add subcategory to prompt (USE_SUBCATEGORY=1)
+# P1.7: Add subcategory to prompt (USE_SUBCATEGORY=1) ✅ AUC=0.6767
 # ============================================
 python pipeline/run_pipeline.py \
   --experiment-name mind_sft_p1-7_subcat \
@@ -628,18 +674,88 @@ python pipeline/run_pipeline.py \
   --max-history 30 \
   --use-chat-template 1 \
   --use-subcategory 1 \
-  --run-eval 1 \
-  --eval-split dev
-  # --debug
+  --run-eval 0
+```
 
-# [Optional] Re-evaluate with standalone pipeline (if needed)
-# python pipeline/run_eval_pipeline.py \
-#   --experiment-name mind_sft_p1-7_subcat \
-#   --display-name "P1.7: With subcategory" \
-#   --model-path shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_subcat_chat/final_checkpoint \
-#   --data-root shares/users/wuc/data/MIND_small \
-#   --eval-type pointwise \
-#   --split dev
+### Phase 1L: MINDlarge Commands
+
+> **Note**: Use `--run-eval 0` — integrated eval is unreliable; run manually after training.
+> Set up shared path variables before running eval commands:
+> ```bash
+> SHARES="/scratch/azureml/cr/j/ef9a7f2099e947cab5fb282f38f685e3/cap/data-capability/wd/INPUT_msndni/shares"
+> OUTPUT_DIR="$SHARES/users/wuc/output_dir"
+> MIND_LARGE="$SHARES/users/wuc/data/MIND_large"
+> ```
+
+```bash
+# ============================================
+# L1.1: NEG=3.0 on large ✅ AUC=0.6883
+# ============================================
+# [Completed — checkpoint exists]
+
+# ============================================
+# L1.2: EP=7 on large ✅ AUC=0.6932
+# ============================================
+# [Completed — checkpoint-70144]
+
+# ============================================
+# L1.3: Abstract on large ✅ AUC=0.7049 🏆 BEST
+# ============================================
+# [Completed — final_checkpoint]
+
+# ============================================
+# L1.7: Base model on large ✅ AUC=0.6946
+# ============================================
+# [Completed — no chat template]
+
+# ============================================
+# L1.8: Abstract + EP=7 on large ⬜ Pending
+# ============================================
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_l1-8_abstract_ep7 \
+  --display-name "L1.8: Abstract + EP=7 (large)" \
+  --model-path Qwen/Qwen3-1.7B \
+  --data-root shares/users/wuc/data/MIND_large \
+  --output-root shares/users/wuc/output_dir \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 7 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-chat-template 1 \
+  --use-abstract 1 \
+  --run-eval 0
+
+# L1.8 — Manual eval (after training completes)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_abstract_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $D/final_checkpoint dev
+
+# ============================================
+# L1.9: Abstract + Base model on large ⬜ Pending
+# ============================================
+python pipeline/run_pipeline.py \
+  --experiment-name mind_sft_l1-9_abstract_base \
+  --display-name "L1.9: Abstract + Base model (large)" \
+  --model-path Qwen/Qwen3-1.7B-Base \
+  --data-root shares/users/wuc/data/MIND_large \
+  --output-root shares/users/wuc/output_dir \
+  --batch-size 256 \
+  --micro-batch-size 4 \
+  --num-epochs 5 \
+  --neg-ratio 2.0 \
+  --max-history 30 \
+  --use-abstract 1 \
+  --run-eval 0
+
+# L1.9 — Manual eval (after training completes)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30_abstract
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $D/final_checkpoint dev
 ```
 
 ### Phase 2: RL Commands

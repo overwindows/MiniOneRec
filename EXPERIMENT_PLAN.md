@@ -122,7 +122,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.2** | ✅ Completed | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | 0.6932 | 0.3359 | 0.3738 | 0.4373 | checkpoint-70144; `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat` |
 | **L1.3** | ✅ Completed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | **0.7049** 🏆 | 0.3461 | 0.3847 | 0.4479 | **NEW BEST** — abstract on large is huge (+0.0103 vs L1.7) |
 | **L1.4** | ✅ Completed | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 hurts on large; worse than L1.2 baseline |
-| **L1.5** | ⬜ Pending | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | - | - | - | - | `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg3.0_hist50_chat` |
+| **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | Same as L1.4 (HIST=50 bottleneck); NEG/EP gains cancelled by history truncation |
 | **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | Training incomplete (checkpoint-15360 ~1 epoch only, AUC=0.4987); 8B consistently underperforms 1.7B |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | Best large so far; no chat template |
 | **L1.8** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7 | - | - | - | - | Abstract + longer training; expected to beat L1.3 |
@@ -134,7 +134,8 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **M4.0** | ⬜ Pending | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7, ep3 | - | - | - | - | `sft_mind_multitask_small_Qwen3-1.7B_bs256_ep3_pw0.7_chat` |
+| **M4.0** | ❌ Failed | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7, ep3 | 0.6213 | 0.2833 | 0.3124 | 0.3765 | Terrible — multitask hurts badly vs pure pointwise baseline (0.6861) |
+| **M4.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.5, EP=5, Abstract | - | - | - | - | Proper test: large data + abstract + 5 epochs + pipeline |
 
 ### Phase 2: RL Fine-tuning
 
@@ -146,6 +147,17 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **R2.4** | ⬜ Pending | Best P1.6 | RL on 8B model | - | - | - | - | RL on larger model |
 
 ### Phase 3: Ensemble & Cascade
+
+#### Multi-Pointwise Ensemble (MINDlarge, ready to run now)
+
+| Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|--------|--------|-----|-----|--------|---------|-------|
+| **E3.A** | ⬜ Pending | L1.3 + L1.7 | equal weights | - | - | - | - | Abstract(0.7049) + Base(0.6946) |
+| **E3.B** | ⬜ Pending | L1.3 + L1.2 | equal weights | - | - | - | - | Abstract(0.7049) + EP7(0.6932) |
+| **E3.C** | ⬜ Pending | L1.3 + L1.7 + L1.2 | equal weights | - | - | - | - | Top-3 large checkpoints |
+| **E3.D** | ⬜ Pending | L1.3 + L1.7 + L1.2 | weights 1.0 0.8 0.8 | - | - | - | - | L1.3-heavy weighting |
+
+#### PW + Ranking Ensemble (requires ranking model training first)
 
 | Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|--------|--------|-----|-----|--------|---------|-------|
@@ -318,20 +330,20 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE MAX_H
   bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
 
 # L1.8 — Abstract + EP=7 (TRAINING)
-python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_l1-8_abstract_ep7 \
-  --display-name "L1.8: Abstract + EP=7 (large)" \
-  --model-path Qwen/Qwen3-1.7B \
-  --data-root shares/users/wuc/data/MIND_large \
-  --output-root shares/users/wuc/output_dir \
-  --batch-size 256 \
-  --micro-batch-size 4 \
-  --num-epochs 7 \
-  --neg-ratio 2.0 \
-  --max-history 30 \
-  --use-chat-template 1 \
-  --use-abstract 1 \
-  --run-eval 0
+python pipeline/run_pipeline.py `
+  --experiment-name mind_sft_l1-8_abstract_ep7 `
+  --display-name "L1.8: Abstract + EP=7 (large)" `
+  --model-path Qwen/Qwen3-1.7B `
+  --data-root shares/users/wuc/data/MIND_large `
+  --output-root shares/users/wuc/output_dir `
+  --batch-size 256 `
+  --micro-batch-size 4 `
+  --num-epochs 7 `
+  --neg-ratio 2.0 `
+  --max-history 30 `
+  --use-chat-template 1 `
+  --use-abstract 1 `
+  --run-eval 1
 
 # L1.8 — EVAL (after training)
 D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_abstract_chat
@@ -341,19 +353,20 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_C
   bash scripts/eval_mind_pointwise.sh $D/final_checkpoint dev
 
 # L1.9 — Abstract + Base model (TRAINING)
-python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_l1-9_abstract_base \
-  --display-name "L1.9: Abstract + Base model (large)" \
-  --model-path Qwen/Qwen3-1.7B-Base \
-  --data-root shares/users/wuc/data/MIND_large \
-  --output-root shares/users/wuc/output_dir \
-  --batch-size 256 \
-  --micro-batch-size 4 \
-  --num-epochs 5 \
-  --neg-ratio 2.0 \
-  --max-history 30 \
-  --use-abstract 1 \
-  --run-eval 0
+python pipeline/run_pipeline.py `
+  --experiment-name mind_sft_l1-9_abstract_base `
+  --display-name "L1.9: Abstract + Base model (large)" `
+  --model-path Qwen/Qwen3-1.7B-Base `
+  --data-root shares/users/wuc/data/MIND_large `
+  --output-root shares/users/wuc/output_dir `
+  --batch-size 256 `
+  --micro-batch-size 4 `
+  --num-epochs 5 `
+  --neg-ratio 2.0 `
+  --max-history 30 `
+  --use-chat-template 0 `
+  --use-abstract 1 `
+  --run-eval 1
 
 # L1.9 — EVAL (after training)
 D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30_abstract
@@ -374,6 +387,21 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_C
   bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
 ```
 
+```powershell
+# M4.1 — multitask pw=0.5, ep5, MINDlarge + Abstract (AML Pipeline)
+python pipeline/run_pipeline.py `
+  --model-path Qwen/Qwen3-1.7B `
+  --data-root shares/users/wuc/data/MIND_large `
+  --output-root shares/users/wuc/output_dir `
+  --batch-size 512 --micro-batch-size 4 `
+  --num-epochs 5 `
+  --use-abstract 1 `
+  --pointwise-ratio 0.5 `
+  --run-eval 1 `
+  --experiment-name mind_sft_training `
+  --display-name "M4.1 Multitask Large Abstract EP5 PW0.5"
+```
+
 ---
 
 ## 🔧 Pipeline Support Matrix
@@ -388,7 +416,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_C
 | **P1.6** | ✅ Training + Eval | ✅ Available | Full pipeline support (8B model) |
 | **R2.1-R2.4** | ❌ Training / ✅ Eval | ✅ Required | RL not yet in pipeline |
 | **E3.1-E3.5** | ❌ Not applicable | ✅ Required | Ensemble/cascade local only |
-| **M4.1-M4.3** | ❌ Training / ✅ Eval | ✅ Required | Multi-task not yet in pipeline |
+| **M4.1** | ✅ Training + Eval | ✅ Available | Pipeline now supports multitask (--pointwise-ratio) |
+| **M4.2-M4.3** | ✅ Training + Eval | ✅ Available | Use --pointwise-ratio <1.0 |
 | **A5.1** | ✅ Training + Eval | ✅ Available | Full pipeline support (CoT RL) |
 | **A5.2** | ✅ Training + Eval | ✅ Available | Full pipeline support (14B/32B) |
 | **A5.3** | ❌ TBD | ❌ TBD | Research exploration |
@@ -799,6 +828,59 @@ python pipeline/run_eval_pipeline.py \
 ```
 
 ### Phase 3: Ensemble & Cascade Commands
+
+```bash
+# ============================================
+# E3.A — L1.3 + L1.7 (Abstract + Base, equal weights)
+# ============================================
+SHARES=/scratch/azureml/cr/j/ef9a7f2099e947cab5fb282f38f685e3/cap/data-capability/wd/INPUT_msndni/shares
+OUTPUT_DIR=$SHARES/users/wuc/output_dir
+MIND_LARGE=$SHARES/users/wuc/data/MIND_large
+
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3a_l13_l17.txt \
+bash scripts/eval_mind_pointwise_ensemble.sh \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30/final_checkpoint
+
+# ============================================
+# E3.B — L1.3 + L1.2 (Abstract + EP7, equal weights)
+# ============================================
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3b_l13_l12.txt \
+bash scripts/eval_mind_pointwise_ensemble.sh \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat/final_checkpoint
+
+# ============================================
+# E3.C — L1.3 + L1.7 + L1.2 (Top-3, equal weights)
+# ============================================
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3c_l13_l17_l12.txt \
+bash scripts/eval_mind_pointwise_ensemble.sh \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30/final_checkpoint \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat/final_checkpoint
+
+# ============================================
+# E3.D — L1.3 + L1.7 + L1.2 (L1.3-heavy: weights 1.0 0.8 0.8)
+# ============================================
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+MIND_SIZE=large MIND_ROOT=$MIND_LARGE \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+WEIGHTS="1.0 0.8 0.8" \
+OUTPUT_FILE=$OUTPUT_DIR/ensemble_results/e3d_l13_l17_l12_weighted.txt \
+bash scripts/eval_mind_pointwise_ensemble.sh \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30/final_checkpoint \
+  $OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat/final_checkpoint
+```
 
 ```bash
 # ============================================

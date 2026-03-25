@@ -53,6 +53,7 @@ WEIGHTS="${WEIGHTS:-}"
 CHAT_TEMPLATES="${CHAT_TEMPLATES:-}"
 ABSTRACTS="${ABSTRACTS:-}"
 MAX_IMPRESSIONS="${MAX_IMPRESSIONS:-0}"
+KEEP_SCORES_DIR="${KEEP_SCORES_DIR:-}"
 
 if [[ -z "${MIND_ROOT:-}" ]]; then
   if [[ "${MIND_SIZE}" == "large" && -d "../data/MIND_large" ]]; then
@@ -229,10 +230,31 @@ fi
 mkdir -p "$(dirname "${OUTPUT_FILE}")"
 eval "${CMD}"
 
+# Optionally keep score files for multi-wave ensembles
+if [[ -n "${KEEP_SCORES_DIR}" ]]; then
+  mkdir -p "${KEEP_SCORES_DIR}"
+  for i in "${!MODEL_PATHS[@]}"; do
+    src_file="${TEMP_DIR}/model_$((i+1))_scores.txt"
+    # Name by checkpoint dir for clarity
+    dir_name=$(basename "$(dirname "${MODEL_PATHS[$i]}")")
+    if [[ "${dir_name}" == "final_checkpoint" ]] || [[ "${dir_name}" == checkpoint-* ]]; then
+      dir_name=$(basename "$(dirname "$(dirname "${MODEL_PATHS[$i]}")")") 
+    fi
+    dst_file="${KEEP_SCORES_DIR}/${dir_name}_scores.txt"
+    if [[ -f "${src_file}" ]]; then
+      cp "${src_file}" "${dst_file}"
+      echo "Saved scores: ${dst_file}"
+    fi
+  done
+fi
+
 rm -rf "${TEMP_DIR}"
 
 echo ""
 echo "========================================="
 echo "✓ Ensemble evaluation complete!"
 echo "Predictions: ${OUTPUT_FILE}"
+if [[ -n "${KEEP_SCORES_DIR}" ]]; then
+  echo "Score files kept in: ${KEEP_SCORES_DIR}"
+fi
 echo "========================================="

@@ -69,9 +69,10 @@ def merge(input_path, output_path=None, cuda_list=None, calculate_metrics=True):
     """
     # Parse cuda_list
     if cuda_list is None:
-        # Auto-detect: find all .txt files in input_path
-        txt_files = [f for f in os.listdir(input_path) if f.endswith('.txt')]
-        cuda_list = [int(f.replace('.txt', '')) for f in txt_files]
+        # Auto-detect: find all .txt files whose stem is a plain GPU ID (integer)
+        txt_files = [f for f in os.listdir(input_path)
+                     if f.endswith('.txt') and f[:-4].isdigit()]
+        cuda_list = [int(f[:-4]) for f in txt_files]
         print(f"Auto-detected GPU files: {sorted(cuda_list)}")
     elif isinstance(cuda_list, str):
         cuda_list = [int(x.strip()) for x in cuda_list.split(',') if x.strip()]

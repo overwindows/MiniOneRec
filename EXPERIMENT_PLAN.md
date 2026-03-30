@@ -1,10 +1,10 @@
 # MIND Experiment Plan: Path to SOTA
 
 > Generated: 2026-02-25
-> Updated: 2026-02-26 (Azure ML Pipeline Integration)
-> Current Best: 69.69% AUC (Point-wise + RL)
+> Updated: 2026-03-30 (W&B Analysis + Recommendations)
+> Current Best: **70.49% AUC** (L1.3: Abstract + MINDlarge + Qwen3-1.7B)
 > Target: 72.72% AUC (MIND Leaderboard SOTA)
-> Gap: ~3%
+> Gap: ~2.23%
 
 ## 🚀 Azure ML Pipeline Support
 
@@ -126,7 +126,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | Training incomplete (checkpoint-15360 ~1 epoch only, AUC=0.4987); 8B consistently underperforms 1.7B |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | Best large so far; no chat template |
 | **L1.8** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7 | - | - | - | - | Abstract + longer training; expected to beat L1.3 |
-| **L1.9** | ⬜ Pending | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | - | - | - | - | Abstract + base model; combines best of L1.3 and L1.7 |
+| **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base model; marginally better nDCG@5 than L1.7 but worse AUC |
 
 ---
 
@@ -329,7 +329,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE MAX_H
   OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
   bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
 
-# L1.8 — Abstract + EP=7 (TRAINING)
+# L1.8 — Abstract + EP=7 (TRAINING) [micro-batch-size 4→2 to fix OOM with abstract+cutoff8192]
 python pipeline/run_pipeline.py `
   --experiment-name mind_sft_l1-8_abstract_ep7 `
   --display-name "L1.8: Abstract + EP=7 (large)" `
@@ -337,7 +337,7 @@ python pipeline/run_pipeline.py `
   --data-root shares/users/wuc/data/MIND_large `
   --output-root shares/users/wuc/output_dir `
   --batch-size 256 `
-  --micro-batch-size 4 `
+  --micro-batch-size 2 `
   --num-epochs 7 `
   --neg-ratio 2.0 `
   --max-history 30 `
@@ -738,7 +738,7 @@ python pipeline/run_pipeline.py \
 # [Completed — no chat template]
 
 # ============================================
-# L1.8: Abstract + EP=7 on large ⬜ Pending
+# L1.8: Abstract + EP=7 on large ⬜ Pending (retrain — prev run OOM'd mid-training)
 # ============================================
 python pipeline/run_pipeline.py \
   --experiment-name mind_sft_l1-8_abstract_ep7 \
@@ -747,7 +747,7 @@ python pipeline/run_pipeline.py \
   --data-root shares/users/wuc/data/MIND_large \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
-  --micro-batch-size 4 \
+  --micro-batch-size 2 \
   --num-epochs 7 \
   --neg-ratio 2.0 \
   --max-history 30 \
@@ -763,7 +763,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_C
   bash scripts/eval_mind_pointwise.sh $D/final_checkpoint dev
 
 # ============================================
-# L1.9: Abstract + Base model on large ⬜ Pending
+# L1.9: Abstract + Base model on large ✅ AUC=0.6880
 # ============================================
 python pipeline/run_pipeline.py \
   --experiment-name mind_sft_l1-9_abstract_base \

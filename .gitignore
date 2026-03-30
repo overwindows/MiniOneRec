@@ -18,3 +18,4 @@ temp_mind_pointwise/
 rl_error.log
 verl_direct.log
 ~/.venv/
+wandb_analysis/plots/

@@ -257,9 +257,11 @@ def parse_behaviors_line(line: str) -> Optional[Tuple[str, str, str, List[str], 
     impressions = []
     for imp in parts[4].split():
         if "-" not in imp:
-            continue
-        news_id, label = imp.rsplit("-", 1)
-        impressions.append((news_id, int(label)))
+            # Test split: no labels, treat as label=0
+            impressions.append((imp, 0))
+        else:
+            news_id, label = imp.rsplit("-", 1)
+            impressions.append((news_id, int(label)))
 
     return impression_id, user_id, timestamp, history_ids, impressions
 

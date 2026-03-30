@@ -101,14 +101,14 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **P1.1** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | 0.6845 | 0.3303 | 0.3665 | 0.4285 | More negatives; checkpoint-17835 |
-| **P1.2** | ✅ Completed | Qwen3-1.7B | MINDsmall | NUM_EPOCHS=7 | 0.6886 | 0.3363 | 0.3738 | 0.4345 | Longer training |
-| **P1.3** | 🔄 Re-run | Qwen3-1.7B | MINDsmall | USE_ABSTRACT=1, CUTOFF=4096 | 0.6662 | 0.3279 | 0.3648 | 0.4252 | With abstracts (prev cutoff=2048, re-running with 4096) |
-| **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history |
-| **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best |
+| **P1.1** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG_RATIO=3.0 | 0.6845 | 0.3303 | 0.3665 | 0.4285 | More negatives; checkpoint-17835; (pre-pipeline, no W&B) |
+| **P1.2** | ✅ Completed | Qwen3-1.7B | MINDsmall | NUM_EPOCHS=7 | 0.6886 | 0.3363 | 0.3738 | 0.4345 | Longer training; [W&B](https://wandb.ai/wuchen/MIND/runs/8a6omaep) |
+| **P1.3** | 🔄 Re-run | Qwen3-1.7B | MINDsmall | USE_ABSTRACT=1, CUTOFF=4096 | 0.6662 | 0.3279 | 0.3648 | 0.4252 | With abstracts (prev cutoff=2048, re-running with 4096); [W&B](https://wandb.ai/wuchen/huggingface/runs/awafic20) |
+| **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history; [W&B](https://wandb.ai/wuchen/huggingface/runs/vnjv3dlq) |
+| **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best; [W&B](https://wandb.ai/wuchen/huggingface/runs/rpifd679) |
 | **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
-| **P1.7** | ✅ Completed | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | 0.6767 | 0.3303 | 0.3670 | 0.4281 | Add subcategory to prompt |
-| **P1.B** | ✅ Completed | Qwen3-1.7B | MINDsmall | ep5 default baseline | 0.6861 | 0.3326 | 0.3702 | 0.4301 | anchor for all P1.x comparisons; `sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat` |
+| **P1.7** | ✅ Completed | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | 0.6767 | 0.3303 | 0.3670 | 0.4281 | Add subcategory to prompt; [W&B](https://wandb.ai/wuchen/huggingface/runs/2g7326e9) |
+| **P1.B** | ✅ Completed | Qwen3-1.7B | MINDsmall | ep5 default baseline | 0.6861 | 0.3326 | 0.3702 | 0.4301 | anchor for all P1.x comparisons; [W&B (old)](https://wandb.ai/wuchen/MIND/runs/9d7qw5o7) · [W&B (new)](https://wandb.ai/wuchen/huggingface/runs/er5a0t4z) |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
 
@@ -118,15 +118,15 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **L1.1** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0, HIST=30 | 0.6883 | 0.3316 | 0.3678 | 0.4310 | NEG=3.0 hurts on large too; worse than L1.2 and L1.7 |
-| **L1.2** | ✅ Completed | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | 0.6932 | 0.3359 | 0.3738 | 0.4373 | checkpoint-70144; `sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep7_neg2.0_hist30_chat` |
-| **L1.3** | ✅ Completed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | **0.7049** 🏆 | 0.3461 | 0.3847 | 0.4479 | **NEW BEST** — abstract on large is huge (+0.0103 vs L1.7) |
-| **L1.4** | ✅ Completed | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 hurts on large; worse than L1.2 baseline |
-| **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | Same as L1.4 (HIST=50 bottleneck); NEG/EP gains cancelled by history truncation |
-| **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | Training incomplete (checkpoint-15360 ~1 epoch only, AUC=0.4987); 8B consistently underperforms 1.7B |
-| **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | Best large so far; no chat template |
-| **L1.8** | ⬜ Pending | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7 | - | - | - | - | Abstract + longer training; expected to beat L1.3 |
-| **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base model; marginally better nDCG@5 than L1.7 but worse AUC |
+| **L1.1** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG_RATIO=3.0, HIST=30 | 0.6883 | 0.3316 | 0.3678 | 0.4310 | NEG=3.0 hurts on large too; [W&B](https://wandb.ai/wuchen/huggingface/runs/49ovq991) |
+| **L1.2** | ✅ Completed | Qwen3-1.7B | MINDlarge | NUM_EPOCHS=7 | 0.6932 | 0.3359 | 0.3738 | 0.4373 | checkpoint-70144; [W&B](https://wandb.ai/wuchen/huggingface/runs/h70c32sr) |
+| **L1.3** | ✅ Completed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | **0.7049** 🏆 | 0.3461 | 0.3847 | 0.4479 | **NEW BEST**; [W&B](https://wandb.ai/wuchen/huggingface/runs/d3dr5t8d) |
+| **L1.4** | ✅ Completed | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 hurts on large; [W&B](https://wandb.ai/wuchen/huggingface/runs/gskwfdbe) |
+| **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 bottleneck; [W&B](https://wandb.ai/wuchen/huggingface/runs/36ur6v25) |
+| **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | 8B incomplete (~1ep AUC=0.4987); [W&B](https://wandb.ai/wuchen/huggingface/runs/4mf3sa3v) |
+| **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
+| **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7 | - | - | - | - | Abstract + longer training; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
+| **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
 
 ---
 
@@ -134,7 +134,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
-| **M4.0** | ❌ Failed | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7, ep3 | 0.6213 | 0.2833 | 0.3124 | 0.3765 | Terrible — multitask hurts badly vs pure pointwise baseline (0.6861) |
+| **M4.0** | ❌ Failed | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7, ep3 | 0.6213 | 0.2833 | 0.3124 | 0.3765 | Multitask hurts badly; [W&B](https://wandb.ai/wuchen/MIND/runs/5nb9n11h) |
 | **M4.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.5, EP=5, Abstract | - | - | - | - | Proper test: large data + abstract + 5 epochs + pipeline |
 
 ### Phase 2: RL Fine-tuning
@@ -179,7 +179,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Approach | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|----------|-----|-----|--------|---------|-------|
-| **A5.1** | ⬜ Pending | Qwen3-1.7B | CoT RL | - | - | - | - | Chain-of-Thought |
+| **A5.1** | ❌ Crashed | Qwen3-1.7B | CoT RL | - | - | - | - | Chain-of-Thought; [W&B](https://wandb.ai/wuchen/MiniOneRec_MIND/runs/d00m4zay) |
 | **A5.2** | ⬜ Pending | Qwen3-14B/32B | Large model | - | - | - | - | Resource intensive |
 | **A5.3** | ⬜ Pending | Qwen3-1.7B | Data augmentation | - | - | - | - | Research exploration |
 

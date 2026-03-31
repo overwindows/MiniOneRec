@@ -1,0 +1,74 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: mind_ensemble_eval
+display_name: MIND Pointwise Ensemble Evaluation
+version: "1"
+type: command
+description: Multi-wave ensemble evaluation of pointwise models on MIND. Runs up to two waves sequentially (each wave = up to 3 models in parallel), saves per-model scores, then combines all scores into a final ensemble prediction.
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  wave1_models:
+    type: string
+    description: Wave 1 model paths (comma-separated, relative to mount). Required.
+  wave2_models:
+    type: string
+    default: ""
+    description: Wave 2 model paths (comma-separated, relative to mount). Leave empty to skip Wave 2.
+  data_root:
+    type: string
+    default: "shares/users/wuc/data/MIND_large"
+    description: MIND dataset root (relative to mount)
+  output_root:
+    type: string
+    default: "shares/users/wuc/output_dir"
+    description: Output directory root (relative to mount)
+  output_subdir:
+    type: string
+    default: "ensemble_results"
+    description: Subdirectory under output_root for results
+  split:
+    type: string
+    default: "dev"
+    description: Evaluation split (dev/test)
+  mind_size:
+    type: string
+    default: "large"
+    description: MIND dataset size (small/large)
+  max_history:
+    type: integer
+    default: 30
+    description: Max history items per impression
+  batch_size:
+    type: integer
+    default: 8
+    description: Batch size per GPU
+  run_convert:
+    type: integer
+    default: 0
+    description: Convert final predictions to MIND leaderboard format (1=yes, 0=no; only useful for test split)
+  debug_mode:
+    type: string
+    default: "false"
+    description: Debug mode (true/false) — on error continue + sleep infinity
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_mind_ensemble_eval.json
+  --mount-dir ${{inputs.msndni}}
+  --wave1-models ${{inputs.wave1_models}}
+  --wave2-models ${{inputs.wave2_models}}
+  --data-root ${{inputs.data_root}}
+  --output-root ${{inputs.output_root}}
+  --output-subdir ${{inputs.output_subdir}}
+  --split ${{inputs.split}}
+  --mind-size ${{inputs.mind_size}}
+  --max-history ${{inputs.max_history}}
+  --batch-size ${{inputs.batch_size}}
+  --run-convert ${{inputs.run_convert}}
+  --debug-mode ${{inputs.debug_mode}}

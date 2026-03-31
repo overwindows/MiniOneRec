@@ -63,7 +63,7 @@ command: >-
   --config config_mind_ensemble_eval.json
   --mount-dir ${{inputs.msndni}}
   --wave1-models ${{inputs.wave1_models}}
-  --wave2-models ${{inputs.wave2_models}}
+  $[[--wave2-models ${{inputs.wave2_models}}]]
   --data-root ${{inputs.data_root}}
   --output-root ${{inputs.output_root}}
   --output-subdir ${{inputs.output_subdir}}

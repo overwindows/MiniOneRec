@@ -15,6 +15,7 @@ inputs:
     description: Wave 1 model paths (comma-separated, relative to mount). Required.
   wave2_models:
     type: string
+    optional: true
     default: ""
     description: Wave 2 model paths (comma-separated, relative to mount). Leave empty to skip Wave 2.
   data_root:

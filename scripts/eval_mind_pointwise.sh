@@ -79,6 +79,9 @@ OUTPUT_SCORES_FILE="${OUTPUT_SCORES_FILE:-}"
 FLASH_ATTN="${FLASH_ATTN:-1}"  # Use Flash Attention 2 by default
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Use chat template for instruct models
 BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates
+TEMPERATURE="${TEMPERATURE:-1.0}"  # Logit temperature (1.0=off; tune for ensemble calibration)
+USE_RECENCY="${USE_RECENCY:-0}"  # Mark 5 most recent history items with "(recent)"
+USE_PROFILE_SUMMARY="${USE_PROFILE_SUMMARY:-0}"  # Prepend top-3 category interest summary
 
 # Construct paths
 DATA_DIR="${MIND_ROOT}/${SPLIT}"
@@ -189,6 +192,18 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       cmd="${cmd} --output_scores_file \"${TEMP_DIR}/${gpu_id}_scores.txt\""
     fi
 
+    if [[ "${TEMPERATURE}" != "1.0" ]]; then
+      cmd="${cmd} --temperature ${TEMPERATURE}"
+    fi
+
+    if [[ "${USE_RECENCY}" -eq 1 ]]; then
+      cmd="${cmd} --use_recency"
+    fi
+
+    if [[ "${USE_PROFILE_SUMMARY}" -eq 1 ]]; then
+      cmd="${cmd} --use_profile_summary"
+    fi
+
     # Run in background
     eval "$cmd 2>&1 | sed \"s/^/[GPU $gpu_id] /\"" &
     pid=$!
@@ -227,7 +242,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   mkdir -p "$(dirname "$OUTPUT_FILE")"
 
   echo "Merging predictions..."
-  actual_cuda_list=$(ls "${TEMP_DIR}"/*.txt 2>/dev/null | sed 's/.*\///g' | sed 's/\.txt//g' | tr '\n' ',' | sed 's/,$//')
+  actual_cuda_list=$(ls "${TEMP_DIR}"/*.txt 2>/dev/null | sed 's/.*\///g' | grep -E '^[0-9]+\.txt$' | sed 's/\.txt//g' | tr '\n' ',' | sed 's/,$//')
 
   "${PYTHON}" src/merge_mind.py \
     --input_path "${TEMP_DIR}" \
@@ -304,6 +319,18 @@ else
 
   if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
     CMD="${CMD} --use_chat_template"
+  fi
+
+  if [[ "${TEMPERATURE}" != "1.0" ]]; then
+    CMD="${CMD} --temperature ${TEMPERATURE}"
+  fi
+
+  if [[ "${USE_RECENCY}" -eq 1 ]]; then
+    CMD="${CMD} --use_recency"
+  fi
+
+  if [[ "${USE_PROFILE_SUMMARY}" -eq 1 ]]; then
+    CMD="${CMD} --use_profile_summary"
   fi
 
   eval "${CMD}"

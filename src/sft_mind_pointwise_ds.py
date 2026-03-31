@@ -82,6 +82,9 @@ def train(
     wandb_run_id: str = "",
     deepspeed_config: str = "",
     use_chat_template: bool = None,  # Auto-detect if None
+    use_recency: bool = False,  # Mark 5 most recent history items with "(recent)"
+    use_profile_summary: bool = False,  # Prepend top-3 category interest summary
+    use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
 ):
     """Train with point-wise SFT format (Yes/No classification) using DeepSpeed"""
 
@@ -139,6 +142,9 @@ def train(
         use_abstract=use_abstract,
         use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,
+        use_recency=use_recency,
+        use_profile_summary=use_profile_summary,
+        use_impression_timestamp=use_impression_timestamp,
     )
 
     val_data = MINDPointwiseSFTDataset(
@@ -153,6 +159,9 @@ def train(
         use_abstract=use_abstract,
         use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,
+        use_recency=use_recency,
+        use_profile_summary=use_profile_summary,
+        use_impression_timestamp=use_impression_timestamp,
     )
 
     print(f"\nTraining with Point-wise SFT:")

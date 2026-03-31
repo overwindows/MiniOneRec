@@ -63,6 +63,10 @@ def batch_score_candidates_pointwise(
     batch_size: int = 8,
     use_chat_template: bool = False,
     use_subcategory: bool = False,
+    temperature: float = 1.0,
+    use_recency: bool = False,
+    use_profile_summary: bool = False,
+    impression_timestamp: str = None,
 ) -> List[float]:
     """
     Score multiple candidates in batches for efficiency.
@@ -71,11 +75,20 @@ def batch_score_candidates_pointwise(
         List of scores for each candidate
     """
     # Build all prompts
-    prompt_fn = build_pointwise_prompt_subcategory if use_subcategory else build_pointwise_prompt
-    prompts = [
-        prompt_fn(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
-        for cand in candidates
-    ]
+    if use_subcategory:
+        prompts = [
+            build_pointwise_prompt_subcategory(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
+            for cand in candidates
+        ]
+    else:
+        prompts = [
+            build_pointwise_prompt(
+                history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template,
+                use_recency=use_recency, use_profile_summary=use_profile_summary,
+                impression_timestamp=impression_timestamp,
+            )
+            for cand in candidates
+        ]
 
     # Tokenize all prompts
     # For chat templates, add_special_tokens is already handled
@@ -108,6 +121,8 @@ def batch_score_candidates_pointwise(
             outputs = model(input_ids=input_ids, attention_mask=attention_mask)
             # Get logits at last position (after "Answer:")
             logits = outputs.logits[:, -1, :]
+            if temperature != 1.0:
+                logits = logits / temperature
             log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
 
             yes_log_probs = log_probs[:, yes_token_id]
@@ -135,6 +150,9 @@ def main():
     parser.add_argument("--flash_attn", action="store_true", help="Use Flash Attention 2")
     parser.add_argument("--use_chat_template", action="store_true", help="Use chat template (for instruct models)")
     parser.add_argument("--quick", action="store_true", help="Quick mode: evaluate 500 impressions")
+    parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for logit scaling (default=1.0, no effect); mainly useful for ensemble calibration")
+    parser.add_argument("--use_recency", action="store_true", help="Mark 5 most recent history items with '(recent)' tag")
+    parser.add_argument("--use_profile_summary", action="store_true", help="Prepend top-3 category interest summary to prompt")
     args = parser.parse_args()
 
     # Quick mode overrides max_impressions
@@ -221,7 +239,7 @@ def main():
                 skipped_malformed += 1
                 continue
 
-            impression_id, _, _, history_ids, imp_list = parsed
+            impression_id, _, impression_ts, history_ids, imp_list = parsed
 
             if args.max_history > 0:
                 history_ids = history_ids[-args.max_history:]
@@ -250,7 +268,11 @@ def main():
             scores = batch_score_candidates_pointwise(
                 model, tokenizer, history_objs, candidate_objs, device,
                 yes_token_id, no_token_id, args.batch_size, args.use_chat_template,
-                args.use_subcategory
+                args.use_subcategory,
+                temperature=args.temperature,
+                use_recency=args.use_recency,
+                use_profile_summary=args.use_profile_summary,
+                impression_timestamp=impression_ts if (args.use_recency or args.use_profile_summary or impression_ts) else None,
             )
 
             # Compute metrics (only if we have positive labels)

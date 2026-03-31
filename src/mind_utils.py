@@ -15,10 +15,43 @@ Functions:
 """
 
 import math
+from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from sklearn.metrics import roc_auc_score
+
+
+def _parse_timestamp(ts: Optional[str]):
+    """Parse MIND timestamp string into (day_of_week, time_period) or (None, None)."""
+    if not ts:
+        return None, None
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(ts.strip(), "%m/%d/%Y %I:%M:%S %p")
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        day = days[dt.weekday()]
+        h = dt.hour
+        if 6 <= h < 12:
+            period = "morning"
+        elif 12 <= h < 18:
+            period = "afternoon"
+        elif 18 <= h < 24:
+            period = "evening"
+        else:
+            period = "night"
+        return day, period
+    except Exception:
+        return None, None
+
+
+def _build_profile_summary(history: List[Dict[str, str]]) -> str:
+    """Build a brief category frequency summary from reading history."""
+    cats = [h.get("category", "") for h in history if h.get("category", "")]
+    if not cats:
+        return ""
+    top = Counter(cats).most_common(3)
+    return "User interests: " + ", ".join(f"{c} ({n})" for c, n in top)
 
 
 def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str, str]]:
@@ -61,7 +94,10 @@ def build_pointwise_prompt(
     history: List[Dict[str, str]],
     candidate: Dict[str, str],
     tokenizer=None,
-    use_chat_template: bool = False
+    use_chat_template: bool = False,
+    use_recency: bool = False,
+    use_profile_summary: bool = False,
+    impression_timestamp: Optional[str] = None,
 ) -> str:
     """
     Build pointwise Yes/No classification prompt matching SFT training format.
@@ -76,18 +112,38 @@ def build_pointwise_prompt(
         candidate: Single candidate news dict
         tokenizer: Tokenizer object (required if use_chat_template=True)
         use_chat_template: Whether to format using chat template for instruct models
+        use_recency: Mark the 5 most recent history items with "(recent)"
+        use_profile_summary: Prepend top-3 category frequency summary
+        impression_timestamp: MIND timestamp string (e.g. "11/15/2019 1:00:00 PM")
+                              Adds day/time-of-day context when provided
 
     Returns:
         Prompt string ending with "Answer:" (raw) or chat-formatted prompt
     """
     # Build the base content
-    content = "A user read these news articles:\n"
+    content = ""
+
+    # Optional: time-of-day / day-of-week context
+    if impression_timestamp:
+        day, period = _parse_timestamp(impression_timestamp)
+        if day and period:
+            content += f"Reading time: {day} {period}\n"
+
+    # Optional: user interest profile summary
+    if use_profile_summary and history:
+        summary = _build_profile_summary(history)
+        if summary:
+            content += summary + "\n"
+
+    content += "A user read these news articles:\n"
 
     if history:
         recent_history = history[-30:] if len(history) > 30 else history
+        recency_cutoff = max(0, len(recent_history) - 5) if use_recency else len(recent_history)
         for i, h in enumerate(recent_history, 1):
             cat = h.get("category", "General")
-            content += f"{i}. [{cat}] {h['text']}\n"
+            tag = " (recent)" if use_recency and (i - 1) >= recency_cutoff else ""
+            content += f"{i}. [{cat}] {h['text']}{tag}\n"
     else:
         content += "(No reading history)\n"
 

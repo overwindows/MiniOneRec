@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 from typing import List, Tuple
+from collections import Counter
 import json
 import random
 from tqdm import tqdm
@@ -184,6 +185,9 @@ class MINDPointwiseSFTDataset:
         use_abstract: bool = False,
         use_chat_template: bool = False,  # Use chat template for instruct models
         use_subcategory: bool = False,  # Include subcategory in [cat/subcat] format
+        use_recency: bool = False,  # Mark 5 most recent history items with "(recent)"
+        use_profile_summary: bool = False,  # Prepend top-3 category interest summary
+        use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -192,6 +196,9 @@ class MINDPointwiseSFTDataset:
         self.use_abstract = use_abstract
         self.use_chat_template = use_chat_template
         self.use_subcategory = use_subcategory
+        self.use_recency = use_recency
+        self.use_profile_summary = use_profile_summary
+        self.use_impression_timestamp = use_impression_timestamp
         self.seed = seed
 
         # Load news articles
@@ -242,6 +249,7 @@ class MINDPointwiseSFTDataset:
                     continue
 
                 impression_id = parts[0]
+                impression_timestamp = parts[2] if len(parts) > 2 else ""
                 history_ids = parts[3].split()
                 impressions = parts[4].split()
 
@@ -274,6 +282,7 @@ class MINDPointwiseSFTDataset:
                 for pos_id in positives:
                     all_samples.append({
                         'impression_id': impression_id,
+                        'impression_timestamp': impression_timestamp,
                         'history': history,
                         'candidate_id': pos_id,
                         'candidate': self.news[pos_id],
@@ -310,6 +319,7 @@ class MINDPointwiseSFTDataset:
                     for neg_id in sampled_negs:
                         all_samples.append({
                             'impression_id': impression_id,
+                            'impression_timestamp': impression_timestamp,
                             'history': history,
                             'candidate_id': neg_id,
                             'candidate': self.news[neg_id],
@@ -325,7 +335,7 @@ class MINDPointwiseSFTDataset:
 
         return all_samples
 
-    def _build_pointwise_prompt(self, history, candidate, label):
+    def _build_pointwise_prompt(self, history, candidate, label, impression_timestamp=""):
         """
         Build OPTIMIZED point-wise prompt for binary classification.
 
@@ -335,25 +345,36 @@ class MINDPointwiseSFTDataset:
         - Natural language question
         - Limit to last 30 history items for focus
 
-        Format:
-        A user read these news articles:
-        1. [Category] Title...
-        2. [Category] Title...
-        ...
-
-        Candidate article:
-        [Category] Title...
-
-        Will this user read this article? Answer:
+        Optional enhancements (all off by default):
+        - use_recency: marks 5 most recent history items with "(recent)"
+        - use_profile_summary: prepends top-3 category interest summary
+        - use_impression_timestamp: adds day/time-of-day context
         """
-        prompt = "A user read these news articles:\n"
+        prompt = ""
+
+        # Optional: time-of-day / day-of-week context
+        if self.use_impression_timestamp and impression_timestamp:
+            day, period = self._parse_timestamp(impression_timestamp)
+            if day and period:
+                prompt += f"Reading time: {day} {period}\n"
+
+        # Optional: user interest profile summary
+        if self.use_profile_summary and history:
+            cats = [h.get('category', '') for h in history if h.get('category', '')]
+            if cats:
+                top = Counter(cats).most_common(3)
+                prompt += "User interests: " + ", ".join(f"{c} ({n})" for c, n in top) + "\n"
+
+        prompt += "A user read these news articles:\n"
 
         # User history - limit to last 30 for token efficiency
         if history:
             recent_history = history[-30:] if len(history) > 30 else history
+            recency_cutoff = max(0, len(recent_history) - 5) if self.use_recency else len(recent_history)
             for i, h in enumerate(recent_history, 1):
                 cat = h.get('category', 'General')
-                prompt += f"{i}. [{cat}] {h['text']}\n"
+                tag = " (recent)" if self.use_recency and (i - 1) >= recency_cutoff else ""
+                prompt += f"{i}. [{cat}] {h['text']}{tag}\n"
         else:
             prompt += "(No reading history)\n"
 
@@ -372,6 +393,27 @@ class MINDPointwiseSFTDataset:
         target = " Yes" if label == 1 else " No"
 
         return prompt, target
+
+    @staticmethod
+    def _parse_timestamp(ts: str):
+        """Parse MIND timestamp string into (day_of_week, time_period) or (None, None)."""
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(ts.strip(), "%m/%d/%Y %I:%M:%S %p")
+            days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            day = days[dt.weekday()]
+            h = dt.hour
+            if 6 <= h < 12:
+                period = "morning"
+            elif 12 <= h < 18:
+                period = "afternoon"
+            elif 18 <= h < 24:
+                period = "evening"
+            else:
+                period = "night"
+            return day, period
+        except Exception:
+            return None, None
 
     def _build_pointwise_prompt_subcategory(self, history, candidate, label):
         """
@@ -406,12 +448,15 @@ class MINDPointwiseSFTDataset:
         sample = self.samples[idx]
 
         # Build prompt
-        build_fn = self._build_pointwise_prompt_subcategory if self.use_subcategory else self._build_pointwise_prompt
-        prompt, target = build_fn(
-            sample['history'],
-            sample['candidate'],
-            sample['label']
-        )
+        if self.use_subcategory:
+            prompt, target = self._build_pointwise_prompt_subcategory(
+                sample['history'], sample['candidate'], sample['label']
+            )
+        else:
+            prompt, target = self._build_pointwise_prompt(
+                sample['history'], sample['candidate'], sample['label'],
+                impression_timestamp=sample.get('impression_timestamp', ''),
+            )
 
         if self.use_chat_template:
             # Use chat template for instruct models with system prompt

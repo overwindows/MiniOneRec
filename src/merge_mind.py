@@ -75,7 +75,7 @@ def merge(input_path, output_path=None, cuda_list=None, calculate_metrics=True):
         cuda_list = [int(f[:-4]) for f in txt_files]
         print(f"Auto-detected GPU files: {sorted(cuda_list)}")
     elif isinstance(cuda_list, str):
-        cuda_list = [int(x.strip()) for x in cuda_list.split(',') if x.strip()]
+        cuda_list = [int(x.strip()) for x in cuda_list.split(',') if x.strip() and x.strip().isdigit()]
 
     predictions = []
     failed_files = []

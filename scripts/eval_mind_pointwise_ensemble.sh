@@ -27,8 +27,8 @@ set -euo pipefail
 MODEL_PATHS=("$@")
 N_MODELS=${#MODEL_PATHS[@]}
 
-if [[ ${N_MODELS} -lt 2 ]]; then
-  echo "Usage: $0 <model_path_1> <model_path_2> [model_path_3 ...]" >&2
+if [[ ${N_MODELS} -lt 1 ]]; then
+  echo "Usage: $0 <model_path_1> [model_path_2 ...]" >&2
   echo "" >&2
   echo "Environment variables:" >&2
   echo "  CUDA_VISIBLE_DEVICES  GPUs to use, split evenly across models (e.g. 0,1,2,3,4,5,6,7)" >&2

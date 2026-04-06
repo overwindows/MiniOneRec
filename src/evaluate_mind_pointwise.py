@@ -167,8 +167,12 @@ def main():
 
     print(f"Loading model from: {args.model_path}")
     import os as _os
-    local_only = _os.path.isdir(args.model_path)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True, local_files_only=local_only)
+    from pathlib import Path as _Path
+    # Treat any absolute path or existing directory as local to avoid
+    # huggingface_hub validate_repo_id rejecting absolute paths
+    local_only = _os.path.isabs(args.model_path) or _os.path.isdir(args.model_path)
+    model_path_arg = _Path(args.model_path) if local_only else args.model_path
+    tokenizer = AutoTokenizer.from_pretrained(model_path_arg, trust_remote_code=True, local_files_only=local_only)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
@@ -185,7 +189,7 @@ def main():
         print("Using Flash Attention 2")
 
     model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, **model_kwargs
+        model_path_arg, **model_kwargs
     )
     model.eval()
     device = next(model.parameters()).device

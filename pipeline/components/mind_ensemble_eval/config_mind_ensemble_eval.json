@@ -37,13 +37,13 @@
     {
       "name": "Wave 1 — 并行评估",
       "description": "Run Wave 1 models in parallel, save per-model scores to scores/",
-      "command": "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE={mind_size} MIND_ROOT={data_root} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} KEEP_SCORES_DIR={output_root}/{output_subdir}/scores OUTPUT_FILE={output_root}/{output_subdir}/wave1_predictions.txt bash scripts/eval_mind_pointwise_ensemble.sh {wave1_model_paths}",
+      "command": "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 SPLIT={split} MIND_SIZE={mind_size} MIND_ROOT={data_root} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} KEEP_SCORES_DIR={output_root}/{output_subdir}/scores OUTPUT_FILE={output_root}/{output_subdir}/wave1_predictions.txt bash scripts/eval_mind_pointwise_ensemble.sh {wave1_model_paths}",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {
       "name": "Wave 2 — 并行评估（可选）",
       "description": "Run Wave 2 models if provided. Skipped if wave2_models is empty.",
-      "command": "if [ -n \"{wave2_model_paths}\" ]; then CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE={mind_size} MIND_ROOT={data_root} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} KEEP_SCORES_DIR={output_root}/{output_subdir}/scores OUTPUT_FILE={output_root}/{output_subdir}/wave2_predictions.txt bash scripts/eval_mind_pointwise_ensemble.sh {wave2_model_paths}; else echo 'Wave 2 skipped (no models provided)'; fi",
+      "command": "if [ -n \"{wave2_model_paths}\" ]; then CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 SPLIT={split} MIND_SIZE={mind_size} MIND_ROOT={data_root} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} KEEP_SCORES_DIR={output_root}/{output_subdir}/scores OUTPUT_FILE={output_root}/{output_subdir}/wave2_predictions.txt bash scripts/eval_mind_pointwise_ensemble.sh {wave2_model_paths}; else echo 'Wave 2 skipped (no models provided)'; fi",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {

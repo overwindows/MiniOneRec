@@ -156,6 +156,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **E3.B** | ⬜ Pending | L1.3 + L1.2 | equal weights | - | - | - | - | Abstract(0.7049) + EP7(0.6932) |
 | **E3.C** | ⬜ Pending | L1.3 + L1.7 + L1.2 | equal weights | - | - | - | - | Top-3 large checkpoints |
 | **E3.D** | ⬜ Pending | L1.3 + L1.7 + L1.2 | weights 1.0 0.8 0.8 | - | - | - | - | L1.3-heavy weighting |
+| **E3.E** | ✅ Completed | L1.3 + L1.7 + L1.9 | equal weights | **0.7071** | 0.4002 | 0.3863 | 0.4489 | +0.0022 AUC over L1.3 solo; L1.9=checkpoint-3584 |
 
 #### PW + Ranking Ensemble (requires ranking model training first)
 

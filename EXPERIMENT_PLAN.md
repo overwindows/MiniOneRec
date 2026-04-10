@@ -152,7 +152,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|--------|--------|-----|-----|--------|---------|-------|
-| **E3.A** | ⬜ Pending | L1.3 + L1.7 | equal weights | - | - | - | - | Abstract(0.7049) + Base(0.6946) |
+| **E3.A** | ✅ Completed | L1.3 + L1.7 | equal weights | **0.7152** 🏆 | 0.4032 | 0.3896 | 0.4519 | **NEW BEST**; +0.0103 over L1.3 solo |
 | **E3.B** | ⬜ Pending | L1.3 + L1.2 | equal weights | - | - | - | - | Abstract(0.7049) + EP7(0.6932) |
 | **E3.C** | ⬜ Pending | L1.3 + L1.7 + L1.2 | equal weights | - | - | - | - | Top-3 large checkpoints |
 | **E3.D** | ⬜ Pending | L1.3 + L1.7 + L1.2 | weights 1.0 0.8 0.8 | - | - | - | - | L1.3-heavy weighting |

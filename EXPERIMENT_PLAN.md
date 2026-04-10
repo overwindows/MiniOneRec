@@ -125,7 +125,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 bottleneck; [W&B](https://wandb.ai/wuchen/huggingface/runs/36ur6v25) |
 | **L1.6** | ❌ Failed | Qwen3-8B | MINDlarge | Default + 8B model | - | - | - | - | 8B incomplete (~1ep AUC=0.4987); [W&B](https://wandb.ai/wuchen/huggingface/runs/4mf3sa3v) |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
-| **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7 | - | - | - | - | Abstract + longer training; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
+| **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | - | - | - | - | 19% @ ep1.33 (eval_loss=0.5902); ~31 day ETA due to micro_bs=2; may not finish all 7 ep; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
 
 ---

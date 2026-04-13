@@ -108,9 +108,22 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best; [W&B](https://wandb.ai/wuchen/huggingface/runs/rpifd679) |
 | **P1.6** | ⬜ Pending | Qwen3-4B-Instruct | MINDsmall | Default + 4B model | - | - | - | - | Scale to 4B (first try before 8B) |
 | **P1.7** | ✅ Completed | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | 0.6767 | 0.3303 | 0.3670 | 0.4281 | Add subcategory to prompt; [W&B](https://wandb.ai/wuchen/huggingface/runs/2g7326e9) |
-| **P1.B** | ✅ Completed | Qwen3-1.7B | MINDsmall | ep5 default baseline | 0.6861 | 0.3326 | 0.3702 | 0.4301 | anchor for all P1.x comparisons; [W&B (old)](https://wandb.ai/wuchen/MIND/runs/9d7qw5o7) · [W&B (new)](https://wandb.ai/wuchen/huggingface/runs/er5a0t4z) |
+| **P1.0** | ✅ Completed | Qwen3-1.7B | MINDsmall | ep5 default baseline | 0.6861 | 0.3326 | 0.3702 | 0.4301 | anchor for all P1.x comparisons; [W&B (old)](https://wandb.ai/wuchen/MIND/runs/9d7qw5o7) · [W&B (new)](https://wandb.ai/wuchen/huggingface/runs/er5a0t4z) |
 
 **Status Legend**: ⬜ Pending | 🔄 Running | ✅ Completed | ❌ Failed
+
+---
+
+### Key Finding: Abstract in Training vs Evaluation
+
+> **Training with abstracts but evaluating without abstracts can yield higher scores.**
+>
+> Models trained with `USE_ABSTRACT=1` appear to achieve better evaluation metrics when
+> evaluated with `USE_ABSTRACT=0` (title-only). Hypothesis: abstracts provide richer
+> training signal — the model learns deeper content/category understanding — but at eval
+> time, shorter title-only prompts reduce noise and let the model focus on the learned
+> topic signals. This means L1.3's reported 0.7049 AUC (evaluated with abstracts) may
+> understate the model's true capability; re-evaluating L1.3 without abstracts is recommended.
 
 ---
 
@@ -127,6 +140,23 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
 | **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | - | - | - | - | 19% @ ep1.33 (eval_loss=0.5902); ~31 day ETA due to micro_bs=2; may not finish all 7 ep; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
+
+---
+
+### Phase 1E: Abstract Train → Title-Only Eval (Cross-Condition)
+
+> **Rationale**: Abstracts act as training-time augmentation — the model learns richer content
+> representations — but at eval time, title-only prompts are more compact and signal-dense
+> for a small (1.7B) model. Re-evaluate all abstract-trained checkpoints with `USE_ABSTRACT=0`.
+
+| Exp ID | Status | Source | Eval Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|--------|-------------|-----|-----|--------|---------|-------|
+| **E1.1** | ⬜ Pending | L1.3 (abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | A/B test: compare vs L1.3's 0.7049 (eval w/ abstract) |
+| **E1.2** | ⬜ Pending | L1.3 (abstract-trained) | eval USE_ABSTRACT=1 | - | - | - | - | A/B control: re-eval w/ abstract after eval pipeline fix |
+| **E1.3** | ⬜ Pending | L1.9 (base, abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | Same test on base model; compare vs L1.9's 0.6880 |
+| **E1.4** | ⬜ Pending | L1.6 (4B, abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | Run after L1.6 training completes |
+
+**If E1.1 > L1.3**: adopt "abstract train + title eval" as default for all future abstract-trained models.
 
 ---
 
@@ -228,7 +258,7 @@ Copy and paste this template when updating:
 ### Phase 1: MINDsmall
 
 ```bash
-# P1.B — ep5 default baseline
+# P1.0 — ep5 default baseline
 D=$OUTPUT_DIR/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat
 mkdir -p $D/eval_results
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT=$MIND_SMALL USE_CHAT_TEMPLATE=1 MAX_HISTORY=30 BATCH_SIZE=8 \
@@ -300,6 +330,27 @@ D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstra
 mkdir -p $D/eval_results
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
   OUTPUT_FILE=$D/eval_results/dev_pointwise_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# E1.1 — L1.3 checkpoint, eval WITHOUT abstract (cross-condition A/B test)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 USE_ABSTRACT=0 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_no_abstract_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# E1.2 — L1.3 checkpoint, eval WITH abstract (control, re-eval after pipeline fix)
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_with_abstract_predictions.txt \
+  bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
+
+# E1.3 — L1.9 (base, abstract-trained) checkpoint, eval WITHOUT abstract
+D=$OUTPUT_DIR/sft_mind_pointwise_large_Qwen3-1.7B-Base_bs256_ep5_neg2.0_hist30_abstract
+mkdir -p $D/eval_results
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$MIND_LARGE USE_CHAT_TEMPLATE=0 USE_ABSTRACT=0 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$D/eval_results/dev_pointwise_no_abstract_predictions.txt \
   bash scripts/eval_mind_pointwise.sh $(latest_ckpt $D) dev
 
 # L1.4 — HIST=50

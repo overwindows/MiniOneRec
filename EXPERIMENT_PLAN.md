@@ -106,7 +106,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **P1.3** | 🔄 Re-run | Qwen3-1.7B | MINDsmall | USE_ABSTRACT=1, CUTOFF=4096 | 0.6662 | 0.3279 | 0.3648 | 0.4252 | With abstracts (prev cutoff=2048, re-running with 4096); [W&B](https://wandb.ai/wuchen/huggingface/runs/awafic20) |
 | **P1.4** | ✅ Completed | Qwen3-1.7B | MINDsmall | MAX_HISTORY=50 | 0.6886 | 0.3338 | 0.3709 | 0.4327 | More history; [W&B](https://wandb.ai/wuchen/huggingface/runs/vnjv3dlq) |
 | **P1.5** | ✅ Completed | Qwen3-1.7B | MINDsmall | NEG=3.0, EP=7, HIST=50 | 0.6804 | 0.3292 | 0.3662 | 0.4284 | Combined best; [W&B](https://wandb.ai/wuchen/huggingface/runs/rpifd679) |
-| **P1.6** | ⬜ Pending | Qwen3-8B-Instruct | MINDsmall | Default + 8B model | - | - | - | - | Scale to 8B |
+| **P1.6** | ⬜ Pending | Qwen3-4B-Instruct | MINDsmall | Default + 4B model | - | - | - | - | Scale to 4B (first try before 8B) |
 | **P1.7** | ✅ Completed | Qwen3-1.7B | MINDsmall | USE_SUBCATEGORY=1 | 0.6767 | 0.3303 | 0.3670 | 0.4281 | Add subcategory to prompt; [W&B](https://wandb.ai/wuchen/huggingface/runs/2g7326e9) |
 | **P1.B** | ✅ Completed | Qwen3-1.7B | MINDsmall | ep5 default baseline | 0.6861 | 0.3326 | 0.3702 | 0.4301 | anchor for all P1.x comparisons; [W&B (old)](https://wandb.ai/wuchen/MIND/runs/9d7qw5o7) · [W&B (new)](https://wandb.ai/wuchen/huggingface/runs/er5a0t4z) |
 
@@ -414,7 +414,7 @@ python pipeline/run_pipeline.py `
 | **P1.3** | ✅ Training + Eval | ✅ Available | Full pipeline support (use_abstract) |
 | **P1.4** | ✅ Training + Eval | ✅ Available | Full pipeline support |
 | **P1.5** | ✅ Training + Eval | ✅ Available | Full pipeline support |
-| **P1.6** | ✅ Training + Eval | ✅ Available | Full pipeline support (8B model) |
+| **P1.6** | ✅ Training + Eval | ✅ Available | Full pipeline support (4B model, micro_bs=2) |
 | **R2.1-R2.4** | ❌ Training / ✅ Eval | ✅ Required | RL not yet in pipeline |
 | **E3.1-E3.5** | ❌ Not applicable | ✅ Required | Ensemble/cascade local only |
 | **M4.1** | ✅ Training + Eval | ✅ Available | Pipeline now supports multitask (--pointwise-ratio) |
@@ -472,7 +472,7 @@ python pipeline/run_pipeline.py `
 | P1.3 | Add abstracts | `USE_ABSTRACT=1` | 69.6% |
 | P1.4 | More history | `MAX_HISTORY=50` | 69.7% |
 | P1.5 | Combined best | Best of P1.1-P1.4 | 70.0%+ |
-| P1.6 | Scale to 8B | `MODEL_PATH=Qwen3-8B-Instruct` | 70.5%+ |
+| P1.6 | Scale to 4B | `MODEL_PATH=Qwen3-4B-Instruct` | 70.5%+ |
 
 ### Phase 2: RL Fine-tuning (Priority: HIGH)
 
@@ -670,16 +670,16 @@ python pipeline/run_eval_pipeline.py \
   --split dev
 
 # ============================================
-# P1.6: Scale to 8B model
+# P1.6: Scale to 4B model (first try before 8B)
 # ============================================
 python pipeline/run_pipeline.py \
-  --experiment-name mind_sft_p1-6_8b \
-  --display-name "P1.6: Scale to 8B model" \
-  --model-path Qwen/Qwen3-8B \
+  --experiment-name mind_sft_p1-6_4b \
+  --display-name "P1.6: Scale to 4B model" \
+  --model-path Qwen/Qwen3-4B-Instruct \
   --data-root shares/users/wuc/data/MIND_small \
   --output-root shares/users/wuc/output_dir \
   --batch-size 256 \
-  --micro-batch-size 1 \
+  --micro-batch-size 2 \
   --num-epochs 5 \
   --neg-ratio 2.0 \
   --max-history 30 \
@@ -1081,7 +1081,7 @@ python pipeline/run_cot_rl_pipeline.py \
 | P1.3, P1.4 | 16h | Run in parallel |
 | Evaluate P1.1-P1.4 | 4h | Identify best |
 | P1.5 (combined) | 8h | Best settings |
-| P1.6 (8B model) | 16h | If resources allow |
+| P1.6 (4B model) | 12h | If resources allow |
 
 ### Week 2: Ensemble & RL
 

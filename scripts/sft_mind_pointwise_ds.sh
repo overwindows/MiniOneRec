@@ -208,4 +208,9 @@ deepspeed --hostfile=$HOSTFILE \
         ${RESUME_CHECKPOINT:+--resume_from_checkpoint $RESUME_CHECKPOINT} \
         ${WANDB_RUN_ID:+--wandb_run_id $WANDB_RUN_ID}
 
+TRAIN_EXIT_CODE=$?
+if [ $TRAIN_EXIT_CODE -ne 0 ]; then
+    echo "Training FAILED with exit code $TRAIN_EXIT_CODE"
+    exit $TRAIN_EXIT_CODE
+fi
 echo "Training completed!"

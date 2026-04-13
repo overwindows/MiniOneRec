@@ -7,54 +7,7 @@ Usage:
 
 import fire
 import os
-import math
-import numpy as np
-from typing import List
 from tqdm import tqdm
-
-
-def _rankdata(scores: List[float]) -> List[float]:
-    """Average rank for ties, 1-based ranks (higher score = better)."""
-    sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i])
-    ranks = [0.0] * len(scores)
-    i = 0
-    while i < len(sorted_idx):
-        j = i
-        while j + 1 < len(sorted_idx) and scores[sorted_idx[j]] == scores[sorted_idx[j + 1]]:
-            j += 1
-        avg_rank = (i + j + 2) / 2.0
-        for k in range(i, j + 1):
-            ranks[sorted_idx[k]] = avg_rank
-        i = j + 1
-    return ranks
-
-
-def auc_score(labels: List[int], scores: List[float]) -> float:
-    pos = sum(labels)
-    neg = len(labels) - pos
-    if pos == 0 or neg == 0:
-        return 0.5
-    ranks = _rankdata(scores)
-    pos_rank_sum = sum(r for r, l in zip(ranks, labels) if l == 1)
-    return (pos_rank_sum - pos * (pos + 1) / 2) / (pos * neg)
-
-
-def mrr_score(labels: List[int], scores: List[float]) -> float:
-    sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    for rank, idx in enumerate(sorted_idx, start=1):
-        if labels[idx] == 1:
-            return 1.0 / rank
-    return 0.0
-
-
-def ndcg_score(labels: List[int], scores: List[float], k: int) -> float:
-    sorted_idx = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    dcg = 0.0
-    for rank, idx in enumerate(sorted_idx[:k], start=1):
-        if labels[idx] == 1:
-            dcg += 1.0 / math.log2(rank + 1)
-    ideal = sum(1.0 / math.log2(r + 1) for r in range(1, min(sum(labels), k) + 1))
-    return dcg / ideal if ideal > 0 else 0.0
 
 
 def merge(input_path, output_path=None, cuda_list=None, calculate_metrics=True):

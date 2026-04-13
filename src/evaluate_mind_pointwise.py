@@ -199,7 +199,12 @@ def main():
     yes_tokens = tokenizer.encode(" Yes", add_special_tokens=False)
     no_tokens = tokenizer.encode(" No", add_special_tokens=False)
 
-    # Handle tokenizers that might split differently
+    # Handle tokenizers that might split " Yes"/" No" into multiple tokens.
+    # Use [-1] (the content token e.g. "Yes") rather than [0] (which could be a generic space).
+    if len(yes_tokens) != 1:
+        print(f"WARNING: ' Yes' tokenized into {len(yes_tokens)} tokens {yes_tokens}; using last token.")
+    if len(no_tokens) != 1:
+        print(f"WARNING: ' No' tokenized into {len(no_tokens)} tokens {no_tokens}; using last token.")
     yes_token_id = yes_tokens[0] if len(yes_tokens) == 1 else yes_tokens[-1]
     no_token_id = no_tokens[0] if len(no_tokens) == 1 else no_tokens[-1]
 

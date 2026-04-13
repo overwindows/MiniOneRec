@@ -16,11 +16,15 @@ Usage:
 """
 
 import argparse
-import math
+import os
+import sys
 from typing import Dict, List
 
 import numpy as np
 from tqdm import tqdm
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from mind_utils import auc_score, mrr_score, ndcg_score
 
 
 def load_scores(path: str) -> Dict[str, List[float]]:
@@ -35,36 +39,6 @@ def load_scores(path: str) -> Dict[str, List[float]]:
             imp_id = parts[0]
             scores[imp_id] = [float(s) for s in parts[1:]]
     return scores
-
-
-def auc_score(labels, scores):
-    pos = sum(labels)
-    neg = len(labels) - pos
-    if pos == 0 or neg == 0:
-        return 0.5
-    pairs = sorted(zip(scores, labels), reverse=True)
-    pos_above = 0
-    auc = 0.0
-    for s, l in pairs:
-        if l == 1:
-            pos_above += 1
-        else:
-            auc += pos_above
-    return auc / (pos * neg)
-
-
-def mrr_score(labels, scores):
-    for rank, idx in enumerate(sorted(range(len(scores)), key=lambda i: scores[i], reverse=True), 1):
-        if labels[idx] == 1:
-            return 1.0 / rank
-    return 0.0
-
-
-def ndcg_score(labels, scores, k):
-    top_k = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
-    dcg = sum(labels[i] / math.log2(r + 2) for r, i in enumerate(top_k))
-    ideal = sum(1.0 / math.log2(r + 2) for r in range(min(sum(labels), k)))
-    return dcg / ideal if ideal > 0 else 0.0
 
 
 def main():

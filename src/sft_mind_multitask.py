@@ -386,7 +386,7 @@ def train(
     print("=" * 60)
 
     # Load model
-    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16)
+    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id

@@ -119,6 +119,7 @@ def train(
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
             torch_dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2",
         )
     else:
         config = AutoConfig.from_pretrained(base_model)
@@ -216,7 +217,7 @@ def train(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=64)] if val_data else None,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)] if val_data else None,
     )
 
     model.config.use_cache = False

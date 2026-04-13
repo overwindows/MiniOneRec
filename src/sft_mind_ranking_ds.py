@@ -697,6 +697,7 @@ def train(
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
             torch_dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2",
         )
     else:
         config = AutoConfig.from_pretrained(base_model)
@@ -799,7 +800,7 @@ def train(
         eval_dataset=val_data if val_data else None,
         args=training_args,
         data_collator=_TorchStackCollator(debug=bool(os.environ.get("DEBUG_SEQ", ""))),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=64)] if val_data else None,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)] if val_data else None,
     )
 
     model.config.use_cache = False

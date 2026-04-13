@@ -306,10 +306,9 @@ class MINDRankingSFTDataset:
         lines = []
         lines.append("A user read these news articles:")
 
-        # User history - limit to last 30 for token efficiency
+        # User history
         if history:
-            recent_history = history[-30:] if len(history) > 30 else history
-            for i, h in enumerate(recent_history, 1):
+            for i, h in enumerate(history, 1):
                 cat = h.get('category', 'General')
                 lines.append(f"{i}. [{cat}] {h['text']}")
         else:

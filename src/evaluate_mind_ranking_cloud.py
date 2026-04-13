@@ -50,8 +50,7 @@ def build_multiple_choice_prompt(history: List[dict], candidates: List[dict]) ->
     prompt = "A user read these news articles:\n"
 
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
-        for i, h in enumerate(recent_history, 1):
+        for i, h in enumerate(history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:
@@ -85,8 +84,7 @@ def build_cot_prompt(history: List[dict], candidates: List[dict]) -> str:
     # User history
     lines.append("=== User Reading History ===")
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
-        for i, h in enumerate(recent_history, 1):
+        for i, h in enumerate(history, 1):
             cat = f"[{h.get('category', 'General')}]" if h.get('category') else ""
             lines.append(f"{i}. {cat} {h['text']}")
     else:
@@ -121,8 +119,7 @@ def build_top1_prompt(history: List[dict], candidates: List[dict]) -> str:
     prompt = "A user has read these news articles:\n"
 
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
-        for i, h in enumerate(recent_history, 1):
+        for i, h in enumerate(history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:

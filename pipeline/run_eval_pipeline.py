@@ -71,6 +71,7 @@ def mind_eval_pipeline(
     eval_type: str = "pointwise",
     split: str = "dev",
     use_chat_template: int = 1,
+    use_abstract: int = 0,
     max_history: int = 30,
     batch_size: int = 8,
     num_gpus: int = 8,
@@ -85,6 +86,7 @@ def mind_eval_pipeline(
         eval_type: 评估类型 (pointwise/ranking) (default: pointwise)
         split: 评估数据集 (dev/test) (default: dev)
         use_chat_template: 是否使用 chat template (1=是, 0=否) (default: 1)
+        use_abstract: 是否使用新闻摘要 (1=是, 0=否) (default: 0)
         max_history: 最大历史记录长度 (default: 30)
         batch_size: 评估batch size (default: 8)
         num_gpus: 使用的GPU数量 (default: 8)
@@ -98,6 +100,7 @@ def mind_eval_pipeline(
         eval_type=eval_type,
         split=split,
         use_chat_template=use_chat_template,
+        use_abstract=use_abstract,
         max_history=max_history,
         batch_size=batch_size,
         num_gpus=num_gpus,
@@ -128,6 +131,8 @@ if __name__ == "__main__":
                         help="评估数据集 (default: dev)")
     parser.add_argument("--use-chat-template", type=int, default=1, choices=[0, 1],
                         help="是否使用 chat template, 1=是 0=否 (default: 1)")
+    parser.add_argument("--use-abstract", type=int, default=0, choices=[0, 1],
+                        help="是否使用新闻摘要, 1=是 0=否 (default: 0)")
     parser.add_argument("--max-history", type=int, default=30,
                         help="最大历史记录长度 (default: 30)")
     parser.add_argument("--batch-size", type=int, default=8,
@@ -154,6 +159,7 @@ if __name__ == "__main__":
         eval_type=args.eval_type,
         split=args.split,
         use_chat_template=args.use_chat_template,
+        use_abstract=args.use_abstract,
         max_history=args.max_history,
         batch_size=args.batch_size,
         num_gpus=args.num_gpus,
@@ -181,6 +187,7 @@ if __name__ == "__main__":
     print(f"Eval Type:         {args.eval_type}")
     print(f"Split:             {args.split}")
     print(f"Use Chat Template: {args.use_chat_template}")
+    print(f"Use Abstract:      {args.use_abstract}")
     print(f"Max History:       {args.max_history}")
     print(f"Batch Size:        {args.batch_size}")
     print(f"Num GPUs:          {args.num_gpus}")

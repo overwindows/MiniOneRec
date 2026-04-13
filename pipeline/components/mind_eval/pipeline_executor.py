@@ -202,6 +202,7 @@ def main():
     parser.add_argument("--eval-type", help="评估类型 (pointwise/ranking)")
     parser.add_argument("--split", help="评估数据集 (dev/test)")
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
+    parser.add_argument("--use-abstract", help="是否使用新闻摘要 (1/0)", default="0")
     parser.add_argument("--max-history", help="最大历史记录长度")
     parser.add_argument("--batch-size", help="评估batch size")
     parser.add_argument("--num-gpus", help="使用的GPU数量")
@@ -213,6 +214,7 @@ def main():
         'eval_type': args.eval_type,
         'split': args.split,
         'use_chat_template': args.use_chat_template,
+        'use_abstract': args.use_abstract,
         'max_history': args.max_history,
         'batch_size': args.batch_size,
         'num_gpus': args.num_gpus,

@@ -47,8 +47,7 @@ def build_pointwise_prompt(history: List[dict], candidate: dict) -> str:
     prompt = "A user read these news articles:\n"
 
     if history:
-        recent_history = history[-30:] if len(history) > 30 else history
-        for i, h in enumerate(recent_history, 1):
+        for i, h in enumerate(history, 1):
             cat = h.get("category", "General")
             prompt += f"{i}. [{cat}] {h['text']}\n"
     else:

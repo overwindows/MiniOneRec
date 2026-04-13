@@ -41,6 +41,10 @@ inputs:
     type: integer
     default: 8
     description: 使用的GPU数量（用于并行评估）
+  use_abstract:
+    type: integer
+    default: 0
+    description: 是否使用新闻摘要 (1=是, 0=否)
   debug_mode:
     type: string
     default: "false"
@@ -58,6 +62,7 @@ command: >-
   --eval-type ${{inputs.eval_type}}
   --split ${{inputs.split}}
   --use-chat-template ${{inputs.use_chat_template}}
+  --use-abstract ${{inputs.use_abstract}}
   --max-history ${{inputs.max_history}}
   --batch-size ${{inputs.batch_size}}
   --num-gpus ${{inputs.num_gpus}}

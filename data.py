@@ -367,11 +367,10 @@ class MINDPointwiseSFTDataset:
 
         prompt += "A user read these news articles:\n"
 
-        # User history - limit to last 30 for token efficiency
+        # User history (already truncated by max_history in data loader)
         if history:
-            recent_history = history[-30:] if len(history) > 30 else history
-            recency_cutoff = max(0, len(recent_history) - 5) if self.use_recency else len(recent_history)
-            for i, h in enumerate(recent_history, 1):
+            recency_cutoff = max(0, len(history) - 5) if self.use_recency else len(history)
+            for i, h in enumerate(history, 1):
                 cat = h.get('category', 'General')
                 tag = " (recent)" if self.use_recency and (i - 1) >= recency_cutoff else ""
                 prompt += f"{i}. [{cat}] {h['text']}{tag}\n"
@@ -426,8 +425,7 @@ class MINDPointwiseSFTDataset:
 
         prompt = "A user read these news articles:\n"
         if history:
-            recent_history = history[-30:] if len(history) > 30 else history
-            for i, h in enumerate(recent_history, 1):
+            for i, h in enumerate(history, 1):
                 prompt += f"{i}. [{_fmt(h)}] {h['text']}\n"
         else:
             prompt += "(No reading history)\n"

@@ -138,7 +138,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 bottleneck; [W&B](https://wandb.ai/wuchen/huggingface/runs/36ur6v25) |
 | **L1.6** | 🔄 Retrying | Qwen3-4B | MINDlarge | USE_ABSTRACT=1, micro_bs=4 | - | - | - | - | Replacing failed 8B run; same best config as L1.3 |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
-| **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | - | - | - | - | 19% @ ep1.33 (eval_loss=0.5902); ~31 day ETA due to micro_bs=2; may not finish all 7 ep; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
+| **L1.8** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | 0.6622 | 0.3259 | 0.3621 | 0.4222 | Worse than L1.3 (0.7049); output path shows Base/ep5/no-abstract — likely misconfigured run or job ran wrong parameters; 8d total runtime vs 31d ETA is suspicious; verify AML job params; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
 
 ---
@@ -180,6 +180,8 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 #### Multi-Pointwise Ensemble (MINDlarge, ready to run now)
 
+> **Design principle**: use an **odd number of models** (3, 5, 7...) to enable clean majority voting (no ties). Score averaging is used for 2-model ensembles but majority vote is preferred for 3+.
+
 | Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|--------|--------|-----|-----|--------|---------|-------|
 | **E3.A** | ✅ Completed | L1.3 + L1.7 | equal weights | **0.7152** 🏆 | 0.4032 | 0.3896 | 0.4519 | **NEW BEST**; +0.0103 over L1.3 solo |
@@ -187,6 +189,18 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **E3.C** | ✅ Completed | L1.3 + L1.7 + L1.2 | equal weights | 0.7105 | 0.4006 | 0.3878 | 0.4504 | Worse than E3.A (0.7152); L1.2 dilutes ensemble |
 | **E3.D** | ⬜ Pending | L1.3 + L1.7 + L1.2 | weights 1.0 0.8 0.8 | - | - | - | - | L1.3-heavy weighting |
 | **E3.E** | ✅ Completed | L1.3 + L1.7 + L1.9 | equal weights | **0.7071** | 0.4002 | 0.3863 | 0.4489 | +0.0022 AUC over L1.3 solo; L1.9=checkpoint-3584 |
+| **E3.F** | ⬜ Pending | L1.3 + L1.6 + L1.7 | majority vote (3 models) | - | - | - | - | First majority-vote ensemble; odd number; run after L1.6 completes |
+| **E3.G** | ⬜ Pending | L1.3 + L1.6 + L1.7 + L1.2 + L1.9 | majority vote (5 models) | - | - | - | - | 5-model majority vote; run after L1.6 completes |
+
+#### Snapshot Ensemble (checkpoints from same training run, zero extra training cost)
+
+> **Design principle**: pick checkpoints spaced across epochs (not consecutive saves) for maximum diversity. Use odd number of checkpoints.
+
+| Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
+|--------|--------|--------|--------|-----|-----|--------|---------|-------|
+| **E3.S1** | ⬜ Pending | L1.3 ep3 + ep4 + final | majority vote (3 ckpts) | - | - | - | - | Snapshot ensemble from L1.3 run; free AUC gain |
+| **E3.S2** | ⬜ Pending | L1.6 ep3 + ep4 + final | majority vote (3 ckpts) | - | - | - | - | Snapshot ensemble from L1.6 run; run after L1.6 completes |
+| **E3.S3** | ⬜ Pending | L1.3 snapshots + L1.6 final | majority vote (3 models) | - | - | - | - | Cross-model + snapshot hybrid |
 
 #### PW + Ranking Ensemble (requires ranking model training first)
 

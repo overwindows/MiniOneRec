@@ -1,10 +1,10 @@
 # MIND Experiment Plan: Path to SOTA
 
 > Generated: 2026-02-25
-> Updated: 2026-03-30 (W&B Analysis + Recommendations)
-> Current Best: **70.49% AUC** (L1.3: Abstract + MINDlarge + Qwen3-1.7B)
+> Updated: 2026-04-21
+> Current Best: **71.44% AUC on test** / 71.52% dev (E3.A: L1.3 + L1.7 ensemble)
 > Target: 72.72% AUC (MIND Leaderboard SOTA)
-> Gap: ~2.23%
+> Gap: ~1.28%
 
 ## 🚀 Azure ML Pipeline Support
 
@@ -184,7 +184,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Models | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|--------|--------|-----|-----|--------|---------|-------|
-| **E3.A** | ✅ Completed | L1.3 + L1.7 | equal weights | **0.7152** 🏆 | 0.4032 | 0.3896 | 0.4519 | **NEW BEST**; +0.0103 over L1.3 solo |
+| **E3.A** | ✅ Completed | L1.3 + L1.7 | equal weights | **0.7152** (dev) / **0.7144** (test) 🏆 | 0.4032 | 0.3896 | 0.4519 | **LEADERBOARD BEST**; test≈dev (gap 0.0008 = no overfit) |
 | **E3.B** | ⬜ Pending | L1.3 + L1.2 | equal weights | - | - | - | - | Abstract(0.7049) + EP7(0.6932) |
 | **E3.C** | ✅ Completed | L1.3 + L1.7 + L1.2 | equal weights | 0.7105 | 0.4006 | 0.3878 | 0.4504 | Worse than E3.A (0.7152); L1.2 dilutes ensemble |
 | **E3.D** | ⬜ Pending | L1.3 + L1.7 + L1.2 | weights 1.0 0.8 0.8 | - | - | - | - | L1.3-heavy weighting |

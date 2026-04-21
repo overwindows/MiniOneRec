@@ -298,11 +298,31 @@ The script will automatically find and extract the ZIP files to the correct dire
 
 ### Training on MIND
 
+### MIND Benchmark Results
+
+Best results achieved on MINDlarge (test split, official leaderboard format):
+
+| Approach | Model | Dataset | AUC | MRR | nDCG@5 | nDCG@10 |
+|----------|-------|---------|-----|-----|--------|---------|
+| Standard SFT | Qwen3-1.7B | MINDsmall | 53.72% | - | - | - |
+| Ranking-Aware SFT | Qwen3-1.7B | MINDsmall | 65.49% | - | - | - |
+| Point-wise SFT | Qwen3-1.7B | MINDsmall | 67.68% | 33.62% | 37.38% | 43.32% |
+| Point-wise SFT | Qwen3-1.7B-Base | MINDsmall | 69.39% | 33.70% | 37.61% | 43.82% |
+| Point-wise SFT | Qwen3-1.7B | MINDlarge | 70.49% | 34.61% | 38.47% | 44.79% |
+| Point-wise SFT | Qwen3-1.7B-Base | MINDlarge | 69.46% | 33.73% | 37.67% | 43.92% |
+| **Ensemble (2-model)** | Qwen3-1.7B + Qwen3-1.7B-Base | MINDlarge | **71.44%** | **40.32%** | **38.96%** | **45.19%** |
+
+> MIND Leaderboard SOTA: ~72.72% AUC. Our current gap: **~1.28%**.
+
+---
+
+### Training on MIND
+
 We provide three training approaches for MIND dataset:
 
 1. **Standard SFT** (`sft_mind.sh`) - Traditional next-item prediction (53.72% AUC)
-2. **Ranking-Aware SFT** (`sft_mind_ranking.sh`) - 🔥 **Multiple-choice ranking format (65.49% AUC - RECOMMENDED!)**
-3. **Point-wise SFT** (`sft_mind_pointwise.sh`) - 🆕 **Yes/No classification per candidate**
+2. **Ranking-Aware SFT** (`sft_mind_ranking.sh`) - Multiple-choice ranking format (65.49% AUC)
+3. **Point-wise SFT** (`sft_mind_pointwise.sh`) - 🔥 **Yes/No classification per candidate (71.44% AUC on MINDlarge - RECOMMENDED!)**
 
 #### 🚀 Ranking-Aware SFT (Recommended)
 
@@ -419,20 +439,14 @@ bash scripts/eval_mind_pointwise.sh output_dir/sft_mind_pointwise_*/final_checkp
 
 **Training Format Example:**
 ```
-Role: You are a news recommendation assistant.
-Task: Determine if the candidate article matches the user's interests.
+A user read these news articles:
+1. [Sports] Lakers win against Warriors
+2. [Sports] LeBron James scores 40 points
 
-User History:
-1. [Title] Lakers win against Warriors (Sports)
-2. [Title] LeBron James scores 40 points (Sports)
+Candidate article:
+[Sports] NBA playoffs schedule announced
 
-Candidate Article:
-[Title] NBA playoffs schedule announced (Sports)
-
-Based on the user's reading history, is this article relevant to them?
-Answer with Yes or No.
-
-Answer: Yes
+Will this user read this article? Answer: Yes
 ```
 
 **Why it works:**
@@ -444,10 +458,10 @@ Answer: Yes
 **Configuration:**
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEG_RATIO` | `1.0` | Number of negatives per positive |
-| `CUTOFF_LEN` | `2048` | Max sequence length (shorter than list-wise) |
-| `MAX_HISTORY` | `0` | Max history items (0=unlimited) |
-| `USE_ABSTRACT` | `0` | Set to 1 to include abstracts |
+| `NEG_RATIO` | `2.0` | Number of negatives per positive |
+| `CUTOFF_LEN` | `8192` | Max sequence length |
+| `MAX_HISTORY` | `30` | Max history items (0=unlimited) |
+| `USE_ABSTRACT` | `0` | Set to 1 to include news abstracts in prompts |
 
 **Comparison: List-wise vs Point-wise:**
 
@@ -596,8 +610,8 @@ USE_ABSTRACT=1 CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_mind_pointwise.sh 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BATCH_SIZE` | `8` | Batch size for scoring candidates |
-| `USE_ABSTRACT` | `0` | Include abstracts in prompts |
-| `MAX_HISTORY` | `0` | Max history items (0=unlimited) |
+| `USE_ABSTRACT` | `0` | Include abstracts in prompts (must match training) |
+| `MAX_HISTORY` | `30` | Max history items (must match training) |
 | `FLASH_ATTN` | `1` | Use Flash Attention 2 |
 
 **Metrics:** Same official MIND metrics (AUC, MRR, nDCG@5, nDCG@10).
@@ -2726,7 +2740,7 @@ Formula: `ratio = 2 * M / T`
 ---
 
 
-## Cloud Evaluation (SambaNova)
+## Cloud Evaluation
 
 Pointwise:
 ```bash

@@ -533,8 +533,8 @@ class DOCAPointwiseSFTDataset:
     DOCA feed dataset for point-wise SFT training.
 
     Each sample is a (user_context, single_candidate, is_clicked) tuple.
-    User context includes: interests, negative_interests, conversation,
-    interactions_90d, shown_10d.
+    User context includes: interests (with sources/intent/rationale),
+    negative_interests, conversation (with inline curation), shown_10d.
     Model learns to predict Yes/No for click likelihood.
 
     Input: JSONL file produced by src/prepare_doca.py
@@ -542,10 +542,21 @@ class DOCAPointwiseSFTDataset:
 
     SYSTEM_PROMPT = (
         "You are a content recommendation assistant. "
-        "Based on a user's interest profile (including signal sources, intent, and rationale), "
-        "conversation history, and previously shown articles, "
-        "predict whether they will click on a given article. "
-        "Answer with Yes or No."
+        "Based on a user's interest profile, conversation history, and previously shown articles, "
+        "predict whether they will click on a given article. Answer with Yes or No.\n\n"
+        "Ranking guidelines (highest to lowest priority):\n"
+        "1. Source signal priority: Inline Curation (user explicitly selected, strongest signal) "
+        "> User Interaction (clicks/likes) > Chat History (inferred from messages).\n"
+        "2. Interest strength: High (0.9-1.0) > Medium (0.8-0.9) > Exploratory (<0.8).\n"
+        "3. Long-term interest relevance: How well does the article align with established interests?\n"
+        "4. Short-term task relevance: How relevant is it to the user's recent activities and needs?\n"
+        "5. Freshness: Prefer up-to-date content; consider if information might be outdated.\n"
+        "6. Importance: How significant is this content for the user?\n"
+        "7. Novelty: Prefer content the user hasn't seen recently (check shown articles).\n\n"
+        "Also consider:\n"
+        "- Articles matching disliked interests should NOT be clicked.\n"
+        "- [CURATED] messages in conversations indicate the strongest user intent.\n"
+        "- Interest rationale explains WHY something is an interest — use it to judge relevance."
     )
 
     def __init__(

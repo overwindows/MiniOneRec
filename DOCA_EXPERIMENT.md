@@ -27,6 +27,15 @@
 - Only **impressed** candidates included (sectionIndex != None), filtering out ~67% non-shown cards
 - Average ~3.9 candidates per feed (train), ~3.7 per feed (dev)
 
+### Training Samples (after neg sampling with neg_ratio=2.0)
+
+| Split | Total Samples | Positive | Negative | Actual Ratio |
+|-------|-------------:|----------:|----------:|-------------:|
+| Train | 170,625 | 30,878 | 139,747 | 1:4.53 |
+| Val   |   5,000 |    935 |   4,065 | 1:4.35 |
+
+Note: `neg_ratio=2.0` caps per-feed negative sampling at 2× positives, but many feeds' impressed non-click candidates are already below this cap, so all are retained. Actual ratio ends up ~4.5.
+
 ### Data Fields (per feed JSONL row)
 
 | Field | Description |

@@ -543,7 +543,8 @@ class DOCAPointwiseSFTDataset:
     SYSTEM_PROMPT = (
         "You are a content recommendation assistant. "
         "Based on a user's interest profile, conversation history, and previously shown articles, "
-        "predict whether they will click on a given article. Answer with Yes or No.\n\n"
+        "predict whether they will click on a given article.\n\n"
+        "Output format: Answer ONLY \"Yes\" or \"No\". Do not explain.\n\n"
         "Ranking guidelines (highest to lowest priority):\n"
         "1. Source signal priority: Inline Curation (user explicitly selected, strongest signal) "
         "> User Interaction (clicks/likes) > Chat History (inferred from messages).\n"

@@ -528,6 +528,254 @@ class MINDPointwiseSFTDataset:
         }
 
 
+class DOCAPointwiseSFTDataset:
+    """
+    DOCA feed dataset for point-wise SFT training.
+
+    Each sample is a (user_context, single_candidate, is_clicked) tuple.
+    User context includes: interests, negative_interests, conversation,
+    interactions_90d, shown_10d.
+    Model learns to predict Yes/No for click likelihood.
+
+    Input: JSONL file produced by src/prepare_doca.py
+    """
+
+    SYSTEM_PROMPT = (
+        "You are a content recommendation assistant. "
+        "Based on a user's interests, conversation history, and past interactions, "
+        "predict whether they will click on a given article. "
+        "Answer with Yes or No."
+    )
+
+    def __init__(
+        self,
+        jsonl_path: str,
+        tokenizer,
+        max_len: int = 4096,
+        sample: int = -1,
+        seed: int = 42,
+        neg_ratio: float = 1.0,
+        max_interests: int = 10,
+        max_conversation_msgs: int = 15,
+        max_interactions: int = 20,
+        max_shown: int = 10,
+        use_chat_template: bool = False,
+    ):
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.neg_ratio = neg_ratio
+        self.max_interests = max_interests
+        self.max_conversation_msgs = max_conversation_msgs
+        self.max_interactions = max_interactions
+        self.max_shown = max_shown
+        self.use_chat_template = use_chat_template
+        self.seed = seed
+
+        self.samples = self._load_and_expand(jsonl_path, sample)
+
+        pos_count = sum(1 for s in self.samples if s['label'] == 1)
+        neg_count = len(self.samples) - pos_count
+        print(f"DOCAPointwiseSFTDataset: {len(self.samples)} samples "
+              f"(pos={pos_count}, neg={neg_count}, ratio={neg_count / max(pos_count, 1):.2f})")
+
+    def _load_and_expand(self, jsonl_path: str, sample_limit: int):
+        """Load JSONL feeds and expand into pointwise samples."""
+        rng = random.Random(self.seed)
+        all_samples = []
+
+        with open(jsonl_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                feed = json.loads(line)
+
+                user_context = {
+                    'interests': feed.get('interests', [])[:self.max_interests],
+                    'negative_interests': feed.get('negative_interests', []),
+                    'conversation': feed.get('conversation', [])[:self.max_conversation_msgs],
+                    'interactions_90d': feed.get('interactions_90d', [])[:self.max_interactions],
+                    'shown_10d': feed.get('shown_10d', [])[:self.max_shown],
+                }
+
+                candidates = feed.get('candidates', [])
+                positives = [c for c in candidates if c.get('is_clicked')]
+                negatives = [c for c in candidates if not c.get('is_clicked')]
+
+                # Add all positive samples
+                for pos in positives:
+                    all_samples.append({
+                        'user_context': user_context,
+                        'candidate': pos,
+                        'label': 1,
+                    })
+
+                # Sample negatives per impression
+                if positives:
+                    num_neg = int(len(positives) * self.neg_ratio)
+                else:
+                    # For feeds with no clicks, sample 1 negative as pure negative example
+                    num_neg = 1
+
+                if negatives and num_neg > 0:
+                    sampled_negs = rng.sample(negatives, min(num_neg, len(negatives)))
+                    for neg in sampled_negs:
+                        all_samples.append({
+                            'user_context': user_context,
+                            'candidate': neg,
+                            'label': 0,
+                        })
+
+        rng.shuffle(all_samples)
+
+        if sample_limit > 0 and sample_limit < len(all_samples):
+            all_samples = all_samples[:sample_limit]
+
+        return all_samples
+
+    def _build_prompt(self, user_context, candidate, label):
+        """
+        Build pointwise prompt with all user signals.
+
+        Format:
+            User Interests:
+            1. name (strength, domain) - keywords
+            ...
+            Dislikes:
+            1. name (strength, domain) - keywords
+
+            Recent conversations:
+            - "message text"
+            ...
+
+            Recent feedback:
+            - thumbsUp (2026-04-13)
+            - thumbsDown (2026-04-10)
+
+            Recently shown articles:
+            - "article title"
+            ...
+
+            Candidate article:
+            Title: ...
+            Summary: ...
+
+            Will this user click on this article? Answer:
+        """
+        parts = []
+
+        # 1. User interests
+        interests = user_context.get('interests', [])
+        if interests:
+            parts.append("User interests:")
+            for i, intr in enumerate(interests, 1):
+                name = intr.get('name', '')
+                strength = intr.get('strength', 0)
+                domain = intr.get('domain', '')
+                keywords = ', '.join(intr.get('keywords', [])[:5])
+                domain_str = f", {domain}" if domain else ""
+                parts.append(f"{i}. {name} (strength={strength:.2f}{domain_str}) - {keywords}")
+
+        # 2. Negative interests
+        neg_interests = user_context.get('negative_interests', [])
+        if neg_interests:
+            parts.append("\nDislikes:")
+            for i, intr in enumerate(neg_interests, 1):
+                name = intr.get('name', '')
+                keywords = ', '.join(intr.get('keywords', [])[:5])
+                parts.append(f"{i}. {name} - {keywords}")
+
+        # 3. Conversation history (human messages)
+        conversation = user_context.get('conversation', [])
+        if conversation:
+            parts.append("\nRecent conversations:")
+            for msg in conversation:
+                text = msg.get('text', '').strip()
+                if text:
+                    # Truncate very long messages
+                    if len(text) > 150:
+                        text = text[:150] + "..."
+                    parts.append(f'- "{text}"')
+
+        # 4. Interactions 90d
+        interactions = user_context.get('interactions_90d', [])
+        if interactions:
+            parts.append("\nRecent feedback:")
+            for act in interactions:
+                event_type = act.get('type', '')
+                event_time = act.get('event_time', '')[:10]  # date only
+                parts.append(f"- {event_type} ({event_time})")
+
+        # 5. Shown 10d
+        shown = user_context.get('shown_10d', [])
+        if shown:
+            parts.append("\nRecently shown articles:")
+            for title in shown:
+                parts.append(f'- "{title}"')
+
+        # 6. Candidate
+        parts.append("\nCandidate article:")
+        parts.append(f"Title: {candidate.get('title', '')}")
+        summary = candidate.get('summary', '')
+        if summary:
+            parts.append(f"Summary: {summary}")
+
+        parts.append("\nWill this user click on this article? Answer:")
+
+        prompt = '\n'.join(parts)
+        target = " Yes" if label == 1 else " No"
+        return prompt, target
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        sample = self.samples[idx]
+        prompt, target = self._build_prompt(
+            sample['user_context'], sample['candidate'], sample['label']
+        )
+
+        if self.use_chat_template:
+            messages = [
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ]
+            formatted_prompt = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            full_text = formatted_prompt + target
+
+            input_ids = self.tokenizer.encode(
+                full_text, max_length=self.max_len,
+                truncation=True, add_special_tokens=False
+            )
+            prompt_ids = self.tokenizer.encode(
+                formatted_prompt, max_length=self.max_len,
+                truncation=True, add_special_tokens=False
+            )
+            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+        else:
+            full_text = prompt + target
+            input_ids = self.tokenizer.encode(
+                full_text, max_length=self.max_len,
+                truncation=True, add_special_tokens=True
+            )
+            prompt_ids = self.tokenizer.encode(
+                prompt, max_length=self.max_len,
+                truncation=True, add_special_tokens=True
+            )
+            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+
+        input_ids = input_ids[:self.max_len]
+        train_labels = train_labels[:self.max_len]
+
+        return {
+            'input_ids': torch.tensor(input_ids, dtype=torch.long),
+            'labels': torch.tensor(train_labels, dtype=torch.long),
+            'attention_mask': torch.ones(len(input_ids), dtype=torch.long),
+        }
+
+
 class InstructionJSONLDataset(Dataset):
     def __init__(self, jsonl_path, tokenizer, max_len=4096, sample=-1, seed=0):
         random.seed(seed)

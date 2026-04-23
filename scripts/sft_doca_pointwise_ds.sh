@@ -84,7 +84,7 @@ if [ -z "$HOSTFILE" ]; then
 fi
 
 # Model and data paths
-MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-8B-Instruct}
+MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-1.7B}
 DATA_ROOT=${DATA_ROOT:-data/doca}
 
 # Training hyperparameters

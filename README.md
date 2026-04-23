@@ -196,7 +196,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 |-----|-----|--------|---------|
 | 0.5242 | 0.5798 | 0.6039 | 0.6684 |
 
-### Exp 1: SFT Qwen3-1.7B, 1 Epoch (in progress)
+### Exp 1: SFT Qwen3-1.7B, 1 Epoch
 
 | Config | Value |
 |--------|-------|
@@ -209,8 +209,37 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 | DeepSpeed | ZeRO-2 |
 | GPUs | 8x A100 |
 | Cutoff length | 4096 |
+| Feeds evaluated | 3,125 |
 
-**Status**: Training in progress. Loss ~0.5 (P(correct) ≈ 61%).
+**Results:**
+
+| AUC | MRR | nDCG@5 | nDCG@10 |
+|-----|-----|--------|--------|
+| 0.5909 | 0.6311 | 0.6609 | 0.7090 |
+
+**Takeaway**: 1 epoch SFT on 1.7B already outperforms GPT-5.1 zero-shot on all metrics (AUC +0.55pp, MRR +2.7pp, nDCG@10 +1.3pp).
+
+### Exp 2: SFT Qwen3-4B, 1 Epoch (in progress)
+
+| Config | Value |
+|--------|-------|
+| Model | Qwen/Qwen3-4B |
+| Epochs | 1 |
+| Batch size | 256 |
+| Micro batch | 1 |
+| Learning rate | 1e-5 |
+| Neg ratio | 2.0 |
+| DeepSpeed | ZeRO-2 |
+| GPUs | 8x A100 |
+| Cutoff length | 4096 |
+
+**Command:**
+
+```bash
+MODEL_PATH=Qwen/Qwen3-4B BATCH_SIZE=256 MICRO_BATCH_SIZE=1 LEARNING_RATE=1e-5 NUM_EPOCHS=1 bash scripts/sft_doca_pointwise_ds.sh
+```
+
+**Status**: Training in progress.
 
 **Results**: TBD
 

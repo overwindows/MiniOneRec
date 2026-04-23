@@ -361,10 +361,7 @@ def main():
             # Skip feeds with no positives (can't compute AUC/MRR)
             if sum(labels) == 0:
                 skipped_no_pos += 1
-                count += 1
                 pbar.update(1)
-                if args.max_feeds and count >= args.max_feeds:
-                    break
                 continue
 
             # Score all candidates

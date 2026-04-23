@@ -91,11 +91,11 @@ def ndcg_score(labels, scores, k):
 
 
 def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation_msgs=15,
-                      max_interactions=20, max_shown=10):
+                      max_shown=10):
     """Build prompt matching DOCAPointwiseSFTDataset._build_prompt format."""
     parts = []
 
-    # 1. User interests
+    # 1. User interests (with sources, intent, classification, status, rationale)
     interests = user_context.get('interests', [])[:max_interests] if max_interests > 0 else user_context.get('interests', [])
     if interests:
         parts.append("User interests:")
@@ -103,20 +103,54 @@ def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation
             name = intr.get('name', '')
             strength = intr.get('strength', 0)
             domain = intr.get('domain', '')
+            sources = ', '.join(intr.get('sources', []))
+            intent = intr.get('intent', '')
+            classification = intr.get('classification', '')
+            status = intr.get('status', '')
             keywords = ', '.join(intr.get('keywords', [])[:5])
-            domain_str = f", {domain}" if domain else ""
-            parts.append(f"{i}. {name} (strength={strength:.2f}{domain_str}) - {keywords}")
+            line = f"{i}. {name} (strength={strength:.2f}"
+            if domain:
+                line += f", {domain}"
+            if sources:
+                line += f", source: {sources}"
+            line += ")"
+            meta = []
+            if classification:
+                meta.append(classification)
+            if intent:
+                meta.append(f"intent: {intent}")
+            if status:
+                meta.append(status)
+            if meta:
+                line += f" [{', '.join(meta)}]"
+            line += f" - {keywords}"
+            parts.append(line)
+            rationale = intr.get('rationale', '')
+            if rationale:
+                if len(rationale) > 200:
+                    rationale = rationale[:200] + "..."
+                parts.append(f"   Reason: {rationale}")
 
-    # 2. Negative interests
+    # 2. Negative interests (with sources and rationale)
     neg_interests = user_context.get('negative_interests', [])
     if neg_interests:
         parts.append("\nDislikes:")
         for i, intr in enumerate(neg_interests, 1):
             name = intr.get('name', '')
             keywords = ', '.join(intr.get('keywords', [])[:5])
-            parts.append(f"{i}. {name} - {keywords}")
+            sources = ', '.join(intr.get('sources', []))
+            line = f"{i}. {name}"
+            if sources:
+                line += f" (source: {sources})"
+            line += f" - {keywords}"
+            parts.append(line)
+            rationale = intr.get('rationale', '')
+            if rationale:
+                if len(rationale) > 200:
+                    rationale = rationale[:200] + "..."
+                parts.append(f"   Reason: {rationale}")
 
-    # 3. Conversation history (human messages)
+    # 3. Conversation history (human messages, inline curation marked)
     conversation = user_context.get('conversation', [])[:max_conversation_msgs]
     if conversation:
         parts.append("\nRecent conversations:")
@@ -125,25 +159,24 @@ def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation
             if text:
                 if len(text) > 150:
                     text = text[:150] + "..."
-                parts.append(f'- "{text}"')
+                if msg.get('is_inline_curation'):
+                    parts.append(f'- [CURATED] "{text}"')
+                else:
+                    parts.append(f'- "{text}"')
 
-    # 4. Interactions 90d
-    interactions = user_context.get('interactions_90d', [])[:max_interactions]
-    if interactions:
-        parts.append("\nRecent feedback:")
-        for act in interactions:
-            event_type = act.get('type', '')
-            event_time = act.get('event_time', '')[:10]
-            parts.append(f"- {event_type} ({event_time})")
-
-    # 5. Shown 10d
+    # 4. Shown 10d
     shown = user_context.get('shown_10d', [])[:max_shown]
     if shown:
         parts.append("\nRecently shown articles:")
-        for title in shown:
-            parts.append(f'- "{title}"')
+        for item in shown:
+            if isinstance(item, dict):
+                title = item.get('title', '')
+                date = item.get('event_time', '')[:10]
+                parts.append(f'- "{title}" ({date})')
+            else:
+                parts.append(f'- "{item}"')
 
-    # 6. Candidate
+    # 5. Candidate
     parts.append("\nCandidate article:")
     parts.append(f"Title: {candidate.get('title', '')}")
     summary = candidate.get('summary', '')
@@ -159,8 +192,8 @@ def batch_score_candidates(
     model, tokenizer, user_context, candidates,
     device, yes_token_id, no_token_id,
     batch_size=8, use_chat_template=False,
-    max_interests=10, max_conversation_msgs=15,
-    max_interactions=20, max_shown=10,
+    max_interests=0, max_conversation_msgs=15,
+    max_shown=10,
     temperature=1.0,
 ) -> List[float]:
     """Score multiple candidates in batches."""
@@ -171,7 +204,6 @@ def batch_score_candidates(
             user_context, cand,
             max_interests=max_interests,
             max_conversation_msgs=max_conversation_msgs,
-            max_interactions=max_interactions,
             max_shown=max_shown,
         )
         if use_chat_template:
@@ -231,7 +263,6 @@ def main():
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--max_interests", type=int, default=0, help="Max interests to include (0=all)")
     parser.add_argument("--max_conversation_msgs", type=int, default=15)
-    parser.add_argument("--max_interactions", type=int, default=20)
     parser.add_argument("--max_shown", type=int, default=10)
     parser.add_argument("--output_scores_file", help="Output raw scores file")
     args = parser.parse_args()
@@ -322,7 +353,6 @@ def main():
                 'interests': feed.get('interests', []),
                 'negative_interests': feed.get('negative_interests', []),
                 'conversation': feed.get('conversation', []),
-                'interactions_90d': feed.get('interactions_90d', []),
                 'shown_10d': feed.get('shown_10d', []),
             }
 
@@ -345,7 +375,6 @@ def main():
                 use_chat_template=args.use_chat_template,
                 max_interests=args.max_interests,
                 max_conversation_msgs=args.max_conversation_msgs,
-                max_interactions=args.max_interactions,
                 max_shown=args.max_shown,
                 temperature=args.temperature,
             )

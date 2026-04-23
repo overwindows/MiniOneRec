@@ -542,7 +542,8 @@ class DOCAPointwiseSFTDataset:
 
     SYSTEM_PROMPT = (
         "You are a content recommendation assistant. "
-        "Based on a user's interests, conversation history, and past interactions, "
+        "Based on a user's interest profile (including signal sources, intent, and rationale), "
+        "conversation history, and previously shown articles, "
         "predict whether they will click on a given article. "
         "Answer with Yes or No."
     )
@@ -557,7 +558,6 @@ class DOCAPointwiseSFTDataset:
         neg_ratio: float = 1.0,
         max_interests: int = 0,
         max_conversation_msgs: int = 15,
-        max_interactions: int = 20,
         max_shown: int = 10,
         use_chat_template: bool = False,
     ):
@@ -566,7 +566,6 @@ class DOCAPointwiseSFTDataset:
         self.neg_ratio = neg_ratio
         self.max_interests = max_interests
         self.max_conversation_msgs = max_conversation_msgs
-        self.max_interactions = max_interactions
         self.max_shown = max_shown
         self.use_chat_template = use_chat_template
         self.seed = seed
@@ -594,7 +593,6 @@ class DOCAPointwiseSFTDataset:
                     'interests': feed.get('interests', [])[:self.max_interests] if self.max_interests > 0 else feed.get('interests', []),
                     'negative_interests': feed.get('negative_interests', []),
                     'conversation': feed.get('conversation', [])[:self.max_conversation_msgs],
-                    'interactions_90d': feed.get('interactions_90d', [])[:self.max_interactions],
                     'shown_10d': feed.get('shown_10d', [])[:self.max_shown],
                 }
 
@@ -636,35 +634,11 @@ class DOCAPointwiseSFTDataset:
     def _build_prompt(self, user_context, candidate, label):
         """
         Build pointwise prompt with all user signals.
-
-        Format:
-            User Interests:
-            1. name (strength, domain) - keywords
-            ...
-            Dislikes:
-            1. name (strength, domain) - keywords
-
-            Recent conversations:
-            - "message text"
-            ...
-
-            Recent feedback:
-            - thumbsUp (2026-04-13)
-            - thumbsDown (2026-04-10)
-
-            Recently shown articles:
-            - "article title"
-            ...
-
-            Candidate article:
-            Title: ...
-            Summary: ...
-
-            Will this user click on this article? Answer:
+        Mirrors the evidence structure from the DOCA ranking liquid template.
         """
         parts = []
 
-        # 1. User interests
+        # 1. User interests (with sources, intent, classification, status, rationale)
         interests = user_context.get('interests', [])
         if interests:
             parts.append("User interests:")
@@ -672,48 +646,83 @@ class DOCAPointwiseSFTDataset:
                 name = intr.get('name', '')
                 strength = intr.get('strength', 0)
                 domain = intr.get('domain', '')
+                sources = ', '.join(intr.get('sources', []))
+                intent = intr.get('intent', '')
+                classification = intr.get('classification', '')
+                status = intr.get('status', '')
                 keywords = ', '.join(intr.get('keywords', [])[:5])
-                domain_str = f", {domain}" if domain else ""
-                parts.append(f"{i}. {name} (strength={strength:.2f}{domain_str}) - {keywords}")
+                # Core line: name, strength, domain, source signal
+                line = f"{i}. {name} (strength={strength:.2f}"
+                if domain:
+                    line += f", {domain}"
+                if sources:
+                    line += f", source: {sources}"
+                line += ")"
+                # Additional metadata
+                meta = []
+                if classification:
+                    meta.append(classification)
+                if intent:
+                    meta.append(f"intent: {intent}")
+                if status:
+                    meta.append(status)
+                if meta:
+                    line += f" [{', '.join(meta)}]"
+                line += f" - {keywords}"
+                parts.append(line)
+                # Rationale (key evidence for why this is an interest)
+                rationale = intr.get('rationale', '')
+                if rationale:
+                    if len(rationale) > 200:
+                        rationale = rationale[:200] + "..."
+                    parts.append(f"   Reason: {rationale}")
 
-        # 2. Negative interests
+        # 2. Negative interests (with sources and rationale)
         neg_interests = user_context.get('negative_interests', [])
         if neg_interests:
             parts.append("\nDislikes:")
             for i, intr in enumerate(neg_interests, 1):
                 name = intr.get('name', '')
                 keywords = ', '.join(intr.get('keywords', [])[:5])
-                parts.append(f"{i}. {name} - {keywords}")
+                sources = ', '.join(intr.get('sources', []))
+                line = f"{i}. {name}"
+                if sources:
+                    line += f" (source: {sources})"
+                line += f" - {keywords}"
+                parts.append(line)
+                rationale = intr.get('rationale', '')
+                if rationale:
+                    if len(rationale) > 200:
+                        rationale = rationale[:200] + "..."
+                    parts.append(f"   Reason: {rationale}")
 
-        # 3. Conversation history (human messages)
+        # 3. Conversation history (human messages, inline curation marked)
         conversation = user_context.get('conversation', [])
         if conversation:
             parts.append("\nRecent conversations:")
             for msg in conversation:
                 text = msg.get('text', '').strip()
                 if text:
-                    # Truncate very long messages
                     if len(text) > 150:
                         text = text[:150] + "..."
-                    parts.append(f'- "{text}"')
+                    if msg.get('is_inline_curation'):
+                        parts.append(f'- [CURATED] "{text}"')
+                    else:
+                        parts.append(f'- "{text}"')
 
-        # 4. Interactions 90d
-        interactions = user_context.get('interactions_90d', [])
-        if interactions:
-            parts.append("\nRecent feedback:")
-            for act in interactions:
-                event_type = act.get('type', '')
-                event_time = act.get('event_time', '')[:10]  # date only
-                parts.append(f"- {event_type} ({event_time})")
-
-        # 5. Shown 10d
+        # 4. Shown 10d
         shown = user_context.get('shown_10d', [])
         if shown:
             parts.append("\nRecently shown articles:")
-            for title in shown:
-                parts.append(f'- "{title}"')
+            for item in shown:
+                if isinstance(item, dict):
+                    title = item.get('title', '')
+                    date = item.get('event_time', '')[:10]
+                    parts.append(f'- "{title}" ({date})')
+                else:
+                    parts.append(f'- "{item}"')
 
-        # 6. Candidate
+        # 5. Candidate
         parts.append("\nCandidate article:")
         parts.append(f"Title: {candidate.get('title', '')}")
         summary = candidate.get('summary', '')

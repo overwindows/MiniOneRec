@@ -63,7 +63,6 @@ def train(
     neg_ratio: float = 1.0,
     max_interests: int = 0,
     max_conversation_msgs: int = 15,
-    max_interactions: int = 20,
     max_shown: int = 10,
     sample: int = -1,
     seed: int = 42,
@@ -135,7 +134,6 @@ def train(
         neg_ratio=neg_ratio,
         max_interests=max_interests,
         max_conversation_msgs=max_conversation_msgs,
-        max_interactions=max_interactions,
         max_shown=max_shown,
         use_chat_template=use_chat_template,
     )
@@ -150,7 +148,6 @@ def train(
         neg_ratio=neg_ratio,
         max_interests=max_interests,
         max_conversation_msgs=max_conversation_msgs,
-        max_interactions=max_interactions,
         max_shown=max_shown,
         use_chat_template=use_chat_template,
     )
@@ -162,7 +159,6 @@ def train(
     print(f"  Cutoff length: {cutoff_len}")
     print(f"  Max interests: {max_interests}")
     print(f"  Max conversation msgs: {max_conversation_msgs}")
-    print(f"  Max interactions: {max_interactions}")
     print(f"  Max shown: {max_shown}")
     print(f"  Format: Yes/No classification")
     print(f"  Chat template: {'enabled' if use_chat_template else 'disabled (raw text)'}")

@@ -80,32 +80,63 @@ def process_candidates(cards_raw):
 
 
 def process_interests(interests_raw):
-    """Extract structured interests."""
+    """Extract structured interests with full evidence."""
     interests = parse_json_field(interests_raw)
     results = []
     for i in interests:
-        results.append({
+        entry = {
             'name': i.get('name', ''),
             'keywords': i.get('keywords', []),
             'strength': i.get('strength', 0.0),
             'domain': i.get('domain', ''),
-        })
+            'sources': i.get('sources', []),
+            'intent': i.get('intent', ''),
+            'classification': i.get('classification', ''),
+            'status': i.get('status', ''),
+        }
+        rationale = i.get('rationale', '')
+        if rationale:
+            entry['rationale'] = rationale
+        results.append(entry)
     # Sort by strength descending
     results.sort(key=lambda x: x['strength'], reverse=True)
     return results
 
 
+def process_negative_interests(interests_raw):
+    """Extract negative interests with sources and rationale."""
+    interests = parse_json_field(interests_raw)
+    results = []
+    for i in interests:
+        entry = {
+            'name': i.get('name', ''),
+            'keywords': i.get('keywords', []),
+            'strength': i.get('strength', 0.0),
+            'sources': i.get('sources', []),
+            'domain': i.get('domain', ''),
+        }
+        rationale = i.get('rationale', '')
+        if rationale:
+            entry['rationale'] = rationale
+        results.append(entry)
+    return results
+
+
 def process_conversation(conv_raw, max_messages=30):
-    """Extract human messages from conversation history (most recent first)."""
+    """Extract human messages from conversation history (most recent first).
+    Marks inline_curation messages."""
     convs = parse_json_field(conv_raw)
-    # Only keep human messages for user signal
-    human_msgs = [
-        {
+    human_msgs = []
+    for m in convs:
+        if m.get('author') != 'human':
+            continue
+        entry = {
             'text': m.get('text', ''),
             'createdAt': m.get('createdAt', ''),
         }
-        for m in convs if m.get('author') == 'human'
-    ]
+        if m.get('is_inline_curation'):
+            entry['is_inline_curation'] = True
+        human_msgs.append(entry)
     # Sort by time descending (most recent first), take last N
     human_msgs.sort(key=lambda x: x['createdAt'], reverse=True)
     return human_msgs[:max_messages]
@@ -124,13 +155,16 @@ def process_interactions(interactions_raw):
 
 
 def process_shown(shown_raw, max_items=20):
-    """Extract recently shown article titles."""
+    """Extract recently shown article titles with timestamps."""
     shown = parse_json_field(shown_raw)
     results = []
     for s in shown:
         title = s.get('cardTitle', '')
         if title:
-            results.append(title)
+            results.append({
+                'title': title,
+                'event_time': s.get('event_time', ''),
+            })
     return results[:max_items]
 
 
@@ -144,9 +178,8 @@ def process_row(row, cols):
         'bizdate': d['bizdate'],
         'candidates': process_candidates(d['candidate_cards']),
         'interests': process_interests(d['interests']),
-        'negative_interests': process_interests(d['negative_interests']),
+        'negative_interests': process_negative_interests(d['negative_interests']),
         'conversation': process_conversation(d['conversation']),
-        'interactions_90d': process_interactions(d['interactions_90d']),
         'shown_10d': process_shown(d['shown_10d']),
     }
 

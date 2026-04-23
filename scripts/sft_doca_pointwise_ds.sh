@@ -96,7 +96,6 @@ NUM_EPOCHS=${NUM_EPOCHS:-3}
 NEG_RATIO=${NEG_RATIO:-2.0}
 MAX_INTERESTS=${MAX_INTERESTS:-0}
 MAX_CONVERSATION=${MAX_CONVERSATION:-15}
-MAX_INTERACTIONS=${MAX_INTERACTIONS:-20}
 MAX_SHOWN=${MAX_SHOWN:-10}
 
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"
@@ -160,7 +159,6 @@ deepspeed --hostfile=$HOSTFILE \
         --neg_ratio ${NEG_RATIO} \
         --max_interests ${MAX_INTERESTS} \
         --max_conversation_msgs ${MAX_CONVERSATION} \
-        --max_interactions ${MAX_INTERACTIONS} \
         --max_shown ${MAX_SHOWN} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \
         --wandb_project MiniOneRec_DOCA \

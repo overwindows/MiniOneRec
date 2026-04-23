@@ -6,6 +6,41 @@
 
 ---
 
+## 0. Quickstart
+
+### Environment Setup
+
+AML image: `torch251-cuda124-deepspeed-flashattn-training:5`
+
+```bash
+git clone https://github.com/overwindows/MiniOneRec
+cd MiniOneRec
+git checkout zxy_dev_doca
+bash scripts/setup_multi_node.sh
+eval "$(/opt/conda/bin/conda shell.bash hook)"
+conda activate MiniOneRec
+```
+
+### Download Data
+
+Download from [cosmos09 MSN.DnI](https://www.cosmos09.osdinfra.net/cosmos/MSN.DnI/shares/users/zxy/doca/data/260423/doca/) and put files into `data/doca/`:
+- `train.jsonl`
+- `dev.jsonl`
+
+### Train
+
+```bash
+NUM_EPOCHS=1 bash scripts/sft_doca_pointwise_ds.sh
+```
+
+### Eval
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 bash scripts/eval_doca_pointwise.sh Qwen/Qwen3-1.7B --all
+```
+
+---
+
 ## 1. Data
 
 ### Source

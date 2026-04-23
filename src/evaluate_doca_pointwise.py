@@ -90,13 +90,13 @@ def ndcg_score(labels, scores, k):
     return dcg / idcg
 
 
-def build_doca_prompt(user_context, candidate, max_interests=10, max_conversation_msgs=15,
+def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation_msgs=15,
                       max_interactions=20, max_shown=10):
     """Build prompt matching DOCAPointwiseSFTDataset._build_prompt format."""
     parts = []
 
     # 1. User interests
-    interests = user_context.get('interests', [])[:max_interests]
+    interests = user_context.get('interests', [])[:max_interests] if max_interests > 0 else user_context.get('interests', [])
     if interests:
         parts.append("User interests:")
         for i, intr in enumerate(interests, 1):
@@ -229,7 +229,7 @@ def main():
     parser.add_argument("--use_chat_template", action="store_true", help="Use chat template for instruct models")
     parser.add_argument("--quick", action="store_true", help="Quick mode: 500 feeds")
     parser.add_argument("--temperature", type=float, default=1.0)
-    parser.add_argument("--max_interests", type=int, default=10)
+    parser.add_argument("--max_interests", type=int, default=0, help="Max interests to include (0=all)")
     parser.add_argument("--max_conversation_msgs", type=int, default=15)
     parser.add_argument("--max_interactions", type=int, default=20)
     parser.add_argument("--max_shown", type=int, default=10)

@@ -555,7 +555,7 @@ class DOCAPointwiseSFTDataset:
         sample: int = -1,
         seed: int = 42,
         neg_ratio: float = 1.0,
-        max_interests: int = 10,
+        max_interests: int = 0,
         max_conversation_msgs: int = 15,
         max_interactions: int = 20,
         max_shown: int = 10,
@@ -591,7 +591,7 @@ class DOCAPointwiseSFTDataset:
                 feed = json.loads(line)
 
                 user_context = {
-                    'interests': feed.get('interests', [])[:self.max_interests],
+                    'interests': feed.get('interests', [])[:self.max_interests] if self.max_interests > 0 else feed.get('interests', []),
                     'negative_interests': feed.get('negative_interests', []),
                     'conversation': feed.get('conversation', [])[:self.max_conversation_msgs],
                     'interactions_90d': feed.get('interactions_90d', [])[:self.max_interactions],

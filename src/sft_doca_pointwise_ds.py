@@ -61,7 +61,7 @@ def train(
     eval_jsonl: str = "",
     output_dir: str = "",
     neg_ratio: float = 1.0,
-    max_interests: int = 10,
+    max_interests: int = 0,
     max_conversation_msgs: int = 15,
     max_interactions: int = 20,
     max_shown: int = 10,

@@ -66,10 +66,13 @@ def parse_json_field(raw):
 
 
 def process_candidates(cards_raw):
-    """Extract (title, summary, is_clicked) from candidate_cards JSON."""
+    """Extract impressed candidates (sectionIndex != None) with title, summary, is_clicked."""
     cards = parse_json_field(cards_raw)
     results = []
     for card in cards:
+        # Only keep cards that were actually shown (have sectionIndex)
+        if card.get('sectionIndex') is None:
+            continue
         results.append({
             'itemid': card.get('itemid', ''),
             'title': card.get('title', ''),

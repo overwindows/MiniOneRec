@@ -147,7 +147,12 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 ---
 
-## 3. Experiments
+## 3. v7 Data Results
+
+> Data: `ods_doca_feed_grounded_v7_partitioned`, 14 days (20260407–20260420), Train 12d / Dev 2d
+> Train: 114,156 feeds, 446,827 candidates, 30,878 clicks (CTR 6.91%)
+> Dev: 18,622 feeds, 68,499 candidates, 5,174 clicks (CTR 7.55%)
+> Prompt: 7 ranking rules, flat conversation history
 
 ### Exp 0: GPT-5.1 Zero-Shot Baseline
 
@@ -247,7 +252,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 **Takeaway**: 4B checkpoint-1024 (early in training) outperforms both 1.7B SFT 1ep and GPT-5.1 zero-shot on all metrics. Later checkpoints (3 full epochs) degrade — overfitting confirmed. Early stopping or 1 epoch is preferred.
 
-### Results Summary
+### Results Summary (v7)
 
 | Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
 |-----------|-------|-----|-----|--------|----------|
@@ -259,7 +264,40 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 ---
 
-## 4. Notes
+## 4. v8 Data Results
+
+> Data: `ods_doca_feed_grounded_v8_partitioned`, 22 days (20260330–20260420), Train 20d / Dev 2d
+> Train: 182,948 feeds, 715,070 candidates, 50,275 clicks (CTR 7.03%)
+> Dev: 18,622 feeds, 68,499 candidates, 5,174 clicks (CTR 7.55%)
+> Prompt: 9 ranking signals, grouped conversations, interactions (thumbs-up/down/clicks)
+
+### Exp 3: GPT-5.1 Zero-Shot (v8 prompt)
+
+| Config | Value |
+|--------|-------|
+| Model | GPT-5.1 (gpt-5.1-2025-11-13) via Azure OpenAI |
+| Endpoint | msncompanioneu2.cognitiveservices.azure.com |
+| Prompt | v8: 9 signals, grouped conversations, interactions |
+| Feeds evaluated | 100 (dev set, with clicks) |
+| API calls | 585 |
+
+**Results:**
+
+| AUC | MRR | nDCG@5 | nDCG@10 |
+|-----|-----|--------|----------|
+| 0.5681 | 0.6257 | 0.6435 | 0.7028 |
+
+**Takeaway**: v8 prompt with 9 signals, interactions, and grouped conversations. MRR +2.2pp and nDCG@10 +0.7pp vs v7 Exp 0 (0.6041→0.6257, 0.6959→0.7028), but AUC -1.7pp (0.5854→0.5681). The richer context helps ranking quality (MRR/nDCG) more than discrimination (AUC).
+
+### Results Summary (v8)
+
+| Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
+|-----------|-------|-----|-----|--------|----------|
+| Exp 3 | GPT-5.1 zero-shot (v8) | 0.5681 | 0.6257 | 0.6435 | 0.7028 |
+
+---
+
+## 5. Notes
 
 - Loss 0.693 = random (50%), loss 0.5 ≈ 61% accuracy, loss 0.3 ≈ 74%
 - `neg_ratio=2.0` means ~33% Yes, ~67% No in training data

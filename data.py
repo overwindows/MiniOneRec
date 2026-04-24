@@ -797,6 +797,295 @@ class DOCAPointwiseSFTDataset:
         }
 
 
+class DOCAListwiseSFTDataset:
+    """
+    DOCA feed dataset for list-wise SFT training.
+
+    Each sample is one feed: user_context + ALL candidates in a shuffled list.
+    Model learns to output the comma-separated indices of clicked articles.
+
+    Example target: "1, 3" (meaning candidates #1 and #3 were clicked)
+
+    Compared to pointwise:
+    - Sees all candidates together → can learn relative comparisons
+    - One forward pass per feed instead of N per feed
+    - Naturally handles the ranking task
+
+    Input: JSONL file produced by src/prepare_doca.py
+    """
+
+    SYSTEM_PROMPT = (
+        "You are a content recommendation assistant. "
+        "Based on a user's interest profile, conversation history, and previously shown articles, "
+        "predict which articles from a candidate list the user will click on.\n\n"
+        "Output format: Output ONLY the comma-separated numbers of articles the user will click. "
+        "If none, output \"None\". Do not explain.\n"
+        "Example: \"1, 3\" or \"2\" or \"None\"\n\n"
+        "Ranking guidelines (highest to lowest priority):\n"
+        "1. Source signal priority: Inline Curation (user explicitly selected, strongest signal) "
+        "> User Interaction (clicks/likes) > Chat History (inferred from messages).\n"
+        "2. Interest strength: High (0.9-1.0) > Medium (0.8-0.9) > Exploratory (<0.8).\n"
+        "3. Long-term interest relevance: How well does the article align with established interests?\n"
+        "4. Short-term task relevance: How relevant is it to the user's recent activities and needs?\n"
+        "5. Freshness: Prefer up-to-date content; consider if information might be outdated.\n"
+        "6. Importance: How significant is this content for the user?\n"
+        "7. Novelty: Prefer content the user hasn't seen recently (check shown articles).\n\n"
+        "Also consider:\n"
+        "- Articles matching disliked interests should NOT be clicked.\n"
+        "- [CURATED] messages in conversations indicate the strongest user intent.\n"
+        "- Interest rationale explains WHY something is an interest — use it to judge relevance."
+    )
+
+    def __init__(
+        self,
+        jsonl_path: str,
+        tokenizer,
+        max_len: int = 4096,
+        sample: int = -1,
+        seed: int = 42,
+        max_candidates: int = 10,
+        max_interests: int = 0,
+        max_conversation_msgs: int = 15,
+        max_shown: int = 10,
+        use_chat_template: bool = False,
+        min_candidates: int = 2,
+    ):
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.max_candidates = max_candidates
+        self.max_interests = max_interests
+        self.max_conversation_msgs = max_conversation_msgs
+        self.max_shown = max_shown
+        self.use_chat_template = use_chat_template
+        self.min_candidates = min_candidates
+        self.seed = seed
+
+        self.samples = self._load_feeds(jsonl_path, sample)
+
+        pos_count = sum(len(s['clicked_indices']) for s in self.samples)
+        total_cands = sum(len(s['candidates']) for s in self.samples)
+        print(f"DOCAListwiseSFTDataset: {len(self.samples)} feeds, "
+              f"{total_cands} total candidates, {pos_count} clicks, "
+              f"CTR={pos_count/max(total_cands,1):.2%}")
+
+    def _load_feeds(self, jsonl_path: str, sample_limit: int):
+        """Load JSONL feeds as listwise samples (one sample = one feed)."""
+        rng = random.Random(self.seed)
+        all_samples = []
+
+        with open(jsonl_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                feed = json.loads(line)
+
+                user_context = {
+                    'interests': feed.get('interests', [])[:self.max_interests] if self.max_interests > 0 else feed.get('interests', []),
+                    'negative_interests': feed.get('negative_interests', []),
+                    'conversation': feed.get('conversation', [])[:self.max_conversation_msgs],
+                    'shown_10d': feed.get('shown_10d', [])[:self.max_shown],
+                }
+
+                candidates = feed.get('candidates', [])
+                if len(candidates) < self.min_candidates:
+                    continue
+
+                # Shuffle candidates so model doesn't learn position bias
+                indexed_candidates = list(enumerate(candidates))
+                rng.shuffle(indexed_candidates)
+
+                # Limit candidates
+                if self.max_candidates > 0 and len(indexed_candidates) > self.max_candidates:
+                    # Ensure at least one positive is included
+                    positives = [(i, c) for i, c in indexed_candidates if c.get('is_clicked')]
+                    negatives = [(i, c) for i, c in indexed_candidates if not c.get('is_clicked')]
+                    if positives:
+                        # Keep all positives (up to limit), fill rest with negatives
+                        keep_pos = positives[:self.max_candidates]
+                        remaining = self.max_candidates - len(keep_pos)
+                        keep_neg = negatives[:remaining]
+                        indexed_candidates = keep_pos + keep_neg
+                        rng.shuffle(indexed_candidates)
+                    else:
+                        indexed_candidates = indexed_candidates[:self.max_candidates]
+
+                # Build the sample with new 1-based indices
+                shuffled_candidates = [c for _, c in indexed_candidates]
+                clicked_indices = [
+                    j + 1 for j, c in enumerate(shuffled_candidates) if c.get('is_clicked')
+                ]
+
+                all_samples.append({
+                    'user_context': user_context,
+                    'candidates': shuffled_candidates,
+                    'clicked_indices': clicked_indices,
+                })
+
+        rng.shuffle(all_samples)
+
+        if sample_limit > 0 and sample_limit < len(all_samples):
+            all_samples = all_samples[:sample_limit]
+
+        return all_samples
+
+    def _build_prompt(self, user_context, candidates, clicked_indices):
+        """Build listwise prompt: user context + numbered candidate list."""
+        parts = []
+
+        # 1. User interests
+        interests = user_context.get('interests', [])
+        if interests:
+            parts.append("User interests:")
+            for i, intr in enumerate(interests, 1):
+                name = intr.get('name', '')
+                strength = intr.get('strength', 0)
+                domain = intr.get('domain', '')
+                sources = ', '.join(intr.get('sources', []))
+                intent = intr.get('intent', '')
+                classification = intr.get('classification', '')
+                status = intr.get('status', '')
+                keywords = ', '.join(intr.get('keywords', [])[:5])
+                line = f"{i}. {name} (strength={strength:.2f}"
+                if domain:
+                    line += f", {domain}"
+                if sources:
+                    line += f", source: {sources}"
+                line += ")"
+                meta = []
+                if classification:
+                    meta.append(classification)
+                if intent:
+                    meta.append(f"intent: {intent}")
+                if status:
+                    meta.append(status)
+                if meta:
+                    line += f" [{', '.join(meta)}]"
+                line += f" - {keywords}"
+                parts.append(line)
+                rationale = intr.get('rationale', '')
+                if rationale:
+                    if len(rationale) > 200:
+                        rationale = rationale[:200] + "..."
+                    parts.append(f"   Reason: {rationale}")
+
+        # 2. Negative interests
+        neg_interests = user_context.get('negative_interests', [])
+        if neg_interests:
+            parts.append("\nDislikes:")
+            for i, intr in enumerate(neg_interests, 1):
+                name = intr.get('name', '')
+                keywords = ', '.join(intr.get('keywords', [])[:5])
+                sources = ', '.join(intr.get('sources', []))
+                line = f"{i}. {name}"
+                if sources:
+                    line += f" (source: {sources})"
+                line += f" - {keywords}"
+                parts.append(line)
+                rationale = intr.get('rationale', '')
+                if rationale:
+                    if len(rationale) > 200:
+                        rationale = rationale[:200] + "..."
+                    parts.append(f"   Reason: {rationale}")
+
+        # 3. Conversation history
+        conversation = user_context.get('conversation', [])
+        if conversation:
+            parts.append("\nRecent conversations:")
+            for msg in conversation:
+                text = msg.get('text', '').strip()
+                if text:
+                    if len(text) > 150:
+                        text = text[:150] + "..."
+                    if msg.get('is_inline_curation'):
+                        parts.append(f'- [CURATED] "{text}"')
+                    else:
+                        parts.append(f'- "{text}"')
+
+        # 4. Shown 10d
+        shown = user_context.get('shown_10d', [])
+        if shown:
+            parts.append("\nRecently shown articles:")
+            for item in shown:
+                if isinstance(item, dict):
+                    title = item.get('title', '')
+                    date = item.get('event_time', '')[:10]
+                    parts.append(f'- "{title}" ({date})')
+                else:
+                    parts.append(f'- "{item}"')
+
+        # 5. Candidate list (numbered)
+        parts.append("\nCandidate articles:")
+        for j, cand in enumerate(candidates, 1):
+            title = cand.get('title', '')
+            summary = cand.get('summary', '')
+            if summary:
+                parts.append(f"{j}. {title} — {summary}")
+            else:
+                parts.append(f"{j}. {title}")
+
+        parts.append("\nWhich articles will this user click? Output the article numbers:")
+
+        prompt = '\n'.join(parts)
+
+        # Target: comma-separated indices or "None"
+        if clicked_indices:
+            target = " " + ", ".join(str(i) for i in sorted(clicked_indices))
+        else:
+            target = " None"
+
+        return prompt, target
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        sample = self.samples[idx]
+        prompt, target = self._build_prompt(
+            sample['user_context'], sample['candidates'], sample['clicked_indices']
+        )
+
+        if self.use_chat_template:
+            messages = [
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ]
+            formatted_prompt = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            full_text = formatted_prompt + target
+
+            input_ids = self.tokenizer.encode(
+                full_text, max_length=self.max_len,
+                truncation=True, add_special_tokens=False
+            )
+            prompt_ids = self.tokenizer.encode(
+                formatted_prompt, max_length=self.max_len,
+                truncation=True, add_special_tokens=False
+            )
+            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+        else:
+            full_text = prompt + target
+            input_ids = self.tokenizer.encode(
+                full_text, max_length=self.max_len,
+                truncation=True, add_special_tokens=True
+            )
+            prompt_ids = self.tokenizer.encode(
+                prompt, max_length=self.max_len,
+                truncation=True, add_special_tokens=True
+            )
+            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
+
+        input_ids = input_ids[:self.max_len]
+        train_labels = train_labels[:self.max_len]
+
+        return {
+            'input_ids': torch.tensor(input_ids, dtype=torch.long),
+            'labels': torch.tensor(train_labels, dtype=torch.long),
+            'attention_mask': torch.ones(len(input_ids), dtype=torch.long),
+        }
+
+
 class InstructionJSONLDataset(Dataset):
     def __init__(self, jsonl_path, tokenizer, max_len=4096, sample=-1, seed=0):
         random.seed(seed)

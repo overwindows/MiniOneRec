@@ -158,6 +158,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `be847f9` |
 | Model | GPT-5.1 (gpt-5.1-2025-11-13) via Azure OpenAI |
 | Endpoint | msncompanioneu2.cognitiveservices.azure.com |
 | Prompt | Same as SFT training (+ confidence score output format) |
@@ -174,6 +175,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `be847f9` |
 | Model | Qwen/Qwen3-1.7B (pretrained, no SFT) |
 | Feeds evaluated | 3,125 (dev set, with clicks) |
 
@@ -187,6 +189,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `be847f9` |
 | Model | Qwen/Qwen3-1.7B |
 | Epochs | 1 |
 | Batch size | 256 |
@@ -210,6 +213,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `be847f9` |
 | Model | Qwen/Qwen3-4B |
 | Epochs | 3 |
 | Batch size | 256 |
@@ -233,6 +237,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `be847f9` |
 | Model | Qwen/Qwen3-4B |
 | Epochs | 3 (eval at checkpoint-1024) |
 | Batch size | 256 |
@@ -253,6 +258,8 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 **Takeaway**: 4B checkpoint-1024 (early in training) outperforms both 1.7B SFT 1ep and GPT-5.1 zero-shot on all metrics. Later checkpoints (3 full epochs) degrade — overfitting confirmed. Early stopping or 1 epoch is preferred.
 
 ### Results Summary (v7)
+
+All v7 experiments use commit `be847f9`.
 
 | Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
 |-----------|-------|-----|-----|--------|----------|
@@ -275,6 +282,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `adc368e` |
 | Model | GPT-5.1 (gpt-5.1-2025-11-13) via Azure OpenAI |
 | Endpoint | msncompanioneu2.cognitiveservices.azure.com |
 | Prompt | v8: 9 signals, grouped conversations, interactions |
@@ -293,6 +301,7 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 | Config | Value |
 |--------|-------|
+| Commit | `adc368e` |
 | Model | Qwen/Qwen3-1.7B (pretrained, no SFT) |
 | Prompt | v8: 9 signals, grouped conversations, interactions |
 | Feeds evaluated | 3,125 (dev set, with clicks) |
@@ -307,16 +316,19 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 ### Results Summary (v8)
 
-| Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
-|-----------|-------|-----|-----|--------|----------|
-| Exp 3 | GPT-5.1 zero-shot (v8) | 0.5681 | 0.6257 | 0.6435 | 0.7028 |
-| Exp 3.5 | Qwen3-1.7B zero-shot (v8) | 0.5226 | 0.5830 | 0.6082 | 0.6694 |
-| Exp 4 | Qwen3-1.7B SFT 1ep (v8) | 0.5498 | 0.6102 | 0.6345 | 0.6905 |
+Exp 3/3.5 use commit `adc368e`, Exp 4 uses commit `adc368e`.
+
+| Experiment | Model | Commit | AUC | MRR | nDCG@5 | nDCG@10 |
+|-----------|-------|--------|-----|-----|--------|----------|
+| Exp 3 | GPT-5.1 zero-shot (v8) | `adc368e` | 0.5681 | 0.6257 | 0.6435 | 0.7028 |
+| Exp 3.5 | Qwen3-1.7B zero-shot (v8) | `adc368e` | 0.5226 | 0.5830 | 0.6082 | 0.6694 |
+| Exp 4 | Qwen3-1.7B SFT 1ep (v8) | `adc368e` | 0.5498 | 0.6102 | 0.6345 | 0.6905 |
 
 ### Exp 4: SFT Qwen3-1.7B, 1 Epoch (v8 data)
 
 | Config | Value |
 |--------|-------|
+| Commit | `adc368e` |
 | Model | Qwen/Qwen3-1.7B |
 | Data | v8 (182k train feeds, 9 signals, grouped conv, interactions) |
 | Epochs | 1 |

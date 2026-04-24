@@ -85,7 +85,7 @@ def main():
     aucs, mrrs, ndcg5s, ndcg10s = [], [], [], []
     for line in all_lines:
         parts = line.split("\t|\t")
-        if len(parts) != 2:
+        if len(parts) < 2:
             continue
         labels = [int(x) for x in parts[0].split("\t")]
         scores = [float(x) for x in parts[1].split("\t")]

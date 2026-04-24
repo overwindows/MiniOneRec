@@ -1053,7 +1053,7 @@ class DOCAListwiseSFTDataset:
             formatted_prompt = self.tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
-            full_text = formatted_prompt + target
+            full_text = formatted_prompt + target + self.tokenizer.eos_token
 
             input_ids = self.tokenizer.encode(
                 full_text, max_length=self.max_len,
@@ -1065,7 +1065,7 @@ class DOCAListwiseSFTDataset:
             )
             train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
         else:
-            full_text = prompt + target
+            full_text = prompt + target + self.tokenizer.eos_token
             input_ids = self.tokenizer.encode(
                 full_text, max_length=self.max_len,
                 truncation=True, add_special_tokens=True

@@ -305,6 +305,7 @@ def main():
     parser.add_argument("--max_interests", type=int, default=0)
     parser.add_argument("--max_conversation_msgs", type=int, default=15)
     parser.add_argument("--max_shown", type=int, default=10)
+    parser.add_argument("--max_candidates", type=int, default=10, help="Max candidates per feed (match training)")
     parser.add_argument("--output_scores_file", help="Output raw scores file")
     args = parser.parse_args()
 
@@ -312,6 +313,7 @@ def main():
         args.max_feeds = 500
 
     set_seed(args.seed)
+    rng = random.Random(args.seed)
 
     print(f"Loading model from: {args.model_path}")
     from pathlib import Path
@@ -381,6 +383,25 @@ def main():
             if len(candidates) < 2:
                 pbar.update(1)
                 continue
+
+            # Shuffle and limit candidates to match training distribution
+            indexed_candidates = list(enumerate(candidates))
+            rng.shuffle(indexed_candidates)
+
+            if args.max_candidates > 0 and len(indexed_candidates) > args.max_candidates:
+                # Ensure at least one positive is included
+                positives = [(i, c) for i, c in indexed_candidates if c.get('is_clicked')]
+                negatives = [(i, c) for i, c in indexed_candidates if not c.get('is_clicked')]
+                if positives:
+                    keep_pos = positives[:args.max_candidates]
+                    remaining = args.max_candidates - len(keep_pos)
+                    keep_neg = negatives[:remaining]
+                    indexed_candidates = keep_pos + keep_neg
+                    rng.shuffle(indexed_candidates)
+                else:
+                    indexed_candidates = indexed_candidates[:args.max_candidates]
+
+            candidates = [c for _, c in indexed_candidates]
 
             user_context = {
                 'interests': feed.get('interests', []),

@@ -41,6 +41,7 @@ fi
 # Configuration
 EVAL_JSONL="${EVAL_JSONL:-data/doca/dev.jsonl}"
 MAX_FEEDS_DEFAULT=500
+MAX_CANDIDATES=${MAX_CANDIDATES:-10}
 
 if [[ "${FULL_EVAL}" == "--all" ]]; then
   MAX_FEEDS="${MAX_FEEDS:-0}"
@@ -64,6 +65,7 @@ echo "DOCA List-wise Evaluation"
 echo "========================================="
 echo "Model: ${MODEL_PATH}"
 echo "Eval data: ${EVAL_JSONL}"
+echo "Max candidates: ${MAX_CANDIDATES}"
 if [[ "${MAX_FEEDS}" -eq 0 ]]; then
   echo "Max feeds: ALL"
 else
@@ -132,6 +134,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
     cmd="CUDA_VISIBLE_DEVICES=$gpu_id python -u src/evaluate_doca_listwise.py \
       --model_path \"${MODEL_PATH}\" \
       --eval_jsonl \"${shard_file}\" \
+      --max_candidates ${MAX_CANDIDATES} \
       --flash_attn \
       --output_scores_file \"${TEMP_DIR}/${gpu_id}_scores.txt\""
 
@@ -201,6 +204,7 @@ else
   CMD="python src/evaluate_doca_listwise.py \
     --model_path \"${MODEL_PATH}\" \
     --eval_jsonl \"${EVAL_JSONL}\" \
+    --max_candidates ${MAX_CANDIDATES} \
     --flash_attn \
     --output_scores_file \"./results_doca/dev_listwise_scores.txt\""
 

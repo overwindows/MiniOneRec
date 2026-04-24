@@ -119,6 +119,49 @@ def indices_to_scores(predicted_indices: List[int], num_candidates: int) -> List
     return scores
 
 
+def logprob_scores_for_candidates(
+    model, tokenizer, prompt, num_candidates, device,
+    use_chat_template=False,
+) -> List[float]:
+    """
+    Compute log P(candidate_index_token) at the first generation position.
+
+    For each candidate 1..N, we look at the log probability the model assigns
+    to that number token right after the prompt. This gives a continuous score
+    per candidate, making AUC/MRR/nDCG meaningful.
+
+    Returns a list of N floats (log-probs), one per candidate.
+    """
+    if use_chat_template:
+        messages = [
+            {"role": "system", "content": DOCAListwiseSFTDataset.SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
+        prompt = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+    tokens = tokenizer.encode(prompt, add_special_tokens=(not use_chat_template))
+    input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
+
+    with torch.no_grad():
+        outputs = model(input_ids=input_ids)
+        # Logits at the last position = next token prediction
+        logits = outputs.logits[0, -1, :]  # (vocab_size,)
+        log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+
+    # Get log-prob for each candidate number token: " 1", " 2", ..., " N"
+    scores = []
+    for i in range(1, num_candidates + 1):
+        # Try " {i}" (with leading space, as trained)
+        token_ids = tokenizer.encode(f" {i}", add_special_tokens=False)
+        # Use the first token (the number token)
+        tid = token_ids[0]
+        scores.append(log_probs[tid].item())
+
+    return scores
+
+
 def build_listwise_prompt(user_context, candidates, max_interests=0,
                           max_conversation_msgs=15, max_shown=10):
     """Build prompt matching DOCAListwiseSFTDataset._build_prompt format (without target)."""
@@ -232,18 +275,6 @@ def generate_prediction(model, tokenizer, prompt, device, max_new_tokens=32,
             messages, tokenize=False, add_generation_prompt=True
         )
 
-    input_ids = tokenizer.encode(prompt, add_special_tokens=(not use_chat_template),
-                                 return_tensors="pt").to(device) if isinstance(prompt, str) else None
-    if input_ids is None:
-        input_ids = torch.tensor(
-            [tokenizer.encode(prompt, add_special_tokens=(not use_chat_template))],
-            dtype=torch.long, device=device
-        )
-    else:
-        # tokenizer.encode with return_tensors already gives tensor
-        pass
-
-    # Re-encode properly
     tokens = tokenizer.encode(prompt, add_special_tokens=(not use_chat_template))
     input_ids = torch.tensor([tokens], dtype=torch.long, device=device)
 
@@ -374,21 +405,24 @@ def main():
                 max_shown=args.max_shown,
             )
 
-            # Generate prediction
+            # Logprob-based scoring: continuous score per candidate
+            logprob_sc = logprob_scores_for_candidates(
+                model, tokenizer, prompt, len(candidates), device,
+                use_chat_template=args.use_chat_template,
+            )
+
+            # Also generate text for classification metrics
             prediction = generate_prediction(
                 model, tokenizer, prompt, device,
                 max_new_tokens=args.max_new_tokens,
                 use_chat_template=args.use_chat_template,
             )
 
-            # Parse predicted indices
+            # Parse predicted indices for classification metrics
             predicted_indices = parse_predicted_indices(prediction, len(candidates))
             predicted_set = set(predicted_indices)
 
-            # Compute scores for ranking metrics
-            scores = indices_to_scores(predicted_indices, len(candidates))
-
-            # Classification metrics
+            # Classification metrics (from generated text)
             correct = predicted_set & actual_clicked
             total_predicted += len(predicted_set)
             total_actual += len(actual_clicked)
@@ -396,16 +430,16 @@ def main():
             if predicted_set == actual_clicked:
                 exact_match += 1
 
-            # Ranking metrics
-            auc_val = auc_score(labels, scores)
+            # Ranking metrics (from logprob scores — continuous!)
+            auc_val = auc_score(labels, logprob_sc)
             if auc_val is not None:
                 aucs.append(auc_val)
-            mrrs.append(mrr_score(labels, scores))
-            ndcg5.append(ndcg_score(labels, scores, 5))
-            ndcg10.append(ndcg_score(labels, scores, 10))
+            mrrs.append(mrr_score(labels, logprob_sc))
+            ndcg5.append(ndcg_score(labels, logprob_sc, 5))
+            ndcg10.append(ndcg_score(labels, logprob_sc, 10))
 
             if args.output_scores_file:
-                scores_str = "\t".join(f"{s:.4f}" for s in scores)
+                scores_str = "\t".join(f"{s:.4f}" for s in logprob_sc)
                 labels_str = "\t".join(str(l) for l in labels)
                 raw_scores.append(f"{labels_str}\t|\t{scores_str}\t|\t{prediction.strip()}")
 

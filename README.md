@@ -311,6 +311,32 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 |-----------|-------|-----|-----|--------|----------|
 | Exp 3 | GPT-5.1 zero-shot (v8) | 0.5681 | 0.6257 | 0.6435 | 0.7028 |
 | Exp 3.5 | Qwen3-1.7B zero-shot (v8) | 0.5226 | 0.5830 | 0.6082 | 0.6694 |
+| Exp 4 | Qwen3-1.7B SFT 1ep (v8) | 0.5498 | 0.6102 | 0.6345 | 0.6905 |
+
+### Exp 4: SFT Qwen3-1.7B, 1 Epoch (v8 data)
+
+| Config | Value |
+|--------|-------|
+| Model | Qwen/Qwen3-1.7B |
+| Data | v8 (182k train feeds, 9 signals, grouped conv, interactions) |
+| Epochs | 1 |
+| Batch size | 256 |
+| Micro batch | 2 |
+| Learning rate | 2e-5 |
+| Neg ratio | 2.0 |
+| DeepSpeed | ZeRO-2 |
+| GPUs | 8x A100 |
+| Cutoff length | 4096 |
+| Training time | ~3h |
+| Feeds evaluated | 3,125 |
+
+**Results:**
+
+| AUC | MRR | nDCG@5 | nDCG@10 |
+|-----|-----|--------|----------|
+| 0.5498 | 0.6102 | 0.6345 | 0.6905 |
+
+**Takeaway**: v8 SFT 1ep significantly underperforms v7 SFT 1ep (AUC 0.5498 vs 0.5909, -4.1pp). While it beats v8 zero-shot (AUC +2.7pp), the v8 prompt changes (interactions, grouped conversations, 9 rules) may be adding noise. Training also 3x slower (3h vs 1h) due to 1.6x more data and 1.6x longer prompts. Note: system prompt was NOT included in training (bug, now fixed).
 
 ---
 

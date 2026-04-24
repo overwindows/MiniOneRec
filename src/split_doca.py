@@ -3,7 +3,7 @@ Split DOCA JSONL file into shards for multi-GPU evaluation.
 
 Usage:
     python src/split_doca.py \
-        --input_path data/doca/dev.jsonl \
+        --input_path data/doca_v8/dev.jsonl \
         --output_path temp_doca/ \
         --cuda_list 0,1,2,3
 """

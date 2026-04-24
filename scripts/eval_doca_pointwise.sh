@@ -42,7 +42,7 @@ if [[ -z "${MODEL_PATH}" ]]; then
 fi
 
 # Configuration
-EVAL_JSONL="${EVAL_JSONL:-data/doca/dev.jsonl}"
+EVAL_JSONL="${EVAL_JSONL:-data/doca_v8/dev.jsonl}"
 BATCH_SIZE="${BATCH_SIZE:-8}"
 
 if [[ "${FULL_EVAL}" == "--all" ]]; then

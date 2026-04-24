@@ -5,14 +5,14 @@ Calls GPT model to predict Yes/No for each candidate, extracts
 logprobs for scoring, and computes AUC/MRR/nDCG metrics.
 
 Usage:
-    python src/evaluate_doca_openai.py --eval_jsonl data/doca/dev.jsonl --max_feeds 50
+    python src/evaluate_doca_openai.py --eval_jsonl data/doca_v8/dev.jsonl --max_feeds 50
 
     # Custom endpoint/model
-    python src/evaluate_doca_openai.py --eval_jsonl data/doca/dev.jsonl \
+    python src/evaluate_doca_openai.py --eval_jsonl data/doca_v8/dev.jsonl \
         --endpoint https://... --deployment gpt-5.1 --api_key KEY
 
     # Multi-worker parallel (faster)
-    python src/evaluate_doca_openai.py --eval_jsonl data/doca/dev.jsonl \
+    python src/evaluate_doca_openai.py --eval_jsonl data/doca_v8/dev.jsonl \
         --max_feeds 200 --max_workers 8
 """
 

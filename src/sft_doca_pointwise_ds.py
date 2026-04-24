@@ -19,8 +19,8 @@ Training format:
 Usage:
     deepspeed --hostfile=hostfile src/sft_doca_pointwise_ds.py \\
         --base_model Qwen/Qwen3-1.7B \\
-        --train_jsonl data/doca/train.jsonl \\
-        --eval_jsonl data/doca/dev.jsonl \\
+        --train_jsonl data/doca_v8/train.jsonl \
+        --eval_jsonl data/doca_v8/dev.jsonl \
         --output_dir output_dir/sft_doca_pointwise
 """
 

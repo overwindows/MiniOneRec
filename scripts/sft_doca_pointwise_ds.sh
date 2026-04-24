@@ -85,7 +85,7 @@ fi
 
 # Model and data paths
 MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-1.7B}
-DATA_ROOT=${DATA_ROOT:-data/doca}
+DATA_ROOT=${DATA_ROOT:-data/doca_v8}
 
 # Training hyperparameters
 BATCH_SIZE=${BATCH_SIZE:-256}

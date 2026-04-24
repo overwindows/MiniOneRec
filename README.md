@@ -289,11 +289,28 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 **Takeaway**: v8 prompt with 9 signals, interactions, and grouped conversations. MRR +2.2pp and nDCG@10 +0.7pp vs v7 Exp 0 (0.6041→0.6257, 0.6959→0.7028), but AUC -1.7pp (0.5854→0.5681). The richer context helps ranking quality (MRR/nDCG) more than discrimination (AUC).
 
+### Exp 3.5: Qwen3-1.7B Zero-Shot (v8 prompt)
+
+| Config | Value |
+|--------|-------|
+| Model | Qwen/Qwen3-1.7B (pretrained, no SFT) |
+| Prompt | v8: 9 signals, grouped conversations, interactions |
+| Feeds evaluated | 3,125 (dev set, with clicks) |
+
+**Results:**
+
+| AUC | MRR | nDCG@5 | nDCG@10 |
+|-----|-----|--------|----------|
+| 0.5226 | 0.5830 | 0.6082 | 0.6694 |
+
+**Takeaway**: v8 prompt on Qwen3-1.7B zero-shot. Slightly worse than v7 Exp 0.5 (AUC 0.5242→0.5226, nDCG@10 0.6684→0.6694). The richer prompt doesn't help a small pretrained model without SFT.
+
 ### Results Summary (v8)
 
 | Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
 |-----------|-------|-----|-----|--------|----------|
 | Exp 3 | GPT-5.1 zero-shot (v8) | 0.5681 | 0.6257 | 0.6435 | 0.7028 |
+| Exp 3.5 | Qwen3-1.7B zero-shot (v8) | 0.5226 | 0.5830 | 0.6082 | 0.6694 |
 
 ---
 

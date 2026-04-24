@@ -9,7 +9,7 @@ Metrics: AUC, MRR, nDCG@5, nDCG@10 (per-feed, then averaged).
 Usage:
     python src/evaluate_doca_pointwise.py \\
         --model_path output_dir/sft_doca_pointwise_*/final_checkpoint \\
-        --eval_jsonl data/doca/dev.jsonl \\
+        --eval_jsonl data/doca_v8/dev.jsonl \\
         --flash_attn \\
         --max_feeds 1000
 

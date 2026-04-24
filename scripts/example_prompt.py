@@ -2,7 +2,7 @@
 
 Usage:
     python scripts/example_prompt.py
-    python scripts/example_prompt.py --from_jsonl data/doca/train.jsonl --index 0
+    python scripts/example_prompt.py --from_jsonl data/doca_v8/train.jsonl --index 0
 """
 
 import json

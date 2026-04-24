@@ -74,9 +74,10 @@ def analyze_truncation(jsonl_path, model_name, max_len, neg_ratio, max_interests
             full_ids = tokenizer.encode(full_text, add_special_tokens=False)
             prompt_ids = tokenizer.encode(formatted_prompt, add_special_tokens=False)
         else:
-            full_text = prompt + target
+            prompt_with_sys = ds.SYSTEM_PROMPT + "\n\n" + prompt
+            full_text = prompt_with_sys + target
             full_ids = tokenizer.encode(full_text, add_special_tokens=True)
-            prompt_ids = tokenizer.encode(prompt, add_special_tokens=True)
+            prompt_ids = tokenizer.encode(prompt_with_sys, add_special_tokens=True)
 
         prompt_len = len(prompt_ids)
         full_len = len(full_ids)
@@ -159,8 +160,9 @@ def analyze_truncation(jsonl_path, model_name, max_len, neg_ratio, max_interests
             full_ids = tokenizer.encode(formatted_prompt + target, add_special_tokens=False)
             prompt_ids_len = len(tokenizer.encode(formatted_prompt, add_special_tokens=False))
         else:
-            full_ids = tokenizer.encode(prompt + target, add_special_tokens=True)
-            prompt_ids_len = len(tokenizer.encode(prompt, add_special_tokens=True))
+            prompt_with_sys = ds.SYSTEM_PROMPT + "\n\n" + prompt
+            full_ids = tokenizer.encode(prompt_with_sys + target, add_special_tokens=True)
+            prompt_ids_len = len(tokenizer.encode(prompt_with_sys, add_special_tokens=True))
 
         truncated_input = full_ids[:max_len]
         labels = [-100] * min(prompt_ids_len, max_len) + truncated_input[min(prompt_ids_len, max_len):]

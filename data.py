@@ -814,13 +814,14 @@ class DOCAPointwiseSFTDataset:
             )
             train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
         else:
-            full_text = prompt + target
+            prompt_with_sys = self.SYSTEM_PROMPT + "\n\n" + prompt
+            full_text = prompt_with_sys + target
             input_ids = self.tokenizer.encode(
                 full_text, max_length=self.max_len,
                 truncation=True, add_special_tokens=True
             )
             prompt_ids = self.tokenizer.encode(
-                prompt, max_length=self.max_len,
+                prompt_with_sys, max_length=self.max_len,
                 truncation=True, add_special_tokens=True
             )
             train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]

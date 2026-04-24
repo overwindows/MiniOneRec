@@ -64,9 +64,10 @@ def main():
                 full_ids = tokenizer.encode(full_text, add_special_tokens=False)
                 prompt_ids = tokenizer.encode(formatted, add_special_tokens=False)
             else:
-                full_text = prompt + target
+                prompt_with_sys = ds.SYSTEM_PROMPT + "\n\n" + prompt
+                full_text = prompt_with_sys + target
                 full_ids = tokenizer.encode(full_text, add_special_tokens=True)
-                prompt_ids = tokenizer.encode(prompt, add_special_tokens=True)
+                prompt_ids = tokenizer.encode(prompt_with_sys, add_special_tokens=True)
 
             label_str = "Yes (clicked)" if sample['label'] == 1 else "No (not clicked)"
 
@@ -77,10 +78,6 @@ def main():
                 f.write(f"⚠️  TRUNCATED! Full={len(full_ids)} > max_len={args.max_len}, "
                         f"target token will be LOST\n")
             f.write(f"{'='*80}\n\n")
-
-            # Always show system prompt
-            f.write(f"[SYSTEM PROMPT]\n{ds.SYSTEM_PROMPT}\n\n")
-            f.write(f"[USER PROMPT + TARGET]\n")
             f.write(full_text)
             f.write(f"\n\n{'—'*80}\n\n")
 

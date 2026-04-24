@@ -26,6 +26,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
+from sklearn.metrics import roc_auc_score as sklearn_auc
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -282,6 +283,8 @@ def main():
 
     aucs, mrrs, ndcg5s, ndcg10s = [], [], [], []
     raw_scores = []
+    all_labels = []  # for global AUC
+    all_scores = []  # for global AUC
     count = 0
     skipped = 0
     total_api_calls = 0
@@ -331,6 +334,9 @@ def main():
                     scores[idx] = future.result()
                     total_api_calls += 1
 
+            all_labels.extend(labels)
+            all_scores.extend(scores)
+
             auc_val = auc_score(labels, scores)
             if auc_val is not None:
                 aucs.append(auc_val)
@@ -364,10 +370,13 @@ def main():
     print(f"Total API calls: {total_api_calls}")
 
     if aucs:
-        print(f"\nAUC:     {np.mean(aucs):.4f}")
-        print(f"MRR:     {np.mean(mrrs):.4f}")
-        print(f"nDCG@5:  {np.mean(ndcg5s):.4f}")
-        print(f"nDCG@10: {np.mean(ndcg10s):.4f}")
+        global_auc = sklearn_auc(all_labels, all_scores) if sum(all_labels) > 0 and sum(all_labels) < len(all_labels) else 0.0
+
+        print(f"\nGlobal AUC:       {global_auc:.4f}")
+        print(f"Per-feed avg AUC: {np.mean(aucs):.4f}")
+        print(f"MRR:              {np.mean(mrrs):.4f}")
+        print(f"nDCG@5:           {np.mean(ndcg5s):.4f}")
+        print(f"nDCG@10:          {np.mean(ndcg10s):.4f}")
     else:
         print("No metrics computed")
 

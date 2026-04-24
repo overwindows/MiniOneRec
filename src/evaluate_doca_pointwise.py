@@ -4,7 +4,7 @@ Evaluate DOCA models trained with point-wise SFT (Yes/No classification).
 Scores each candidate independently by computing log P("Yes") - log P("No")
 and uses those scores to rank candidates within each feed impression.
 
-Metrics: AUC, MRR, nDCG@5, nDCG@10 (per-feed, then averaged).
+Metrics: AUC (per-feed avg + global), MRR, nDCG@5, nDCG@10.
 
 Usage:
     python src/evaluate_doca_pointwise.py \\
@@ -26,6 +26,7 @@ from typing import List
 
 import numpy as np
 import torch
+from sklearn.metrics import roc_auc_score as sklearn_auc
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 
@@ -346,6 +347,8 @@ def main():
     ndcg5 = []
     ndcg10 = []
     raw_scores = []
+    all_labels = []  # for global AUC
+    all_scores = []  # for global AUC
     count = 0
     skipped_no_pos = 0
 
@@ -405,6 +408,9 @@ def main():
                 temperature=args.temperature,
             )
 
+            all_labels.extend(labels)
+            all_scores.extend(scores)
+
             auc_val = auc_score(labels, scores)
             if auc_val is not None:
                 aucs.append(auc_val)
@@ -437,10 +443,14 @@ def main():
     print(f"Feeds skipped (no clicks): {skipped_no_pos}")
 
     if aucs:
-        print(f"\nAUC:     {_avg(aucs):.4f}")
-        print(f"MRR:     {_avg(mrrs):.4f}")
-        print(f"nDCG@5:  {_avg(ndcg5):.4f}")
-        print(f"nDCG@10: {_avg(ndcg10):.4f}")
+        # Global AUC: pool all (label, score) pairs across feeds
+        global_auc = sklearn_auc(all_labels, all_scores) if sum(all_labels) > 0 and sum(all_labels) < len(all_labels) else 0.0
+
+        print(f"\nGlobal AUC:       {global_auc:.4f}")
+        print(f"Per-feed avg AUC: {_avg(aucs):.4f}")
+        print(f"MRR:              {_avg(mrrs):.4f}")
+        print(f"nDCG@5:           {_avg(ndcg5):.4f}")
+        print(f"nDCG@10:          {_avg(ndcg10):.4f}")
     else:
         print("No metrics computed (no feeds with clicks)")
 

@@ -4,12 +4,12 @@ Evaluate DOCA models trained with point-wise SFT (Yes/No classification).
 Scores each candidate independently by computing log P("Yes") - log P("No")
 and uses those scores to rank candidates within each feed impression.
 
-Metrics: AUC (per-feed avg + global), MRR, nDCG@5, nDCG@10.
+Metrics: AUC, MRR, nDCG@5, nDCG@10 (per-feed, then averaged).
 
 Usage:
     python src/evaluate_doca_pointwise.py \\
         --model_path output_dir/sft_doca_pointwise_*/final_checkpoint \\
-        --eval_jsonl data/doca_v8/dev.jsonl \\
+        --eval_jsonl data/doca/dev.jsonl \\
         --flash_attn \\
         --max_feeds 1000
 
@@ -26,7 +26,6 @@ from typing import List
 
 import numpy as np
 import torch
-from sklearn.metrics import roc_auc_score as sklearn_auc
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 
@@ -151,50 +150,21 @@ def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation
                     rationale = rationale[:200] + "..."
                 parts.append(f"   Reason: {rationale}")
 
-    # 3. Conversation history (grouped by conversation_id, user+assistant)
+    # 3. Conversation history (human messages, inline curation marked)
     conversation = user_context.get('conversation', [])[:max_conversation_msgs]
     if conversation:
         parts.append("\nRecent conversations:")
-        for gi, group in enumerate(conversation, 1):
-            started_at = (group.get('started_at') or '')[:16].replace('T', ' ')
-            head = f"  Conversation {gi}"
-            if started_at:
-                head += f" ({started_at})"
-            head += ":"
-            parts.append(head)
-            for msg in group.get('messages', []):
-                text = (msg.get('text') or '').strip()
-                if not text:
-                    continue
+        for msg in conversation:
+            text = msg.get('text', '').strip()
+            if text:
                 if len(text) > 150:
                     text = text[:150] + "..."
-                author = msg.get('author', '?')
-                role = 'user' if author in ('human', 'user') else 'assistant'
                 if msg.get('is_inline_curation'):
-                    parts.append(f"    [{role}] [CURATED] {text}")
+                    parts.append(f'- [CURATED] "{text}"')
                 else:
-                    parts.append(f"    [{role}] {text}")
+                    parts.append(f'- "{text}"')
 
-    # 4. User interactions (clicks, thumbsUp, thumbsDown from interactions_90d)
-    interactions = user_context.get('interactions', {})
-    thumbs_up = interactions.get('thumbsUp', [])
-    thumbs_down = interactions.get('thumbsDown', [])
-    clicks = interactions.get('clicks', [])
-    if thumbs_up or thumbs_down or clicks:
-        if thumbs_up:
-            parts.append("\nUser interactions (positive signals, thumbs-up):")
-            for t in thumbs_up:
-                parts.append(f"- {t}")
-        if thumbs_down:
-            parts.append("\nUser interactions (negative signals, thumbs-down):")
-            for t in thumbs_down:
-                parts.append(f"- {t}")
-        if clicks:
-            parts.append("\nUser interactions (click signals):")
-            for t in clicks:
-                parts.append(f"- {t}")
-
-    # 5. Shown 10d
+    # 4. Shown 10d
     shown = user_context.get('shown_10d', [])[:max_shown]
     if shown:
         parts.append("\nRecently shown articles:")
@@ -206,7 +176,7 @@ def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation
             else:
                 parts.append(f'- "{item}"')
 
-    # 6. Candidate
+    # 5. Candidate
     parts.append("\nCandidate article:")
     parts.append(f"Title: {candidate.get('title', '')}")
     summary = candidate.get('summary', '')
@@ -244,8 +214,6 @@ def batch_score_candidates(
             prompt = tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
-        else:
-            prompt = DOCAPointwiseSFTDataset.SYSTEM_PROMPT + "\n\n" + prompt
         prompts.append(prompt)
 
     all_prompt_ids = [
@@ -349,8 +317,6 @@ def main():
     ndcg5 = []
     ndcg10 = []
     raw_scores = []
-    all_labels = []  # for global AUC
-    all_scores = []  # for global AUC
     count = 0
     skipped_no_pos = 0
 
@@ -410,9 +376,6 @@ def main():
                 temperature=args.temperature,
             )
 
-            all_labels.extend(labels)
-            all_scores.extend(scores)
-
             auc_val = auc_score(labels, scores)
             if auc_val is not None:
                 aucs.append(auc_val)
@@ -445,14 +408,10 @@ def main():
     print(f"Feeds skipped (no clicks): {skipped_no_pos}")
 
     if aucs:
-        # Global AUC: pool all (label, score) pairs across feeds
-        global_auc = sklearn_auc(all_labels, all_scores) if sum(all_labels) > 0 and sum(all_labels) < len(all_labels) else 0.0
-
-        print(f"\nGlobal AUC:       {global_auc:.4f}")
-        print(f"Per-feed avg AUC: {_avg(aucs):.4f}")
-        print(f"MRR:              {_avg(mrrs):.4f}")
-        print(f"nDCG@5:           {_avg(ndcg5):.4f}")
-        print(f"nDCG@10:          {_avg(ndcg10):.4f}")
+        print(f"\nAUC:     {_avg(aucs):.4f}")
+        print(f"MRR:     {_avg(mrrs):.4f}")
+        print(f"nDCG@5:  {_avg(ndcg5):.4f}")
+        print(f"nDCG@10: {_avg(ndcg10):.4f}")
     else:
         print("No metrics computed (no feeds with clicks)")
 

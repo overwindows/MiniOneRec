@@ -242,14 +242,38 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 **Takeaway**: 4B with lr=1e-5 and 3 epochs still underperforms 1.7B with lr=2e-5 and 1 epoch on all metrics (AUC -1.6pp, nDCG@10 -0.6pp). More epochs didn't help — lr=1e-5 may be too low for this task.
 
+### Exp 2.5: SFT Qwen3-4B, 3 Epochs (checkpoint-1024)
+
+| Config | Value |
+|--------|-------|
+| Model | Qwen/Qwen3-4B |
+| Epochs | 3 (eval at checkpoint-1024) |
+| Batch size | 256 |
+| Micro batch | 1 |
+| Learning rate | 1e-5 |
+| Neg ratio | 2.0 |
+| DeepSpeed | ZeRO-2 |
+| GPUs | 8x A100 |
+| Cutoff length | 4096 |
+| Feeds evaluated | 3,125 |
+
+**Results:**
+
+| AUC | MRR | nDCG@5 | nDCG@10 |
+|-----|-----|--------|----------|
+| 0.5928 | 0.6365 | 0.6641 | 0.7116 |
+
+**Takeaway**: 4B checkpoint-1024 (early in training) outperforms both 1.7B SFT 1ep and GPT-5.1 zero-shot on all metrics. Later checkpoints (3 full epochs) degrade — overfitting confirmed. Early stopping or 1 epoch is preferred.
+
 ### Results Summary
 
 | Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
-|-----------|-------|-----|-----|--------|---------|
+|-----------|-------|-----|-----|--------|----------|
 | Exp 0 | GPT-5.1 zero-shot | 0.5854 | 0.6041 | 0.6519 | 0.6959 |
 | Exp 0.5 | Qwen3-1.7B zero-shot | 0.5242 | 0.5798 | 0.6039 | 0.6684 |
-| Exp 1 | Qwen3-1.7B SFT 1ep | **0.5909** | **0.6311** | **0.6609** | **0.7090** |
+| Exp 1 | Qwen3-1.7B SFT 1ep | 0.5909 | 0.6311 | 0.6609 | 0.7090 |
 | Exp 2 | Qwen3-4B SFT 3ep | 0.5747 | 0.6249 | 0.6513 | 0.7027 |
+| Exp 2.5 | Qwen3-4B SFT ckpt-1024 | **0.5928** | **0.6365** | **0.6641** | **0.7116** |
 
 ---
 

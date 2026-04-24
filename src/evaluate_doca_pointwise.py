@@ -150,21 +150,50 @@ def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation
                     rationale = rationale[:200] + "..."
                 parts.append(f"   Reason: {rationale}")
 
-    # 3. Conversation history (human messages, inline curation marked)
+    # 3. Conversation history (grouped by conversation_id, user+assistant)
     conversation = user_context.get('conversation', [])[:max_conversation_msgs]
     if conversation:
         parts.append("\nRecent conversations:")
-        for msg in conversation:
-            text = msg.get('text', '').strip()
-            if text:
+        for gi, group in enumerate(conversation, 1):
+            started_at = (group.get('started_at') or '')[:16].replace('T', ' ')
+            head = f"  Conversation {gi}"
+            if started_at:
+                head += f" ({started_at})"
+            head += ":"
+            parts.append(head)
+            for msg in group.get('messages', []):
+                text = (msg.get('text') or '').strip()
+                if not text:
+                    continue
                 if len(text) > 150:
                     text = text[:150] + "..."
+                author = msg.get('author', '?')
+                role = 'user' if author in ('human', 'user') else 'assistant'
                 if msg.get('is_inline_curation'):
-                    parts.append(f'- [CURATED] "{text}"')
+                    parts.append(f"    [{role}] [CURATED] {text}")
                 else:
-                    parts.append(f'- "{text}"')
+                    parts.append(f"    [{role}] {text}")
 
-    # 4. Shown 10d
+    # 4. User interactions (clicks, thumbsUp, thumbsDown from interactions_90d)
+    interactions = user_context.get('interactions', {})
+    thumbs_up = interactions.get('thumbsUp', [])
+    thumbs_down = interactions.get('thumbsDown', [])
+    clicks = interactions.get('clicks', [])
+    if thumbs_up or thumbs_down or clicks:
+        if thumbs_up:
+            parts.append("\nUser interactions (positive signals, thumbs-up):")
+            for t in thumbs_up:
+                parts.append(f"- {t}")
+        if thumbs_down:
+            parts.append("\nUser interactions (negative signals, thumbs-down):")
+            for t in thumbs_down:
+                parts.append(f"- {t}")
+        if clicks:
+            parts.append("\nUser interactions (click signals):")
+            for t in clicks:
+                parts.append(f"- {t}")
+
+    # 5. Shown 10d
     shown = user_context.get('shown_10d', [])[:max_shown]
     if shown:
         parts.append("\nRecently shown articles:")
@@ -176,7 +205,7 @@ def build_doca_prompt(user_context, candidate, max_interests=0, max_conversation
             else:
                 parts.append(f'- "{item}"')
 
-    # 5. Candidate
+    # 6. Candidate
     parts.append("\nCandidate article:")
     parts.append(f"Title: {candidate.get('title', '')}")
     summary = candidate.get('summary', '')

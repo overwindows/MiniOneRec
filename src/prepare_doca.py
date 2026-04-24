@@ -1,7 +1,7 @@
 """
 Download and prepare DOCA feed data from Databricks for pointwise SFT training.
 
-Queries `mai_ws_discover.analytics.ods_doca_feed_grounded_v7_partitioned`,
+Queries `mai_ws_discover.analytics.ods_doca_feed_grounded_v8_partitioned`,
 extracts relevant fields, and saves as JSONL files (train/dev split).
 
 Usage:
@@ -125,36 +125,90 @@ def process_negative_interests(interests_raw):
     return results
 
 
-def process_conversation(conv_raw, max_messages=30):
-    """Extract human messages from conversation history (most recent first).
-    Marks inline_curation messages."""
+def process_conversation(conv_raw, max_groups=0, max_msgs_per_group=0, max_chars=220):
+    """Group messages by conversation_id, keep user+assistant turns.
+    Sorted by group recency (newest first). Marks inline_curation messages.
+
+    Args:
+        max_groups: max conversation groups to keep (0 = all)
+        max_msgs_per_group: max messages per group (0 = all)
+        max_chars: truncate message text beyond this length
+    """
     convs = parse_json_field(conv_raw)
-    human_msgs = []
+    if not convs:
+        return []
+
+    groups = {}
     for m in convs:
-        if m.get('author') != 'human':
+        if not isinstance(m, dict):
             continue
+        cid = m.get('conversation_id') or m.get('message_id') or ''
+        g = groups.setdefault(cid, {'id': cid, 'messages': []})
+        text = (m.get('text') or '').strip().replace('\n', ' ')
+        if not text:
+            continue
+        if len(text) > max_chars:
+            text = text[:max_chars - 1] + '…'
+        author = m.get('author') or '?'
         entry = {
-            'text': m.get('text', ''),
+            'author': author,
+            'text': text,
             'createdAt': m.get('createdAt', ''),
         }
         if m.get('is_inline_curation'):
             entry['is_inline_curation'] = True
-        human_msgs.append(entry)
-    # Sort by time descending (most recent first), take last N
-    human_msgs.sort(key=lambda x: x['createdAt'], reverse=True)
-    return human_msgs[:max_messages]
+        g['messages'].append(entry)
+
+    # Sort messages within each group by time
+    result = []
+    for g in groups.values():
+        msgs = g['messages']
+        try:
+            msgs.sort(key=lambda x: x.get('createdAt') or '')
+        except Exception:
+            pass
+        if not msgs:
+            continue
+        started_at = msgs[0].get('createdAt', '')
+        if max_msgs_per_group > 0:
+            msgs = msgs[-max_msgs_per_group:]
+        result.append({
+            'id': g['id'],
+            'started_at': started_at,
+            'messages': msgs,
+        })
+
+    # Sort groups by recency (newest first)
+    result.sort(key=lambda g: g['started_at'], reverse=True)
+    if max_groups > 0:
+        result = result[:max_groups]
+    return result
 
 
 def process_interactions(interactions_raw):
-    """Extract interaction events (thumbsUp/thumbsDown)."""
+    """Extract interaction signals: clicked/thumbsUp/thumbsDown card titles from interactions_90d."""
     interactions = parse_json_field(interactions_raw)
-    results = []
+    clicks = []
+    thumbs_up = []
+    thumbs_down = []
     for act in interactions:
-        results.append({
-            'event_time': act.get('event_time', ''),
-            'type': act.get('clickScenario', ''),
-        })
-    return results
+        if not isinstance(act, dict):
+            continue
+        scenario = act.get('clickScenario', '')
+        title = (act.get('cardTitle') or '').strip()
+        if not title:
+            continue
+        if scenario == 'navigate':
+            clicks.append(title)
+        elif scenario == 'thumbsUp':
+            thumbs_up.append(title)
+        elif scenario == 'thumbsDown':
+            thumbs_down.append(title)
+    return {
+        'clicks': clicks,
+        'thumbsUp': thumbs_up,
+        'thumbsDown': thumbs_down,
+    }
 
 
 def process_shown(shown_raw, max_items=20):
@@ -179,10 +233,12 @@ def process_row(row, cols):
         'user_id': d['user_id'],
         'ref_ts': str(d['ref_ts']),
         'bizdate': d['bizdate'],
+        'user_flight_ids': d.get('user_flight_ids', ''),
         'candidates': process_candidates(d['candidate_cards']),
         'interests': process_interests(d['interests']),
         'negative_interests': process_negative_interests(d['negative_interests']),
         'conversation': process_conversation(d['conversation']),
+        'interactions': process_interactions(d.get('interactions_90d')),
         'shown_10d': process_shown(d['shown_10d']),
     }
 
@@ -211,7 +267,7 @@ def main():
     conn = connect_databricks(token)
     cursor = conn.cursor()
 
-    TABLE = "mai_ws_discover.analytics.ods_doca_feed_grounded_v7_partitioned"
+    TABLE = "mai_ws_discover.analytics.ods_doca_feed_grounded_v8_partitioned"
 
     # Get available dates
     print("Fetching available dates...")
@@ -239,7 +295,7 @@ def main():
 
     # Download and process data
     fields = (
-        "feedId, user_id, ref_ts, bizdate, "
+        "feedId, user_id, ref_ts, bizdate, user_flight_ids, "
         "candidate_cards, interests, negative_interests, "
         "conversation, interactions_90d, shown_10d"
     )

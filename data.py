@@ -542,8 +542,8 @@ class DOCAPointwiseSFTDataset:
 
     SYSTEM_PROMPT = (
         "You are a content recommendation assistant. "
-        "Based on a user's interest profile, conversation history, and previously shown articles, "
-        "predict whether they will click on a given article.\n\n"
+        "Based on a user's interest profile, conversation history, interaction history, "
+        "and previously shown articles, predict whether they will click on a given article.\n\n"
         "Output format: Answer ONLY \"Yes\" or \"No\". Do not explain.\n\n"
         "Ranking guidelines (highest to lowest priority):\n"
         "1. Source signal priority: Inline Curation (user explicitly selected, strongest signal) "
@@ -551,9 +551,13 @@ class DOCAPointwiseSFTDataset:
         "2. Interest strength: High (0.9-1.0) > Medium (0.8-0.9) > Exploratory (<0.8).\n"
         "3. Long-term interest relevance: How well does the article align with established interests?\n"
         "4. Short-term task relevance: How relevant is it to the user's recent activities and needs?\n"
-        "5. Freshness: Prefer up-to-date content; consider if information might be outdated.\n"
-        "6. Importance: How significant is this content for the user?\n"
-        "7. Novelty: Prefer content the user hasn't seen recently (check shown articles).\n\n"
+        "5. USER_INTERACTION affinity: topical overlap with thumbs-up, clicked, or "
+        "thumbs-down card titles in user interactions.\n"
+        "6. Negative-interest match: whether the candidate matches a topic the user has "
+        "shown disinterest in (disliked interests or thumbs-down cards).\n"
+        "7. Freshness: Prefer up-to-date content; consider if information might be outdated.\n"
+        "8. Importance: How significant is this content for the user?\n"
+        "9. Novelty: Prefer content the user hasn't seen recently (check shown articles).\n\n"
         "Also consider:\n"
         "- Articles matching disliked interests should NOT be clicked.\n"
         "- [CURATED] messages in conversations indicate the strongest user intent.\n"
@@ -605,8 +609,11 @@ class DOCAPointwiseSFTDataset:
                     'interests': feed.get('interests', [])[:self.max_interests] if self.max_interests > 0 else feed.get('interests', []),
                     'negative_interests': feed.get('negative_interests', []),
                     'conversation': feed.get('conversation', [])[:self.max_conversation_msgs],
+                    'interactions': feed.get('interactions', {}),
                     'shown_10d': feed.get('shown_10d', [])[:self.max_shown],
                 }
+
+                user_flight_ids = feed.get('user_flight_ids', '')
 
                 candidates = feed.get('candidates', [])
                 positives = [c for c in candidates if c.get('is_clicked')]
@@ -618,6 +625,7 @@ class DOCAPointwiseSFTDataset:
                         'user_context': user_context,
                         'candidate': pos,
                         'label': 1,
+                        'user_flight_ids': user_flight_ids,
                     })
 
                 # Sample negatives per impression
@@ -634,6 +642,7 @@ class DOCAPointwiseSFTDataset:
                             'user_context': user_context,
                             'candidate': neg,
                             'label': 0,
+                            'user_flight_ids': user_flight_ids,
                         })
 
         rng.shuffle(all_samples)
@@ -708,21 +717,50 @@ class DOCAPointwiseSFTDataset:
                         rationale = rationale[:200] + "..."
                     parts.append(f"   Reason: {rationale}")
 
-        # 3. Conversation history (human messages, inline curation marked)
+        # 3. Conversation history (grouped by conversation_id, user+assistant)
         conversation = user_context.get('conversation', [])
         if conversation:
             parts.append("\nRecent conversations:")
-            for msg in conversation:
-                text = msg.get('text', '').strip()
-                if text:
+            for gi, group in enumerate(conversation, 1):
+                started_at = (group.get('started_at') or '')[:16].replace('T', ' ')
+                head = f"  Conversation {gi}"
+                if started_at:
+                    head += f" ({started_at})"
+                head += ":"
+                parts.append(head)
+                for msg in group.get('messages', []):
+                    text = (msg.get('text') or '').strip()
+                    if not text:
+                        continue
                     if len(text) > 150:
                         text = text[:150] + "..."
+                    author = msg.get('author', '?')
+                    role = 'user' if author in ('human', 'user') else 'assistant'
                     if msg.get('is_inline_curation'):
-                        parts.append(f'- [CURATED] "{text}"')
+                        parts.append(f"    [{role}] [CURATED] {text}")
                     else:
-                        parts.append(f'- "{text}"')
+                        parts.append(f"    [{role}] {text}")
 
-        # 4. Shown 10d
+        # 4. User interactions (clicks, thumbsUp, thumbsDown from interactions_90d)
+        interactions = user_context.get('interactions', {})
+        thumbs_up = interactions.get('thumbsUp', [])
+        thumbs_down = interactions.get('thumbsDown', [])
+        clicks = interactions.get('clicks', [])
+        if thumbs_up or thumbs_down or clicks:
+            if thumbs_up:
+                parts.append("\nUser interactions (positive signals, thumbs-up):")
+                for t in thumbs_up:
+                    parts.append(f"- {t}")
+            if thumbs_down:
+                parts.append("\nUser interactions (negative signals, thumbs-down):")
+                for t in thumbs_down:
+                    parts.append(f"- {t}")
+            if clicks:
+                parts.append("\nUser interactions (click signals):")
+                for t in clicks:
+                    parts.append(f"- {t}")
+
+        # 5. Shown 10d
         shown = user_context.get('shown_10d', [])
         if shown:
             parts.append("\nRecently shown articles:")
@@ -734,7 +772,7 @@ class DOCAPointwiseSFTDataset:
                 else:
                     parts.append(f'- "{item}"')
 
-        # 5. Candidate
+        # 6. Candidate
         parts.append("\nCandidate article:")
         parts.append(f"Title: {candidate.get('title', '')}")
         summary = candidate.get('summary', '')

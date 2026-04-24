@@ -77,6 +77,10 @@ def main():
                 f.write(f"⚠️  TRUNCATED! Full={len(full_ids)} > max_len={args.max_len}, "
                         f"target token will be LOST\n")
             f.write(f"{'='*80}\n\n")
+
+            # Always show system prompt
+            f.write(f"[SYSTEM PROMPT]\n{ds.SYSTEM_PROMPT}\n\n")
+            f.write(f"[USER PROMPT + TARGET]\n")
             f.write(full_text)
             f.write(f"\n\n{'—'*80}\n\n")
 

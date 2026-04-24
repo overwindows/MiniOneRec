@@ -244,6 +244,8 @@ def batch_score_candidates(
             prompt = tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
+        else:
+            prompt = DOCAPointwiseSFTDataset.SYSTEM_PROMPT + "\n\n" + prompt
         prompts.append(prompt)
 
     all_prompt_ids = [

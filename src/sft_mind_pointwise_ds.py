@@ -29,8 +29,10 @@ Usage:
 import os
 import sys
 import random
+import datetime
 import numpy as np
 import torch
+import torch.distributed as dist
 import transformers
 from transformers import (
     AutoConfig,
@@ -39,6 +41,15 @@ from transformers import (
     EarlyStoppingCallback,
 )
 import fire
+
+# Pre-initialize process group with a 2-hour timeout before DeepSpeed does it.
+# Default PyTorch pg_timeout is 30 min — too short for large checkpoint writes
+# to slow network-mounted storage (e.g. AML datastore).
+if "LOCAL_RANK" in os.environ and not dist.is_initialized():
+    dist.init_process_group(
+        backend="nccl",
+        timeout=datetime.timedelta(hours=2),
+    )
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -187,10 +198,10 @@ def train(
         "logging_first_step": True,
         "eval_strategy": "steps" if val_data else "no",
         "save_strategy": "steps",
-        "eval_steps": 256 if val_data else None,
-        "save_steps": 512,
+        "eval_steps": 512 if val_data else None,
+        "save_steps": 2048,
         "output_dir": output_dir,
-        "save_total_limit": 3,
+        "save_total_limit": 2,
         "load_best_model_at_end": True if val_data else False,
         "ddp_find_unused_parameters": False if ddp else None,
         "group_by_length": group_by_length,

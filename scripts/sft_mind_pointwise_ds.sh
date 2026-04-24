@@ -102,7 +102,7 @@ fi
 # Training hyperparameters (configurable via environment variables)
 # SOTA defaults (8B model, 30 history, 2.0 negs)
 BATCH_SIZE=${BATCH_SIZE:-256}
-MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-2}  # 2 for 8B model
+MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-4}  # 4 for 4B model; use 2 for 8B+
 LEARNING_RATE=${LEARNING_RATE:-2e-5}     # 2e-5 for 8B model
 CUTOFF_LEN=${CUTOFF_LEN:-8192}
 NUM_EPOCHS=${NUM_EPOCHS:-5}

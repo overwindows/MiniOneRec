@@ -23,7 +23,7 @@ conda activate MiniOneRec
 
 ### Download Data
 
-Download from [cosmos09 MSN.DnI](https://www.cosmos09.osdinfra.net/cosmos/MSN.DnI/shares/users/zxy/doca/data/260423/doca/) and put files into `data/doca/`:
+Download from [cosmos09 MSN.DnI](https://www.cosmos09.osdinfra.net/cosmos/MSN.DnI/shares/users/zxy/doca/data/260423/doca/) and put files into `data/doca_v8/`:
 - `train.jsonl`
 - `dev.jsonl`
 
@@ -45,31 +45,21 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 bash scripts/eval_doca_pointwise.sh Qwen/Qw
 
 ### Source
 
-- **Table**: `mai_ws_discover.analytics.ods_doca_feed_grounded_v7_partitioned`
+- **Table**: `mai_ws_discover.analytics.ods_doca_feed_grounded_v8_partitioned`
 - **Platform**: Databricks (Azure), host `adb-3355567219430035.15.azuredatabricks.net`
-- **Date range**: 20260407 — 20260420 (14 days)
-- **Split**: Train = first 12 days (0407–0418), Dev = last 2 days (0419–0420)
-- **Prep script**: `python src/prepare_doca.py --output_dir data/doca --train_days 12 --dev_days 2`
+- **Date range**: 20260330 — 20260420 (22 days)
+- **Split**: Train = first 20 days (0330–0418), Dev = last 2 days (0419–0420)
+- **Prep script**: `python src/prepare_doca.py --output_dir data/doca_v8 --train_days 20 --dev_days 2`
 
 ### Statistics
 
 | Split | Feeds | Candidates | Clicks | CTR |
 |-------|------:|----------:|-------:|----:|
-| Train | 114,156 | 446,827 | 30,878 | 6.91% |
+| Train | 182,948 | 715,070 | 50,275 | 7.03% |
 | Dev   |  18,622 |  68,499 |  5,174 | 7.55% |
 
-- Dev feeds with at least 1 click: 3,301 (17.7%)
-- Only **impressed** candidates included (sectionIndex != None), filtering out ~67% non-shown cards
+- Only **impressed** candidates included (sectionIndex != None), filtering out non-shown cards
 - Average ~3.9 candidates per feed (train), ~3.7 per feed (dev)
-
-### Training Samples (after neg sampling with neg_ratio=2.0)
-
-| Split | Total Samples | Positive | Negative | Actual Ratio |
-|-------|-------------:|----------:|----------:|-------------:|
-| Train | 170,625 | 30,878 | 139,747 | 1:4.53 |
-| Val   |   5,000 |    935 |   4,065 | 1:4.35 |
-
-Note: `neg_ratio=2.0` caps per-feed negative sampling at 2× positives, but many feeds' impressed non-click candidates are already below this cap, so all are retained. Actual ratio ends up ~4.5.
 
 ### Data Fields (per feed JSONL row)
 
@@ -79,15 +69,17 @@ Note: `neg_ratio=2.0` caps per-feed negative sampling at 2× positives, but many
 | `candidates` | Array of {itemid, title, summary, is_clicked} — only impressed cards |
 | `interests` | User interests with name, strength, domain, sources, intent, classification, status, keywords, rationale |
 | `negative_interests` | Disliked topics with name, keywords, sources, rationale |
-| `conversation` | Recent chat history with text, is_inline_curation flag |
+| `user_flight_ids` | User flight IDs (for debugging / segmentation) |
+| `interactions` | User interactions: {clicks, thumbsUp, thumbsDown} extracted from interactions_90d |
+| `conversation` | Recent chat history grouped by conversation_id, with [user]/[assistant] roles |
 | `shown_10d` | Recently shown articles {title, event_time} |
 
 ### Prompt Design
 
 Each candidate is scored independently. The prompt includes:
 
-1. **System prompt**: Role description + 7 ranking rules (from liquid ranking template) + output format
-2. **User prompt**: interests → negative_interests → conversation (with [CURATED] tag) → shown_10d → candidate title/summary → "Will this user click on this article? Answer:"
+1. **System prompt**: Role description + 9 ranking signals (interest match, recency, quality, click-history relevance, interaction affinity, negative-interest match, novelty, short-term relevance, click likelihood) + output format
+2. **User prompt**: 6 sections — (1) User interests, (2) Dislikes, (3) Recent conversations (grouped by conversation_id with [user]/[assistant] roles, [CURATED] tags), (4) User interactions (thumbs-up/thumbs-down/clicks from interactions_90d), (5) Recently shown articles, (6) Candidate article → "Will this user click on this article? Answer:"
 
 See `data.py` (`DOCAPointwiseSFTDataset`) for training prompt, `src/evaluate_doca_pointwise.py` for local eval prompt, `src/evaluate_doca_openai.py` for API eval prompt. All three share identical prompt body; only output format differs.
 
@@ -99,7 +91,7 @@ See `data.py` (`DOCAPointwiseSFTDataset`) for training prompt, `src/evaluate_doc
 
 ```bash
 # Requires Databricks access (AAD auth)
-python src/prepare_doca.py --output_dir data/doca --train_days 12 --dev_days 2
+python src/prepare_doca.py --output_dir data/doca_v8 --train_days 20 --dev_days 2
 ```
 
 ### Training (SFT with DeepSpeed)
@@ -120,7 +112,7 @@ Key training hyperparameters (env var overrides):
 | Param | Default | Description |
 |-------|---------|-------------|
 | `MODEL_PATH` | Qwen/Qwen3-1.7B | Base model |
-| `NUM_EPOCHS` | 3 | Training epochs |
+| `NUM_EPOCHS` | 1 | Training epochs |
 | `BATCH_SIZE` | 256 | Global batch size |
 | `MICRO_BATCH_SIZE` | 2 | Per-GPU micro batch |
 | `LEARNING_RATE` | 2e-5 | Learning rate |
@@ -139,17 +131,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 bash scripts/eval_doca_pointwise.sh <checkpoint_pat
 # Single-GPU
 python src/evaluate_doca_pointwise.py \
     --model_path <checkpoint_path> \
-    --eval_jsonl data/doca/dev.jsonl \
-    --max_feeds 100
-```
-
-Scoring: `log P(Yes) - log P(No)` from model logits (continuous, unbounded).
-
-### Evaluation — OpenAI API Baseline
-
-```bash
-AZURE_OPENAI_API_KEY=<key> python src/evaluate_doca_openai.py \
-    --eval_jsonl data/doca/dev.jsonl \
+    --eval_jsonl data/doca_v8/dev.jsonl \
     --max_feeds 100 --max_workers 8
 ```
 

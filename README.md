@@ -219,12 +219,12 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 
 **Takeaway**: 1 epoch SFT on 1.7B already outperforms GPT-5.1 zero-shot on all metrics (AUC +0.55pp, MRR +2.7pp, nDCG@10 +1.3pp).
 
-### Exp 2: SFT Qwen3-4B, 1 Epoch (in progress)
+### Exp 2: SFT Qwen3-4B, 3 Epochs
 
 | Config | Value |
 |--------|-------|
 | Model | Qwen/Qwen3-4B |
-| Epochs | 1 |
+| Epochs | 3 |
 | Batch size | 256 |
 | Micro batch | 1 |
 | Learning rate | 1e-5 |
@@ -232,16 +232,24 @@ All metrics are computed **per feed** (only feeds with ≥1 click), then average
 | DeepSpeed | ZeRO-2 |
 | GPUs | 8x A100 |
 | Cutoff length | 4096 |
+| Feeds evaluated | 3,125 |
 
-**Command:**
+**Results:**
 
-```bash
-MODEL_PATH=Qwen/Qwen3-4B BATCH_SIZE=256 MICRO_BATCH_SIZE=1 LEARNING_RATE=1e-5 NUM_EPOCHS=1 bash scripts/sft_doca_pointwise_ds.sh
-```
+| AUC | MRR | nDCG@5 | nDCG@10 |
+|-----|-----|--------|---------|
+| 0.5747 | 0.6249 | 0.6513 | 0.7027 |
 
-**Status**: Training in progress.
+**Takeaway**: 4B with lr=1e-5 and 3 epochs still underperforms 1.7B with lr=2e-5 and 1 epoch on all metrics (AUC -1.6pp, nDCG@10 -0.6pp). More epochs didn't help — lr=1e-5 may be too low for this task.
 
-**Results**: TBD
+### Results Summary
+
+| Experiment | Model | AUC | MRR | nDCG@5 | nDCG@10 |
+|-----------|-------|-----|-----|--------|---------|
+| Exp 0 | GPT-5.1 zero-shot | 0.5854 | 0.6041 | 0.6519 | 0.6959 |
+| Exp 0.5 | Qwen3-1.7B zero-shot | 0.5242 | 0.5798 | 0.6039 | 0.6684 |
+| Exp 1 | Qwen3-1.7B SFT 1ep | **0.5909** | **0.6311** | **0.6609** | **0.7090** |
+| Exp 2 | Qwen3-4B SFT 3ep | 0.5747 | 0.6249 | 0.6513 | 0.7027 |
 
 ---
 

@@ -29,18 +29,18 @@ ml_client = MLClient(
 # 2) Virtual Cluster Full ARM ID
 # ============================================================================
 # ranking
-VC_ARM_ID = (
-    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-    "/resourceGroups/rg-cs-ranking-ml-singularity"
-    "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
-)
-
-# recall
 # VC_ARM_ID = (
 #     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-#     "/resourceGroups/rg-cs-recall-ml-singularity"
-#     "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+#     "/resourceGroups/rg-cs-ranking-ml-singularity"
+#     "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
 # )
+
+# recall
+VC_ARM_ID = (
+    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+    "/resourceGroups/rg-cs-recall-ml-singularity"
+    "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+)
 
 # ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
@@ -50,8 +50,8 @@ res_cfg = JobResourceConfiguration(
     instance_type="Singularity.ND96amrs_A100_v4",
     properties={
         "singularity": {
-            # "slaTier": "Premium",
-            "slaTier": "Standard",
+            "slaTier": "Premium",
+            # "slaTier": "Standard",
             "priority": "High",
             # "priority": "Low",
             "enableAzmlInt": False,
@@ -91,6 +91,7 @@ def mind_train_pipeline(
     debug_mode: str = "false",
     run_eval: int = 1,
     eval_split: str = "dev",
+    resume_from_checkpoint: str = "",
 ):
     """MIND SFT Training Pipeline
 
@@ -112,6 +113,7 @@ def mind_train_pipeline(
         debug_mode: 调试模式 (true/false) - 出错继续 + sleep infinity (default: false)
         run_eval: 训练后是否运行评估 (1=是, 0=否) (default: 1)
         eval_split: 评估数据集 (dev/test) (default: dev)
+        resume_from_checkpoint: 从指定checkpoint继续训练，留空则从头开始 (default: "")
     """
 
     train_node = mind_train_component(
@@ -132,6 +134,7 @@ def mind_train_pipeline(
         debug_mode=debug_mode,
         run_eval=run_eval,
         eval_split=eval_split,
+        resume_from_checkpoint=resume_from_checkpoint,
     )
 
     # Bind Virtual Cluster and resource configuration
@@ -182,6 +185,8 @@ if __name__ == "__main__":
                         help="训练后是否运行评估, 1=是 0=否 (default: 1)")
     parser.add_argument("--eval-split", default="dev", choices=["dev", "test"],
                         help="评估数据集 (default: dev)")
+    parser.add_argument("--resume-from-checkpoint", default="",
+                        help="从指定checkpoint继续训练，填checkpoint路径或留空从头开始 (default: '')")
     args = parser.parse_args()
 
     debug_mode = "true" if args.debug else "false"
@@ -209,6 +214,7 @@ if __name__ == "__main__":
         debug_mode=debug_mode,
         run_eval=args.run_eval,
         eval_split=args.eval_split,
+        resume_from_checkpoint=args.resume_from_checkpoint,
     )
 
     # Pipeline-level settings

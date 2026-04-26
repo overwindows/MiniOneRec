@@ -29,18 +29,18 @@ ml_client = MLClient(
 # 2) Virtual Cluster Full ARM ID
 # ============================================================================
 # ranking
-# VC_ARM_ID = (
-#     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-#     "/resourceGroups/rg-cs-ranking-ml-singularity"
-#     "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
-# )
-
-# recall
 VC_ARM_ID = (
     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-    "/resourceGroups/rg-cs-recall-ml-singularity"
-    "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+    "/resourceGroups/rg-cs-ranking-ml-singularity"
+    "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
 )
+
+# recall
+# VC_ARM_ID = (
+#     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+#     "/resourceGroups/rg-cs-recall-ml-singularity"
+#     "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+# )
 
 # ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
@@ -50,8 +50,8 @@ res_cfg = JobResourceConfiguration(
     instance_type="Singularity.ND96amrs_A100_v4",
     properties={
         "singularity": {
-            "slaTier": "Premium",
-            # "slaTier": "Standard",
+            # "slaTier": "Premium",
+            "slaTier": "Standard",
             "priority": "High",
             # "priority": "Low",
             "enableAzmlInt": False,

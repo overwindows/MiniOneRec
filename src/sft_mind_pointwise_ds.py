@@ -198,7 +198,7 @@ def train(
         "logging_first_step": True,
         "eval_strategy": "steps" if val_data else "no",
         "save_strategy": "steps",
-        "eval_steps": 512 if val_data else None,
+        "eval_steps": 256 if val_data else None,
         "save_steps": 2048,
         "output_dir": output_dir,
         "save_total_limit": 2,
@@ -228,7 +228,7 @@ def train(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)] if val_data else None,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=30)] if val_data else None,
     )
 
     model.config.use_cache = False

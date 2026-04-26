@@ -213,6 +213,7 @@ def main():
     parser.add_argument("--output-root", help="输出目录根路径（相对于挂载路径）")
     parser.add_argument("--run-eval", help="训练后是否运行评估 (1/0)")
     parser.add_argument("--eval-split", help="评估数据集 (dev/test)")
+    parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
 
     args = parser.parse_args()
 
@@ -247,6 +248,8 @@ def main():
         cli_variables['run_eval'] = args.run_eval
     if args.eval_split:
         cli_variables['eval_split'] = args.eval_split
+    if args.resume_from_checkpoint:
+        cli_variables['resume_from_checkpoint'] = args.resume_from_checkpoint
 
     debug_mode = bool(args.debug_mode and args.debug_mode.lower() in ('true', '1', 'yes'))
 

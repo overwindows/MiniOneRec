@@ -51,7 +51,7 @@ class SFTData(Dataset):
         # self.K = K
         self.dedup = dedup
         self.instructs = [
-            f"Given a list of {category} the user recetenly enjoy, please write a new {category} that the user may bought",
+            f"Given a list of {category} the user recently enjoy, please write a new {category} that the user may bought",
             f"Considering the {category} that has recently captured the user's interest, kindly create a compilation of other {category} that the user might have played prior to this.",
             f"Based on the user's current gaming preference, please draft a list of potential {category} they may have experienced beforehand.",
             f"Reflecting on the {category} the user has taken pleasure in recently, we request that you formulate a list of {category} that may have preceded the user's current enjoyment.",
@@ -476,50 +476,33 @@ class MINDPointwiseSFTDataset:
                 add_generation_prompt=True
             )
 
-            # Full text includes the assistant response
-            full_text = formatted_prompt + target
+            # Encode target separately (1-2 tokens: " Yes" or " No")
+            target_ids = self.tokenizer.encode(target, add_special_tokens=False)
 
-            # Tokenize full text
-            input_ids = self.tokenizer.encode(
-                full_text,
-                max_length=self.max_len,
-                truncation=True,
-                add_special_tokens=False  # Chat template already added them
-            )
-
-            # Get prompt length for masking
+            # Truncate prompt to leave room for target, guaranteeing answer is never cut off
             prompt_ids = self.tokenizer.encode(
                 formatted_prompt,
-                max_length=self.max_len,
+                max_length=self.max_len - len(target_ids),
                 truncation=True,
                 add_special_tokens=False
             )
 
-            # Mask prompt, only train on target
-            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
-
         else:
-            # Original raw text format
-            full_text = prompt + target
-            input_ids = self.tokenizer.encode(
-                full_text,
-                max_length=self.max_len,
-                truncation=True,
-                add_special_tokens=True
-            )
+            # Raw text format
+            # Encode target separately (1-2 tokens: " Yes" or " No")
+            target_ids = self.tokenizer.encode(target, add_special_tokens=False)
 
-            # Create training labels (mask prompt, only train on Yes/No)
+            # Truncate prompt to leave room for target, guaranteeing answer is never cut off
             prompt_ids = self.tokenizer.encode(
                 prompt,
-                max_length=self.max_len,
+                max_length=self.max_len - len(target_ids),
                 truncation=True,
                 add_special_tokens=True
             )
 
-            train_labels = [-100] * len(prompt_ids) + input_ids[len(prompt_ids):]
-
-        input_ids = input_ids[:self.max_len]
-        train_labels = train_labels[:self.max_len]
+        # Combine: prompt (truncated) + target (always present)
+        input_ids = (prompt_ids + target_ids)[:self.max_len]
+        train_labels = ([-100] * len(prompt_ids) + target_ids)[:self.max_len]
 
         return {
             'input_ids': torch.tensor(input_ids, dtype=torch.long),

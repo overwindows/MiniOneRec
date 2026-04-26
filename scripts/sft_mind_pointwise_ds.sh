@@ -175,8 +175,8 @@ echo "Chat template: $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "enabled
 
 export PDSH_RCMD_TYPE=ssh
 
-# Set checkpoint path if resuming (comment out to start fresh)
-RESUME_CHECKPOINT="${RESUME_CHECKPOINT:-}"  # Set via environment variable or edit here
+# Set checkpoint path if resuming (pass via RESUME_FROM_CHECKPOINT env var or --resume-from-checkpoint pipeline arg)
+RESUME_CHECKPOINT="${RESUME_FROM_CHECKPOINT:-${RESUME_CHECKPOINT:-}}"
 WANDB_RUN_ID="${WANDB_RUN_ID:-}"  # Set WandB run ID to continue same run
 
 deepspeed --hostfile=$HOSTFILE \

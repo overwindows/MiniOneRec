@@ -32,10 +32,21 @@ from tqdm import tqdm
 from mind_utils import load_news, build_pointwise_prompt as _build_prompt
 
 
+_SYSTEM_PROMPT = (
+    "You are a news recommendation assistant. "
+    "Based on a user's reading history, predict whether they will read a given article. "
+    "Each article includes its category and title. "
+    "Answer with Yes or No."
+)
+
+
 def build_pointwise_prompt(history_items: List[Dict[str, str]], candidate: Dict[str, str]) -> List[Dict[str, str]]:
-    """Build pointwise prompt in VERL chat format."""
+    """Build pointwise prompt in VERL chat format, matching SFT training format exactly."""
     prompt_text = _build_prompt(history_items, candidate)
-    return [{"role": "user", "content": prompt_text}]
+    return [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": prompt_text},
+    ]
 
 
 def prepare_mind_pointwise_for_rl(

@@ -172,7 +172,14 @@ def main():
     # huggingface_hub validate_repo_id rejecting absolute paths
     local_only = _os.path.isabs(args.model_path) or _os.path.isdir(args.model_path)
     model_path_arg = _Path(args.model_path) if local_only else args.model_path
-    tokenizer = AutoTokenizer.from_pretrained(model_path_arg, trust_remote_code=True, local_files_only=local_only)
+    # Checkpoint subdirs may not contain tokenizer files; fall back to parent dir
+    tokenizer_path = model_path_arg
+    if local_only and not (_Path(model_path_arg) / "tokenizer_config.json").exists():
+        parent = _Path(model_path_arg).parent
+        if (parent / "tokenizer_config.json").exists():
+            print(f"Tokenizer files not found in checkpoint dir, loading from parent: {parent}")
+            tokenizer_path = parent
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True, local_files_only=local_only)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"

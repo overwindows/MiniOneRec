@@ -1,0 +1,71 @@
+{
+  "pipeline_name": "MIND Pointwise RL Training",
+  "description": "克隆 MiniOneRec 仓库、准备 Pointwise RL 数据、启动 MIND Pointwise Yes/No RL 训练",
+
+  "commands": [
+    {
+      "name": "切换到 home 目录",
+      "command": "cd /home/aiscuser",
+      "working_dir": ".",
+      "is_cd_command": true,
+      "new_working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "删除旧的 MiniOneRec 目录",
+      "command": "rm -rf /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "克隆 MiniOneRec 仓库",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "切换到 dev 分支",
+      "command": "git checkout dev",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "准备 Pointwise RL 训练数据",
+      "description": "生成 Pointwise RL 训练所需的 parquet 数据（neg_ratio 编入文件名防止使用过期数据）",
+      "command": "NEG_RATIO_TAG=$(echo \"{neg_ratio}\" | tr '.' 'p') && TRAIN_PARQUET={data_root}/train/rl_pointwise_neg${NEG_RATIO_TAG}_train.parquet && if [ \"{regenerate_data}\" = \"1\" ] || [ ! -f \"$TRAIN_PARQUET\" ]; then echo \"=== 生成训练 parquet: $TRAIN_PARQUET ===\" && ABSTRACT_FLAG=$([ \"{use_abstract}\" = \"1\" ] && echo \"--use_abstract\" || echo \"\") && python src/prepare_mind_rl_pointwise.py --behaviors_path {data_root}/train/behaviors.tsv --news_path {data_root}/train/news.tsv --output_parquet $TRAIN_PARQUET --max_history {max_history} --neg_ratio {neg_ratio} $ABSTRACT_FLAG; else echo \"=== 复用已有训练 parquet: $TRAIN_PARQUET ===\"; fi",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "准备 Pointwise RL 评估数据",
+      "description": "生成 Pointwise RL 评估所需的 parquet 数据",
+      "command": "NEG_RATIO_TAG=$(echo \"{neg_ratio}\" | tr '.' 'p') && DEV_PARQUET={data_root}/dev/rl_pointwise_neg${NEG_RATIO_TAG}_dev.parquet && if [ \"{regenerate_data}\" = \"1\" ] || [ ! -f \"$DEV_PARQUET\" ]; then echo \"=== 生成评估 parquet: $DEV_PARQUET ===\" && ABSTRACT_FLAG=$([ \"{use_abstract}\" = \"1\" ] && echo \"--use_abstract\" || echo \"\") && python src/prepare_mind_rl_pointwise.py --behaviors_path {data_root}/dev/behaviors.tsv --news_path {data_root}/dev/news.tsv --output_parquet $DEV_PARQUET --max_history {max_history} --neg_ratio {neg_ratio} $ABSTRACT_FLAG --max_samples 5000; else echo \"=== 复用已有评估 parquet: $DEV_PARQUET ===\"; fi",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "启动 Pointwise RL 训练",
+      "description": "运行 Pointwise Yes/No RL 训练",
+      "command": "NEG_RATIO_TAG=$(echo \"{neg_ratio}\" | tr '.' 'p') && SFT_MODEL_PATH={sft_model} MIND_ROOT={data_root} MIND_SIZE=$(echo {data_root} | grep -q 'large' && echo 'large' || echo 'small') USE_ABSTRACT={use_abstract} REWARD_TYPE={reward_type} TOTAL_EPOCHS={total_epochs} LEARNING_RATE={learning_rate} TRAIN_BATCH_SIZE={train_batch_size} KL_LOSS_COEF={kl_loss_coef} MAX_HISTORY={max_history} NEG_RATIO={neg_ratio} OUTPUT_DIR={output_root}/rl_mind_pointwise_$(echo {data_root} | grep -q 'large' && echo 'large' || echo 'small')_$(basename {sft_model})_{reward_type} TRAIN_PARQUET={data_root}/train/rl_pointwise_neg${NEG_RATIO_TAG}_train.parquet DEV_PARQUET={data_root}/dev/rl_pointwise_neg${NEG_RATIO_TAG}_dev.parquet bash scripts/rl_mind_pointwise.sh",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "运行模型评估",
+      "description": "训练完成后自动评估模型（如果 run_eval=1）",
+      "command": "if [ \"{run_eval}\" = \"1\" ]; then RL_OUTPUT_DIR={output_root}/rl_mind_pointwise_$(echo {data_root} | grep -q 'large' && echo 'large' || echo 'small')_$(basename {sft_model})_{reward_type} && if [ -d \"$RL_OUTPUT_DIR/final_checkpoint\" ]; then echo \"=== 开始模型评估 ===\" && mkdir -p $RL_OUTPUT_DIR/eval_results && MIND_SIZE=$(echo {data_root} | grep -q 'large' && echo 'large' || echo 'small') && CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=$MIND_SIZE MIND_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} MAX_HISTORY={max_history} BATCH_SIZE=8 OUTPUT_FILE=$RL_OUTPUT_DIR/eval_results/{eval_split}_pointwise_predictions.txt bash scripts/eval_mind_pointwise.sh $RL_OUTPUT_DIR/final_checkpoint {eval_split} && echo \"=== 评估结果已保存到 $RL_OUTPUT_DIR/eval_results/ ===\"; else echo \"ERROR: RL checkpoint not found at $RL_OUTPUT_DIR/final_checkpoint\"; exit 1; fi; else echo '=== 跳过评估 (run_eval=0) ==='; fi",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "调试模式-保持容器运行",
+      "description": "保持容器运行以便进入调试",
+      "command": "echo '=== 调试模式: 容器将保持运行，可通过 AML Portal 进入容器调试 ===' && sleep infinity",
+      "working_dir": "/home/aiscuser/MiniOneRec",
+      "enabled": true
+    }
+  ],
+
+  "error_handling": {
+    "stop_on_error": true,
+    "retry_failed_commands": false,
+    "max_retries": 1
+  },
+
+  "logging": {
+    "log_level": "INFO",
+    "save_command_outputs": true
+  }
+}

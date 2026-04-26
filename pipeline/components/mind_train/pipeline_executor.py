@@ -248,8 +248,7 @@ def main():
         cli_variables['run_eval'] = args.run_eval
     if args.eval_split:
         cli_variables['eval_split'] = args.eval_split
-    if args.resume_from_checkpoint:
-        cli_variables['resume_from_checkpoint'] = args.resume_from_checkpoint
+    cli_variables['resume_from_checkpoint'] = args.resume_from_checkpoint or ""
 
     debug_mode = bool(args.debug_mode and args.debug_mode.lower() in ('true', '1', 'yes'))
 

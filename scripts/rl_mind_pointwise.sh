@@ -110,6 +110,8 @@ MAX_PROMPT_LENGTH=${MAX_PROMPT_LENGTH:-4096}
 MAX_RESPONSE_LENGTH=${MAX_RESPONSE_LENGTH:-8}
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 REGENERATE_DATA=${REGENERATE_DATA:-0}
+MAX_TRAIN_SAMPLES=${MAX_TRAIN_SAMPLES:-100000}  # Cap train parquet to prevent OOM in VERL
+MAX_DEV_SAMPLES=${MAX_DEV_SAMPLES:-5000}        # Cap dev parquet for fast validation
 
 # Output directory
 MODEL_BASENAME=$(basename "${SFT_MODEL_PATH}")
@@ -201,13 +203,14 @@ fi
 
 # Prepare training data with POINTWISE format
 if [[ ! -f "${TRAIN_PARQUET}" ]]; then
-    echo "Preparing POINTWISE training data for RL..."
+    echo "Preparing POINTWISE training data for RL (max_samples=${MAX_TRAIN_SAMPLES})..."
     python src/prepare_mind_rl_pointwise.py \
         --behaviors_path "${TRAIN_BEHAVIORS}" \
         --news_path "${TRAIN_NEWS}" \
         --output_parquet "${TRAIN_PARQUET}" \
         --max_history ${MAX_HISTORY} \
         --neg_ratio ${NEG_RATIO} \
+        --max_samples ${MAX_TRAIN_SAMPLES} \
         ${ABSTRACT_FLAG}
     echo ""
 else
@@ -217,13 +220,14 @@ else
 fi
 
 # Prepare dev data with POINTWISE format (always regenerate)
-echo "Preparing POINTWISE dev data for RL..."
+echo "Preparing POINTWISE dev data for RL (max_samples=${MAX_DEV_SAMPLES})..."
 python src/prepare_mind_rl_pointwise.py \
     --behaviors_path "${DEV_BEHAVIORS}" \
     --news_path "${DEV_NEWS}" \
     --output_parquet "${DEV_PARQUET}" \
     --max_history ${MAX_HISTORY} \
     --neg_ratio ${NEG_RATIO} \
+    --max_samples ${MAX_DEV_SAMPLES} \
     ${ABSTRACT_FLAG}
 echo ""
 

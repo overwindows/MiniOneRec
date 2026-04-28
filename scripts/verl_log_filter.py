@@ -58,9 +58,27 @@ def _extract_val_metrics(line):
 
 
 def main():
+    in_traceback = False
     for raw_line in sys.stdin:
         line = raw_line.rstrip("\n")
         if not line:
+            if in_traceback:
+                print(line)
+            continue
+
+        # Detect start of a Python traceback
+        if "Traceback (most recent call last)" in line:
+            in_traceback = True
+            print(line)
+            continue
+
+        # While inside a traceback, print every line until we hit the
+        # exception line (non-indented line after the traceback frames)
+        if in_traceback:
+            print(line)
+            # Exception lines are not indented and end the traceback
+            if not line.startswith(" ") and not line.startswith("\t"):
+                in_traceback = False
             continue
 
         if "Initial validation metrics:" in line:
@@ -86,7 +104,6 @@ def main():
         if (
             "WARNING" in line
             or "ERROR" in line
-            or "Traceback" in line
             or "Exception" in line
         ):
             print(line)

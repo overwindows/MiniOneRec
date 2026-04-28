@@ -100,6 +100,9 @@ LEARNING_RATE=${LEARNING_RATE:-1e-7}
 TRAIN_BATCH_SIZE=${TRAIN_BATCH_SIZE:-128}  # Use 128 for 8 GPUs or 252 for 7 GPUs (batch_size*8 must be divisible by n_gpus)
 KL_LOSS_COEF=${KL_LOSS_COEF:-0.1}  # Lower KL ok with asymmetric reward (reward itself prevents collapse)
 MAX_HISTORY=${MAX_HISTORY:-30}
+NUM_GENERATIONS=${NUM_GENERATIONS:-16}
+MAX_PROMPT_LENGTH=${MAX_PROMPT_LENGTH:-2048}
+MAX_RESPONSE_LENGTH=${MAX_RESPONSE_LENGTH:-8}
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 REGENERATE_DATA=${REGENERATE_DATA:-0}
 
@@ -238,6 +241,9 @@ if [[ "${VERL_PRETTY_LOG:-1}" == "1" ]]; then
         --eval_parquet "${DEV_PARQUET}" \
         --output_dir "${OUTPUT_DIR}" \
         --reward_type "${REWARD_TYPE}" \
+        --num_generations ${NUM_GENERATIONS} \
+        --max_prompt_length ${MAX_PROMPT_LENGTH} \
+        --max_response_length ${MAX_RESPONSE_LENGTH} \
         --total_epochs ${TOTAL_EPOCHS} \
         --learning_rate ${LEARNING_RATE} \
         --train_batch_size ${TRAIN_BATCH_SIZE} \
@@ -254,6 +260,9 @@ else
         --eval_parquet "${DEV_PARQUET}" \
         --output_dir "${OUTPUT_DIR}" \
         --reward_type "${REWARD_TYPE}" \
+        --num_generations ${NUM_GENERATIONS} \
+        --max_prompt_length ${MAX_PROMPT_LENGTH} \
+        --max_response_length ${MAX_RESPONSE_LENGTH} \
         --total_epochs ${TOTAL_EPOCHS} \
         --learning_rate ${LEARNING_RATE} \
         --train_batch_size ${TRAIN_BATCH_SIZE} \

@@ -41,6 +41,11 @@
 
 set -euo pipefail
 
+# Activate MiniOneRec conda environment (matches sft_mind_pointwise_ds.sh)
+export PATH="$HOME/.conda/envs/MiniOneRec/bin:$PATH"
+source ~/miniconda3/etc/profile.d/conda.sh 2>/dev/null || source ~/anaconda3/etc/profile.d/conda.sh 2>/dev/null || source /opt/conda/etc/profile.d/conda.sh 2>/dev/null || true
+conda activate MiniOneRec 2>/dev/null || true
+
 export NCCL_IB_DISABLE=1
 export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
 

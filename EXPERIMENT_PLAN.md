@@ -116,14 +116,13 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 ### Key Finding: Abstract in Training vs Evaluation
 
-> **Training with abstracts but evaluating without abstracts can yield higher scores.**
+> **Abstract helps at BOTH train and eval time on MINDlarge (E1.1 result, 2026-04-27).**
 >
-> Models trained with `USE_ABSTRACT=1` appear to achieve better evaluation metrics when
-> evaluated with `USE_ABSTRACT=0` (title-only). Hypothesis: abstracts provide richer
-> training signal — the model learns deeper content/category understanding — but at eval
-> time, shorter title-only prompts reduce noise and let the model focus on the learned
-> topic signals. This means L1.3's reported 0.7049 AUC (evaluated with abstracts) may
-> understate the model's true capability; re-evaluating L1.3 without abstracts is recommended.
+> E1.1 directly tested: L1.3 (abstract-trained) evaluated WITHOUT abstracts → 0.6945 AUC,
+> which is 0.0104 LOWER than the same model evaluated WITH abstracts (0.7049).
+> The hypothesis that "title-only eval is better" was disproved for MINDlarge.
+>
+> **Rule: always match train and eval abstract setting. For abstract-trained models, use `USE_ABSTRACT=1` at eval.**
 
 ---
 
@@ -136,7 +135,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.3** | ✅ Completed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1 | **0.7049** 🏆 | 0.3461 | 0.3847 | 0.4479 | **NEW BEST**; [W&B](https://wandb.ai/wuchen/huggingface/runs/d3dr5t8d) |
 | **L1.4** | ✅ Completed | Qwen3-1.7B | MINDlarge | MAX_HISTORY=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 hurts on large; [W&B](https://wandb.ai/wuchen/huggingface/runs/gskwfdbe) |
 | **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 bottleneck; [W&B](https://wandb.ai/wuchen/huggingface/runs/36ur6v25) |
-| **L1.6** | 🔄 Retrying | Qwen3-4B | MINDlarge | USE_ABSTRACT=1, micro_bs=4 | - | - | - | - | Replacing failed 8B run; same best config as L1.3 |
+| **L1.6** | 🔄 Running | Qwen3-4B | MINDlarge | USE_ABSTRACT=1, micro_bs=4 | - | - | - | - | ckpt-37376 (19% train) = 0.6819; resumed with timeout+patience fixes; final expected 0.72-0.73+ |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
 | **L1.8** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | 0.6622 | 0.3259 | 0.3621 | 0.4222 | Worse than L1.3 (0.7049); output path shows Base/ep5/no-abstract — likely misconfigured run or job ran wrong parameters; 8d total runtime vs 31d ETA is suspicious; verify AML job params; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
@@ -145,18 +144,18 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 ### Phase 1E: Abstract Train → Title-Only Eval (Cross-Condition)
 
-> **Rationale**: Abstracts act as training-time augmentation — the model learns richer content
-> representations — but at eval time, title-only prompts are more compact and signal-dense
-> for a small (1.7B) model. Re-evaluate all abstract-trained checkpoints with `USE_ABSTRACT=0`.
+> **Result: Hypothesis DISPROVED for MINDlarge.** Abstract helps at BOTH train and eval time.
+> E1.1 shows title-only eval on an abstract-trained model (0.6945) is WORSE than abstract eval (0.7049).
+> Abstract prompts provide richer signal at eval time too — keep `USE_ABSTRACT=1` for both train and eval.
 
 | Exp ID | Status | Source | Eval Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|--------|-------------|-----|-----|--------|---------|-------|
-| **E1.1** | ⬜ Pending | L1.3 (abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | A/B test: compare vs L1.3's 0.7049 (eval w/ abstract) |
-| **E1.2** | ⬜ Pending | L1.3 (abstract-trained) | eval USE_ABSTRACT=1 | - | - | - | - | A/B control: re-eval w/ abstract after eval pipeline fix |
-| **E1.3** | ⬜ Pending | L1.9 (base, abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | Same test on base model; compare vs L1.9's 0.6880 |
-| **E1.4** | ⬜ Pending | L1.6 (4B, abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | Run after L1.6 training completes |
+| **E1.1** | ✅ Completed | L1.3 (abstract-trained) | eval USE_ABSTRACT=0 | 0.6945 | 0.3364 | 0.3732 | 0.4375 | **WORSE** than L1.3 0.7049; hypothesis disproved — abstract needed at eval too |
+| **E1.2** | ✅ Completed | L1.3 (abstract-trained) | eval USE_ABSTRACT=1 | **0.7051** | 0.3463 | 0.3849 | 0.4481 | Confirms pipeline fix: matches L1.3 original (0.7049 → 0.7051, negligible diff) |
+| **E1.3** | ❌ Cancelled | L1.9 (base, abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | Cancelled: E1.1 disproved the hypothesis; no need to test on L1.9 |
+| **E1.4** | ❌ Cancelled | L1.6 (4B, abstract-trained) | eval USE_ABSTRACT=0 | - | - | - | - | Cancelled: abstract must stay at eval time |
 
-**If E1.1 > L1.3**: adopt "abstract train + title eval" as default for all future abstract-trained models.
+**Conclusion: Always use `USE_ABSTRACT=1` at both train and eval for abstract-trained models on MINDlarge.**
 
 ---
 

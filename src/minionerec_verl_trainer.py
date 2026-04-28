@@ -64,6 +64,7 @@ def train_verl(
     sasrec_len_seq: int = 10,
 ):
     env = os.environ.copy()
+    env["HYDRA_FULL_ERROR"] = "1"
     if sid_info_file:
         env["SID_INFO_FILE"] = sid_info_file
     if ada_path:

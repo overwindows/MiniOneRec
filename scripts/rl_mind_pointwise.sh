@@ -243,6 +243,9 @@ echo ""
 # Create output directory
 mkdir -p "${OUTPUT_DIR}"
 
+# Expose full Hydra/VERL tracebacks and surface hidden Ray worker errors
+export HYDRA_FULL_ERROR=1
+
 if [[ "${VERL_PRETTY_LOG:-1}" == "1" ]]; then
     python src/rl_mind_verl.py \
         --model_path "${SFT_MODEL_PATH}" \
@@ -258,6 +261,7 @@ if [[ "${VERL_PRETTY_LOG:-1}" == "1" ]]; then
         --train_batch_size ${TRAIN_BATCH_SIZE} \
         --ppo_mini_batch_size 32 \
         --kl_loss_coef ${KL_LOSS_COEF} \
+        --rollout_name hf \
         --wandb_project "${WANDB_PROJECT}" \
         --wandb_run_name "${WANDB_RUN_NAME}" \
         --n_gpus_per_node ${PROCESS_NUM} \

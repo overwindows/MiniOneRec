@@ -33,7 +33,7 @@
     {
       "name": "准备 Pointwise RL 训练数据",
       "description": "生成 Pointwise RL 训练所需的 parquet 数据（neg_ratio 编入文件名防止使用过期数据）",
-      "command": "NEG_RATIO_TAG=$(echo \"{neg_ratio}\" | tr '.' 'p') && TRAIN_PARQUET={data_root}/train/rl_pointwise_neg${NEG_RATIO_TAG}_train.parquet && if [ \"{regenerate_data}\" = \"1\" ] || [ ! -f \"$TRAIN_PARQUET\" ]; then echo \"=== 生成训练 parquet: $TRAIN_PARQUET ===\" && ABSTRACT_FLAG=$([ \"{use_abstract}\" = \"1\" ] && echo \"--use_abstract\" || echo \"\") && python src/prepare_mind_rl_pointwise.py --behaviors_path {data_root}/train/behaviors.tsv --news_path {data_root}/train/news.tsv --output_parquet $TRAIN_PARQUET --max_history {max_history} --neg_ratio {neg_ratio} $ABSTRACT_FLAG; else echo \"=== 复用已有训练 parquet: $TRAIN_PARQUET ===\"; fi",
+      "command": "NEG_RATIO_TAG=$(echo \"{neg_ratio}\" | tr '.' 'p') && TRAIN_PARQUET={data_root}/train/rl_pointwise_neg${NEG_RATIO_TAG}_train.parquet && if [ \"{regenerate_data}\" = \"1\" ] || [ ! -f \"$TRAIN_PARQUET\" ]; then echo \"=== 生成训练 parquet: $TRAIN_PARQUET ===\" && ABSTRACT_FLAG=$([ \"{use_abstract}\" = \"1\" ] && echo \"--use_abstract\" || echo \"\") && python src/prepare_mind_rl_pointwise.py --behaviors_path {data_root}/train/behaviors.tsv --news_path {data_root}/train/news.tsv --output_parquet $TRAIN_PARQUET --max_history {max_history} --neg_ratio {neg_ratio} $ABSTRACT_FLAG --max_samples 100000; else echo \"=== 复用已有训练 parquet: $TRAIN_PARQUET ===\"; fi",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {

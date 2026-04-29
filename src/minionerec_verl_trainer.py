@@ -103,7 +103,7 @@ def train_verl(
         *([f"++reward_model.rollout.name={rollout_name}"] if rollout_name == "vllm" else []),
         "actor_rollout_ref.actor.use_kl_loss=True",
         f"actor_rollout_ref.actor.kl_loss_coef={kl_loss_coef}",
-        f"actor_rollout_ref.actor.kl_loss_type={kl_loss_type}",
+        f"++actor_rollout_ref.actor.kl_loss_type={kl_loss_type}",
         f"actor_rollout_ref.actor.ppo_mini_batch_size={ppo_mini_batch_size}",
         f"actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
         f"++actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",

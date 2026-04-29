@@ -104,7 +104,9 @@ def main():
         if (
             "WARNING" in line
             or "ERROR" in line
+            or "Error" in line
             or "Exception" in line
+            or "error" in line.lower() and line.lstrip().startswith(("omegaconf", "hydra", "Key", "Cannot", "config"))
         ):
             print(line)
 

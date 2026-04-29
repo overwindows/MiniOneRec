@@ -113,8 +113,8 @@ def train_verl(
         f"trainer.nnodes={nnodes}",
         f"trainer.n_gpus_per_node={n_gpus_per_node}",
         f"trainer.default_local_dir={output_dir}",
-        f"custom_reward_function.path={reward_path}",
-        f"custom_reward_function.name={reward_name}",
+        f"++custom_reward_function.path={reward_path}",
+        f"++custom_reward_function.name={reward_name}",
     ]
 
     print("Launching VERL with:")

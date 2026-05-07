@@ -169,16 +169,36 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Config | AUC | Notes |
 |--------|--------|-------|--------|-----|-------|
-| **H1.1** | ⬜ Pending | Qwen3-1.7B | 100% same-category negatives | - | Force model to learn finer category-level distinctions |
+| **H1.1** | 🔄 Running | Qwen3-1.7B | 100% same-category negatives | - | Force model to learn finer category-level distinctions |
 | **H1.2** | ⬜ Pending | Qwen3-1.7B | Model-mined hard negatives | - | Use L1.3 predictions to find borderline negatives (near-zero score) |
 
 **Why**: Current sampling is 50% same-category / 50% random. With 100% same-category negatives the model can't rely on coarse category matching and must learn finer title/abstract-level signals.
+
+**Command (H1.1)**:
+```powershell
+python pipeline/run_pipeline.py `
+  --experiment-name mind_sft_h1-1_hard_neg `
+  --display-name "H1.1: Hard negatives 100% same-category (large)" `
+  --model-path Qwen/Qwen3-1.7B `
+  --data-root "shares/users/wuc/data/MIND_large" `
+  --output-root "shares/users/wuc/output_dir" `
+  --batch-size 256 `
+  --micro-batch-size 4 `
+  --num-epochs 5 `
+  --neg-ratio 2.0 `
+  --hard-neg-ratio 1.0 `
+  --max-history 30 `
+  --use-chat-template 1 `
+  --use-abstract 1 `
+  --run-eval 1 `
+  --eval-split dev
+```
 
 #### 6B: Curriculum Learning (MINDsmall → MINDlarge)
 
 | Exp ID | Status | Model | Config | AUC | Notes |
 |--------|--------|-------|--------|-----|-------|
-| **C1.1** | ⬜ Pending | Qwen3-1.7B | SFT MINDsmall (ep5) → resume on MINDlarge | - | Start from P1.0 checkpoint, fine-tune on MINDlarge |
+| **C1.1** | 🔄 Running | Qwen3-1.7B | SFT MINDsmall (ep5) → resume on MINDlarge | - | Start from P1.0 checkpoint, fine-tune on MINDlarge |
 | **C1.2** | ⬜ Pending | Qwen3-1.7B | SFT MINDsmall abstract → resume on MINDlarge abstract | - | Start from P1.3 checkpoint |
 
 **Why**: MINDsmall teaches basic recommendation patterns faster (fewer impressions, tighter feedback loop). MINDlarge then adapts the model to a larger vocabulary and distribution. Direct MINDlarge training may converge to a suboptimal solution that curriculum avoids.
@@ -186,22 +206,48 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 **Command (C1.1)**:
 ```powershell
 python pipeline/run_pipeline.py `
+  --experiment-name mind_sft_c1-1_curriculum `
+  --display-name "C1.1: Curriculum MINDsmall→MINDlarge" `
   --model-path Qwen/Qwen3-1.7B `
   --data-root "shares/users/wuc/data/MIND_large" `
   --output-root "shares/users/wuc/output_dir" `
-  --batch-size 256 --micro-batch-size 4 `
-  --num-epochs 5 --neg-ratio 2.0 --max-history 30 `
-  --use-chat-template 1 --use-abstract 0 --run-eval 1 `
-  --resume-from-checkpoint "shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat/final_checkpoint" `
-  --experiment-name mind_sft_c1-1_curriculum `
-  --display-name "C1.1: Curriculum MINDsmall→MINDlarge"
+  --batch-size 256 `
+  --micro-batch-size 4 `
+  --num-epochs 5 `
+  --neg-ratio 2.0 `
+  --max-history 30 `
+  --use-chat-template 1 `
+  --use-abstract 0 `
+  --run-eval 1 `
+  --eval-split dev `
+  --resume-from-checkpoint "shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat/final_checkpoint"
+```
+
+**Command (C1.2)**:
+```powershell
+python pipeline/run_pipeline.py `
+  --experiment-name mind_sft_c1-2_curriculum_abstract `
+  --display-name "C1.2: Curriculum abstract MINDsmall→MINDlarge" `
+  --model-path Qwen/Qwen3-1.7B `
+  --data-root "shares/users/wuc/data/MIND_large" `
+  --output-root "shares/users/wuc/output_dir" `
+  --batch-size 256 `
+  --micro-batch-size 4 `
+  --num-epochs 5 `
+  --neg-ratio 2.0 `
+  --max-history 30 `
+  --use-chat-template 1 `
+  --use-abstract 1 `
+  --run-eval 1 `
+  --eval-split dev `
+  --resume-from-checkpoint "shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_chat/final_checkpoint"
 ```
 
 #### 6C: Richer Input Features (Abstract + Subcategory)
 
 | Exp ID | Status | Model | Config | AUC | Notes |
 |--------|--------|-------|--------|-----|-------|
-| **F1.1** | ⬜ Pending | Qwen3-1.7B | USE_ABSTRACT=1 + USE_SUBCATEGORY=1 | - | Both signals; compare vs L1.3 (abstract only, 0.7049) |
+| **F1.1** | 🔄 Running | Qwen3-1.7B | USE_ABSTRACT=1 + USE_SUBCATEGORY=1 | - | Both signals; compare vs L1.3 (abstract only, 0.7049) |
 | **F1.2** | ⬜ Pending | Qwen3-1.7B | Profile summary prepended to prompt | - | Offline generate user interest profile with Qwen3-4B-Instruct, prepend at eval |
 
 **Why**: L1.3 uses abstract but no subcategory. P1.7 used subcategory but no abstract and got 0.6767 (worse than P1.0's 0.6861). Combined signal hasn't been tested on MINDlarge.
@@ -209,14 +255,21 @@ python pipeline/run_pipeline.py `
 **Command (F1.1)**:
 ```powershell
 python pipeline/run_pipeline.py `
+  --experiment-name mind_sft_f1-1_abstract_subcat `
+  --display-name "F1.1: Abstract + Subcategory (large)" `
   --model-path Qwen/Qwen3-1.7B `
   --data-root "shares/users/wuc/data/MIND_large" `
   --output-root "shares/users/wuc/output_dir" `
-  --batch-size 256 --micro-batch-size 4 `
-  --num-epochs 5 --neg-ratio 2.0 --max-history 30 `
-  --use-chat-template 1 --use-abstract 1 --use-subcategory 1 --run-eval 1 `
-  --experiment-name mind_sft_f1-1_abstract_subcat `
-  --display-name "F1.1: Abstract + Subcategory (large)"
+  --batch-size 256 `
+  --micro-batch-size 4 `
+  --num-epochs 5 `
+  --neg-ratio 2.0 `
+  --max-history 30 `
+  --use-chat-template 1 `
+  --use-abstract 1 `
+  --use-subcategory 1 `
+  --run-eval 1 `
+  --eval-split dev
 ```
 
 #### 6D: Collaborative Filtering Signal
@@ -228,11 +281,35 @@ python pipeline/run_pipeline.py `
 
 **Why**: LLM scores purely from text content. CF captures user-item interaction patterns (users who read A also read B) that are invisible to content-only models. This is a fundamentally different signal — ideal ensemble partner.
 
-**CF1.1 implementation sketch**:
-1. Train LightGCN or BPR-MF on MIND train clicks
-2. Get CF score per (user, news) pair for dev/test
-3. Ensemble: `final_score = α × LLM_score + (1-α) × CF_score`
-4. Sweep α on dev set
+**CF1.1 Commands**:
+
+Step 1 — Compute CF scores (CPU-only, run on compute node or locally):
+```bash
+python src/compute_cf_scores.py \
+  --train_behaviors $DATA_ROOT/train/behaviors.tsv \
+  --eval_behaviors  $DATA_ROOT/dev/behaviors.tsv \
+  --output          $DATA_ROOT/dev/cf_scores.tsv \
+  --max_history 30
+```
+
+Step 2 — Eval with CF blend (add to existing eval command, sweep alpha):
+```bash
+# alpha=0.1
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=large DATA_ROOT=$DATA_ROOT \
+  USE_CHAT_TEMPLATE=1 USE_ABSTRACT=1 MAX_HISTORY=30 BATCH_SIZE=8 \
+  OUTPUT_FILE=$EVAL_DIR/dev_cf_alpha01.txt \
+  bash scripts/eval_mind_pointwise.sh $MODEL_PATH dev \
+  --cf_scores_file $DATA_ROOT/dev/cf_scores.tsv --cf_alpha 0.1
+
+# alpha=0.2
+# alpha=0.3  (default, recommended starting point)
+# alpha=0.4
+# alpha=0.5
+```
+
+Or via AML eval pipeline with extra args passed through `--debug` + manual run.
+
+**Note**: `src/compute_cf_scores.py` and `--cf_scores_file` / `--cf_alpha` args are already implemented in `evaluate_mind_pointwise.py`. No training required — pure inference-time blend.
 
 ---
 

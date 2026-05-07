@@ -76,6 +76,7 @@ inputs:
     description: 评估数据集 (dev/test)
   resume_from_checkpoint:
     type: string
+    optional: true
     default: ""
     description: 从指定checkpoint继续训练，留空则从头开始
 
@@ -102,4 +103,4 @@ command: >-
   --output-root ${{inputs.output_root}}
   --run-eval ${{inputs.run_eval}}
   --eval-split ${{inputs.eval_split}}
-  --resume-from-checkpoint ${{inputs.resume_from_checkpoint}}
+  $[[--resume-from-checkpoint ${{inputs.resume_from_checkpoint}}]]

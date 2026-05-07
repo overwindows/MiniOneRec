@@ -116,7 +116,7 @@ def mind_train_pipeline(
         resume_from_checkpoint: 从指定checkpoint继续训练，留空则从头开始 (default: "")
     """
 
-    train_node = mind_train_component(
+    component_kwargs = dict(
         msndni=msndni_input,
         model_path=model_path,
         data_root=data_root,
@@ -134,8 +134,10 @@ def mind_train_pipeline(
         debug_mode=debug_mode,
         run_eval=run_eval,
         eval_split=eval_split,
-        resume_from_checkpoint=resume_from_checkpoint,
     )
+    if resume_from_checkpoint:
+        component_kwargs["resume_from_checkpoint"] = resume_from_checkpoint
+    train_node = mind_train_component(**component_kwargs)
 
     # Bind Virtual Cluster and resource configuration
     train_node.compute = VC_ARM_ID

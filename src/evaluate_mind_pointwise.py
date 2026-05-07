@@ -153,6 +153,8 @@ def main():
     parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for logit scaling (default=1.0, no effect); mainly useful for ensemble calibration")
     parser.add_argument("--use_recency", action="store_true", help="Mark 5 most recent history items with '(recent)' tag")
     parser.add_argument("--use_profile_summary", action="store_true", help="Prepend top-3 category interest summary to prompt")
+    parser.add_argument("--cf_scores_file", default="", help="TSV file with CF scores (impression_id, news_id, cf_score) to blend with LLM scores")
+    parser.add_argument("--cf_alpha", type=float, default=0.3, help="Blend weight for CF: final = (1-alpha)*LLM + alpha*CF (default 0.3)")
     args = parser.parse_args()
 
     # Quick mode overrides max_impressions
@@ -160,6 +162,19 @@ def main():
         args.max_impressions = 500
 
     set_seed(args.seed)
+
+    # Load CF scores if provided
+    cf_scores: dict = {}
+    if args.cf_scores_file:
+        print(f"Loading CF scores from: {args.cf_scores_file}")
+        with open(args.cf_scores_file, 'r', encoding='utf-8') as f:
+            next(f)  # skip header
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) == 3:
+                    imp_id, news_id, score = parts
+                    cf_scores[(imp_id, news_id)] = float(score)
+        print(f"Loaded {len(cf_scores):,} CF scores (alpha={args.cf_alpha})")
 
     print(f"Loading news from: {args.news_path}")
     news = load_news(args.news_path, args.use_abstract)
@@ -290,6 +305,17 @@ def main():
                 use_profile_summary=args.use_profile_summary,
                 impression_timestamp=impression_ts if (args.use_recency or args.use_profile_summary or impression_ts) else None,
             )
+
+            # Blend with CF scores if available
+            if cf_scores:
+                import numpy as _np
+                lm_arr = _np.array(scores)
+                cf_arr = _np.array([cf_scores.get((impression_id, nid), 0.0) for nid in candidate_ids])
+                # Min-max normalise each signal to [0,1] within the impression
+                def _norm(x):
+                    mn, mx = x.min(), x.max()
+                    return (x - mn) / (mx - mn + 1e-9)
+                scores = ((1 - args.cf_alpha) * _norm(lm_arr) + args.cf_alpha * _norm(cf_arr)).tolist()
 
             # Compute metrics (only if we have positive labels)
             if sum(labels) > 0:

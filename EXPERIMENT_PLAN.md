@@ -159,6 +159,83 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 ---
 
+---
+
+### Phase 6: Advanced Strategies (Beyond Scaling)
+
+> **Motivation**: Scaling model size is closed (4B < 1.7B on MINDsmall). These four directions target the remaining ~0.012 AUC gap to SOTA through data quality, training curriculum, richer features, and collaborative filtering signals.
+
+#### 6A: Hard Negative Mining
+
+| Exp ID | Status | Model | Config | AUC | Notes |
+|--------|--------|-------|--------|-----|-------|
+| **H1.1** | ⬜ Pending | Qwen3-1.7B | 100% same-category negatives | - | Force model to learn finer category-level distinctions |
+| **H1.2** | ⬜ Pending | Qwen3-1.7B | Model-mined hard negatives | - | Use L1.3 predictions to find borderline negatives (near-zero score) |
+
+**Why**: Current sampling is 50% same-category / 50% random. With 100% same-category negatives the model can't rely on coarse category matching and must learn finer title/abstract-level signals.
+
+#### 6B: Curriculum Learning (MINDsmall → MINDlarge)
+
+| Exp ID | Status | Model | Config | AUC | Notes |
+|--------|--------|-------|--------|-----|-------|
+| **C1.1** | ⬜ Pending | Qwen3-1.7B | SFT MINDsmall (ep5) → resume on MINDlarge | - | Start from P1.0 checkpoint, fine-tune on MINDlarge |
+| **C1.2** | ⬜ Pending | Qwen3-1.7B | SFT MINDsmall abstract → resume on MINDlarge abstract | - | Start from P1.3 checkpoint |
+
+**Why**: MINDsmall teaches basic recommendation patterns faster (fewer impressions, tighter feedback loop). MINDlarge then adapts the model to a larger vocabulary and distribution. Direct MINDlarge training may converge to a suboptimal solution that curriculum avoids.
+
+**Command (C1.1)**:
+```powershell
+python pipeline/run_pipeline.py `
+  --model-path Qwen/Qwen3-1.7B `
+  --data-root "shares/users/wuc/data/MIND_large" `
+  --output-root "shares/users/wuc/output_dir" `
+  --batch-size 256 --micro-batch-size 4 `
+  --num-epochs 5 --neg-ratio 2.0 --max-history 30 `
+  --use-chat-template 1 --use-abstract 0 --run-eval 1 `
+  --resume-from-checkpoint "shares/users/wuc/output_dir/sft_mind_pointwise_small_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_chat/final_checkpoint" `
+  --experiment-name mind_sft_c1-1_curriculum `
+  --display-name "C1.1: Curriculum MINDsmall→MINDlarge"
+```
+
+#### 6C: Richer Input Features (Abstract + Subcategory)
+
+| Exp ID | Status | Model | Config | AUC | Notes |
+|--------|--------|-------|--------|-----|-------|
+| **F1.1** | ⬜ Pending | Qwen3-1.7B | USE_ABSTRACT=1 + USE_SUBCATEGORY=1 | - | Both signals; compare vs L1.3 (abstract only, 0.7049) |
+| **F1.2** | ⬜ Pending | Qwen3-1.7B | Profile summary prepended to prompt | - | Offline generate user interest profile with Qwen3-4B-Instruct, prepend at eval |
+
+**Why**: L1.3 uses abstract but no subcategory. P1.7 used subcategory but no abstract and got 0.6767 (worse than P1.0's 0.6861). Combined signal hasn't been tested on MINDlarge.
+
+**Command (F1.1)**:
+```powershell
+python pipeline/run_pipeline.py `
+  --model-path Qwen/Qwen3-1.7B `
+  --data-root "shares/users/wuc/data/MIND_large" `
+  --output-root "shares/users/wuc/output_dir" `
+  --batch-size 256 --micro-batch-size 4 `
+  --num-epochs 5 --neg-ratio 2.0 --max-history 30 `
+  --use-chat-template 1 --use-abstract 1 --use-subcategory 1 --run-eval 1 `
+  --experiment-name mind_sft_f1-1_abstract_subcat `
+  --display-name "F1.1: Abstract + Subcategory (large)"
+```
+
+#### 6D: Collaborative Filtering Signal
+
+| Exp ID | Status | Approach | AUC | Notes |
+|--------|--------|----------|-----|-------|
+| **CF1.1** | ⬜ Pending | CF score ensemble (MF/LightGCN + L1.3) | - | Train CF model on MIND click data; ensemble CF score + LLM score |
+| **CF1.2** | ⬜ Pending | CF-augmented prompt | - | Prepend "Users with similar reading history also clicked: X, Y, Z" to LLM prompt |
+
+**Why**: LLM scores purely from text content. CF captures user-item interaction patterns (users who read A also read B) that are invisible to content-only models. This is a fundamentally different signal — ideal ensemble partner.
+
+**CF1.1 implementation sketch**:
+1. Train LightGCN or BPR-MF on MIND train clicks
+2. Get CF score per (user, news) pair for dev/test
+3. Ensemble: `final_score = α × LLM_score + (1-α) × CF_score`
+4. Sweep α on dev set
+
+---
+
 ### Phase 4M: Multi-task (Extra Checkpoints)
 
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

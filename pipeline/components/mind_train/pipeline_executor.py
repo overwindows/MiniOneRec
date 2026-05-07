@@ -203,6 +203,7 @@ def main():
     parser.add_argument("--micro-batch-size", help="每个 GPU 的 micro batch 大小")
     parser.add_argument("--num-epochs", help="训练轮数")
     parser.add_argument("--neg-ratio", help="负样本比例")
+    parser.add_argument("--hard-neg-ratio", help="同类别负样本比例", default="0.5")
     parser.add_argument("--max-history", help="最大历史记录长度")
     parser.add_argument("--cutoff-len", help="最大序列长度", default="8192")
     parser.add_argument("--use-chat-template", help="是否使用 chat template (1/0)")
@@ -223,6 +224,7 @@ def main():
         'micro_batch_size': args.micro_batch_size,
         'num_epochs': args.num_epochs,
         'neg_ratio': args.neg_ratio,
+        'hard_neg_ratio': args.hard_neg_ratio,
         'max_history': args.max_history,
         'cutoff_len': args.cutoff_len,
         'use_chat_template': args.use_chat_template,

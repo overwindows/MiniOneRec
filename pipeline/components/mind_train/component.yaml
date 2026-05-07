@@ -34,6 +34,10 @@ inputs:
     type: number
     default: 2.0
     description: 负样本比例
+  hard_neg_ratio:
+    type: number
+    default: 0.5
+    description: 同类别负样本比例 (0.0=全easy, 1.0=全hard same-category)
   max_history:
     type: integer
     default: 30
@@ -93,6 +97,7 @@ command: >-
   --micro-batch-size ${{inputs.micro_batch_size}}
   --num-epochs ${{inputs.num_epochs}}
   --neg-ratio ${{inputs.neg_ratio}}
+  --hard-neg-ratio ${{inputs.hard_neg_ratio}}
   --max-history ${{inputs.max_history}}
   --cutoff-len ${{inputs.cutoff_len}}
   --use-chat-template ${{inputs.use_chat_template}}

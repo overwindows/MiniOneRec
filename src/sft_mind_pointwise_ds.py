@@ -78,6 +78,7 @@ def train(
     use_subcategory: bool = False,
     max_history: int = 0,  # 0 = no limit
     neg_ratio: float = 1.0,  # Negatives per positive
+    hard_neg_ratio: float = 0.5,  # Fraction of negatives from same category
     sample: int = -1,
     seed: int = 42,
     batch_size: int = 128,
@@ -151,6 +152,7 @@ def train(
         seed=seed,
         max_history=max_history,
         neg_ratio=neg_ratio,
+        hard_neg_ratio=hard_neg_ratio,
         use_abstract=use_abstract,
         use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,
@@ -168,6 +170,7 @@ def train(
         seed=seed,
         max_history=max_history,
         neg_ratio=neg_ratio,
+        hard_neg_ratio=hard_neg_ratio,
         use_abstract=use_abstract,
         use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,

@@ -108,6 +108,7 @@ CUTOFF_LEN=${CUTOFF_LEN:-8192}
 NUM_EPOCHS=${NUM_EPOCHS:-5}
 MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-2.0}
+HARD_NEG_RATIO=${HARD_NEG_RATIO:-0.5}
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 # Convert 1/0 to True/False for Python
 if [[ "$USE_ABSTRACT" == "1" || "$USE_ABSTRACT" == "True" || "$USE_ABSTRACT" == "true" ]]; then
@@ -197,6 +198,7 @@ deepspeed --hostfile=$HOSTFILE \
         --cutoff_len ${CUTOFF_LEN} \
         --max_history ${MAX_HISTORY} \
         --neg_ratio ${NEG_RATIO} \
+        --hard_neg_ratio ${HARD_NEG_RATIO} \
         --use_abstract ${USE_ABSTRACT} \
         --use_subcategory ${USE_SUBCATEGORY} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \

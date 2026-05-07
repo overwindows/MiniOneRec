@@ -82,6 +82,7 @@ def mind_train_pipeline(
     micro_batch_size: int = 4,
     num_epochs: int = 3,
     neg_ratio: float = 2.0,
+    hard_neg_ratio: float = 0.5,
     max_history: int = 30,
     cutoff_len: int = 8192,
     use_chat_template: int = 1,
@@ -125,6 +126,7 @@ def mind_train_pipeline(
         micro_batch_size=micro_batch_size,
         num_epochs=num_epochs,
         neg_ratio=neg_ratio,
+        hard_neg_ratio=hard_neg_ratio,
         max_history=max_history,
         cutoff_len=cutoff_len,
         use_chat_template=use_chat_template,
@@ -163,6 +165,8 @@ if __name__ == "__main__":
                         help="每个 GPU 的 micro batch 大小 (default: 4)")
     parser.add_argument("--num-epochs", type=int, default=3,
                         help="训练轮数 (default: 3)")
+    parser.add_argument("--hard-neg-ratio", type=float, default=0.5,
+                        help="Fraction of negatives from same category (0.0=all easy, 1.0=all hard, default: 0.5)")
     parser.add_argument("--neg-ratio", type=float, default=2.0,
                         help="负样本比例 (default: 2.0)")
     parser.add_argument("--max-history", type=int, default=30,
@@ -205,6 +209,7 @@ if __name__ == "__main__":
         micro_batch_size=args.micro_batch_size,
         num_epochs=args.num_epochs,
         neg_ratio=args.neg_ratio,
+        hard_neg_ratio=args.hard_neg_ratio,
         max_history=args.max_history,
         cutoff_len=args.cutoff_len,
         use_chat_template=args.use_chat_template,

@@ -182,6 +182,7 @@ class MINDPointwiseSFTDataset:
         seed: int = 42,
         max_history: int = 0,  # 0 = no limit
         neg_ratio: float = 1.0,  # Ratio of negatives to positives per impression
+        hard_neg_ratio: float = 0.5,  # Fraction of negatives from same category (0.0=all easy, 1.0=all hard)
         use_abstract: bool = False,
         use_chat_template: bool = False,  # Use chat template for instruct models
         use_subcategory: bool = False,  # Include subcategory in [cat/subcat] format
@@ -193,6 +194,7 @@ class MINDPointwiseSFTDataset:
         self.max_len = max_len
         self.max_history = max_history if max_history > 0 else None
         self.neg_ratio = neg_ratio
+        self.hard_neg_ratio = hard_neg_ratio
         self.use_abstract = use_abstract
         self.use_chat_template = use_chat_template
         self.use_subcategory = use_subcategory
@@ -305,8 +307,8 @@ class MINDPointwiseSFTDataset:
                         else:
                             easy_negs.append(neg_id)
 
-                    # Sample 50/50 mix of hard and easy negatives
-                    num_hard = num_neg_to_sample // 2
+                    # Sample hard/easy mix controlled by hard_neg_ratio
+                    num_hard = int(num_neg_to_sample * self.hard_neg_ratio)
                     num_easy = num_neg_to_sample - num_hard
 
                     sampled_negs = []

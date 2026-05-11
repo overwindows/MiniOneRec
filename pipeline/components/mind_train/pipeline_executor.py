@@ -218,8 +218,14 @@ def main():
 
     args = parser.parse_args()
 
+    # Prepend mount_dir to model_path when it is a local multi-segment path
+    # (HuggingFace repo IDs have exactly one '/'; local paths have more)
+    model_path = args.model_path or ""
+    if args.mount_dir and model_path and not model_path.startswith('/') and model_path.count('/') > 1:
+        model_path = f"{args.mount_dir}/{model_path}"
+
     cli_variables = {
-        'model_path': args.model_path,
+        'model_path': model_path,
         'batch_size': args.batch_size,
         'micro_batch_size': args.micro_batch_size,
         'num_epochs': args.num_epochs,

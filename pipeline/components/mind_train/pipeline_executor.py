@@ -250,7 +250,14 @@ def main():
         cli_variables['run_eval'] = args.run_eval
     if args.eval_split:
         cli_variables['eval_split'] = args.eval_split
-    cli_variables['resume_from_checkpoint'] = args.resume_from_checkpoint or ""
+    # 合成完整的 resume_from_checkpoint 路径
+    if args.resume_from_checkpoint:
+        if args.mount_dir and not args.resume_from_checkpoint.startswith('/'):
+            cli_variables['resume_from_checkpoint'] = f"{args.mount_dir}/{args.resume_from_checkpoint}"
+        else:
+            cli_variables['resume_from_checkpoint'] = args.resume_from_checkpoint
+    else:
+        cli_variables['resume_from_checkpoint'] = ""
 
     debug_mode = bool(args.debug_mode and args.debug_mode.lower() in ('true', '1', 'yes'))
 

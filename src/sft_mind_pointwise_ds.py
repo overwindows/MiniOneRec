@@ -68,6 +68,7 @@ def set_seed(seed):
 
 
 def train(
+    local_rank: int = -1,  # injected by DeepSpeed launcher; ignored here
     base_model: str = "",
     train_behaviors_path: str = "",
     train_news_path: str = "",

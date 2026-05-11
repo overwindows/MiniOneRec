@@ -119,6 +119,10 @@ def train(
     if not base_model:
         raise ValueError("Please specify --base_model")
 
+    # Normalize empty string to None so HF Trainer doesn't try to load a nonexistent path
+    if not resume_from_checkpoint:
+        resume_from_checkpoint = None
+
     gradient_accumulation_steps = batch_size // micro_batch_size
 
     world_size = int(os.environ.get("WORLD_SIZE", 1))

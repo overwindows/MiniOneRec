@@ -41,6 +41,11 @@ export NCCL_TIMEOUT=${NCCL_TIMEOUT:-7200}
 # PyTorch Distributed
 # =========================
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+# Use offline mode only when model is a local absolute path (not a HF repo ID)
+if [[ "${MODEL_PATH:-}" == /* ]]; then
+    export TRANSFORMERS_OFFLINE=1
+    export HF_DATASETS_OFFLINE=1
+fi
 export TORCH_DISTRIBUTED_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=7200

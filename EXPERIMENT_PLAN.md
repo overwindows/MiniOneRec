@@ -247,7 +247,7 @@ python pipeline/run_pipeline.py `
 
 | Exp ID | Status | Model | Config | AUC | Notes |
 |--------|--------|-------|--------|-----|-------|
-| **F1.1** | 🔄 Running | Qwen3-1.7B | USE_ABSTRACT=1 + USE_SUBCATEGORY=1 | - | Both signals; compare vs L1.3 (abstract only, 0.7049) |
+| **F1.1** | 🔄 Running | Qwen3-1.7B | USE_ABSTRACT=1 + USE_SUBCATEGORY=1 | 0.6962 (0.78ep) | AUC 0.6962 / MRR 0.3387 / nDCG@5 0.3767 / nDCG@10 0.4388 at 0.78ep (undertrained); restarting from ckpt-28672 with micro_bs=2, ep=3 |
 | **F1.2** | ⬜ Pending | Qwen3-1.7B | Profile summary prepended to prompt | - | Offline generate user interest profile with Qwen3-4B-Instruct, prepend at eval |
 
 **Why**: L1.3 uses abstract but no subcategory. P1.7 used subcategory but no abstract and got 0.6767 (worse than P1.0's 0.6861). Combined signal hasn't been tested on MINDlarge.

@@ -40,6 +40,7 @@ export NCCL_TIMEOUT=${NCCL_TIMEOUT:-7200}
 # =========================
 # PyTorch Distributed
 # =========================
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export TORCH_DISTRIBUTED_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=7200

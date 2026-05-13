@@ -131,18 +131,24 @@ def train(
     if ddp:
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
 
-    # Load model
+    # Load model — treat absolute paths and existing directories as local
+    from pathlib import Path as _Path
+    _local = os.path.isabs(base_model) or os.path.isdir(base_model)
+    _base_model_arg = _Path(base_model) if _local else base_model
+    _local_kwargs = {"local_files_only": True} if _local else {}
+
     if not train_from_scratch:
         model = AutoModelForCausalLM.from_pretrained(
-            base_model,
+            _base_model_arg,
             torch_dtype=torch.bfloat16,
             attn_implementation="flash_attention_2",
+            **_local_kwargs,
         )
     else:
-        config = AutoConfig.from_pretrained(base_model)
+        config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
         model = AutoModelForCausalLM.from_config(config)
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(_base_model_arg, trust_remote_code=True, **_local_kwargs)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"

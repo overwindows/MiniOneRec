@@ -75,6 +75,7 @@ def mind_eval_pipeline(
     max_history: int = 30,
     batch_size: int = 8,
     num_gpus: int = 8,
+    cf_alpha: float = 0.0,
     debug_mode: str = "false",
 ):
     """MIND Model Evaluation Pipeline
@@ -104,6 +105,7 @@ def mind_eval_pipeline(
         max_history=max_history,
         batch_size=batch_size,
         num_gpus=num_gpus,
+        cf_alpha=cf_alpha,
         debug_mode=debug_mode,
     )
 
@@ -141,6 +143,8 @@ if __name__ == "__main__":
                         help="使用的GPU数量 (default: 8)")
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun",
                         help="Datastore 名称 (default: adls_msn_dni_09_rankfun)")
+    parser.add_argument("--cf-alpha", type=float, default=0.0,
+                        help="CF blend weight: 0=no CF; >0 runs CF scoring first then blends LLM+CF (default: 0)")
     parser.add_argument("--debug", action="store_true",
                         help="调试模式：出错继续执行 + 最后 sleep infinity 保持容器运行")
     args = parser.parse_args()
@@ -163,6 +167,7 @@ if __name__ == "__main__":
         max_history=args.max_history,
         batch_size=args.batch_size,
         num_gpus=args.num_gpus,
+        cf_alpha=args.cf_alpha,
         debug_mode=debug_mode,
     )
 

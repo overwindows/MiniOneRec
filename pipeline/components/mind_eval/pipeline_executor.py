@@ -206,6 +206,7 @@ def main():
     parser.add_argument("--max-history", help="最大历史记录长度")
     parser.add_argument("--batch-size", help="评估batch size")
     parser.add_argument("--num-gpus", help="使用的GPU数量")
+    parser.add_argument("--cf-alpha", help="CF blend weight (0=no CF, >0 enables CF scoring)", default="0.0")
     parser.add_argument("--debug-mode", help="调试模式 (true/false)")
 
     args = parser.parse_args()
@@ -218,6 +219,7 @@ def main():
         'max_history': args.max_history,
         'batch_size': args.batch_size,
         'num_gpus': args.num_gpus,
+        'cf_alpha': args.cf_alpha,
     }
 
     # 合成完整路径

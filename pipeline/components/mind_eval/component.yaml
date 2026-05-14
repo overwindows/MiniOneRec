@@ -45,6 +45,10 @@ inputs:
     type: integer
     default: 0
     description: 是否使用新闻摘要 (1=是, 0=否)
+  cf_alpha:
+    type: number
+    default: 0.0
+    description: CF blend weight (0=no CF, >0 runs CF scoring first then blends LLM+CF scores)
   debug_mode:
     type: string
     default: "false"
@@ -66,4 +70,5 @@ command: >-
   --max-history ${{inputs.max_history}}
   --batch-size ${{inputs.batch_size}}
   --num-gpus ${{inputs.num_gpus}}
+  --cf-alpha ${{inputs.cf_alpha}}
   --debug-mode ${{inputs.debug_mode}}

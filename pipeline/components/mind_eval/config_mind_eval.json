@@ -32,9 +32,15 @@
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {
+      "name": "计算 CF 分数 (如果 cf_alpha > 0)",
+      "description": "仅在 cf_alpha > 0 时运行 item-based CF 评分",
+      "command": "if python3 -c \"import sys; sys.exit(0 if float('{cf_alpha}') > 0 else 1)\"; then echo '=== 计算 CF 分数 ===' && python src/compute_cf_scores.py --train_behaviors {data_root}/train/behaviors.tsv --eval_behaviors {data_root}/{split}/behaviors.tsv --output {data_root}/{split}/cf_scores.tsv --max_history {max_history} && echo 'CF scores saved to {data_root}/{split}/cf_scores.tsv'; else echo '=== 跳过 CF 评分 (cf_alpha=0) ==='; fi",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
       "name": "启动模型评估",
-      "description": "根据 eval_type 选择 pointwise 或 ranking 评估",
-      "command": "EVAL_OUTPUT_DIR=$(dirname {model_path})/eval_results && mkdir -p $EVAL_OUTPUT_DIR && if [ \"{eval_type}\" = \"pointwise\" ]; then CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} OUTPUT_FILE=$EVAL_OUTPUT_DIR/{split}_pointwise_predictions.txt bash scripts/eval_mind_pointwise.sh {model_path} {split}; else CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} OUTPUT_FILE=$EVAL_OUTPUT_DIR/{split}_ranking_predictions.txt bash scripts/eval_mind_ranking.sh {model_path} {split}; fi && echo 'Evaluation results saved to' $EVAL_OUTPUT_DIR/",
+      "description": "根据 eval_type 选择 pointwise 或 ranking 评估，可选 CF 混合",
+      "command": "EVAL_OUTPUT_DIR=$(dirname {model_path})/eval_results && mkdir -p $EVAL_OUTPUT_DIR && if [ \"{eval_type}\" = \"pointwise\" ]; then CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} CF_SCORES_FILE={data_root}/{split}/cf_scores.tsv CF_ALPHA={cf_alpha} OUTPUT_FILE=$EVAL_OUTPUT_DIR/{split}_pointwise_predictions.txt bash scripts/eval_mind_pointwise.sh {model_path} {split}; else CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 MIND_SIZE=small DATA_ROOT={data_root} USE_CHAT_TEMPLATE={use_chat_template} USE_ABSTRACT={use_abstract} MAX_HISTORY={max_history} BATCH_SIZE={batch_size} OUTPUT_FILE=$EVAL_OUTPUT_DIR/{split}_ranking_predictions.txt bash scripts/eval_mind_ranking.sh {model_path} {split}; fi && echo 'Evaluation results saved to' $EVAL_OUTPUT_DIR/",
       "working_dir": "/home/aiscuser/MiniOneRec"
     },
     {

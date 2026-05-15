@@ -52,6 +52,12 @@ if [[ -z "${MODEL_PATH}" ]]; then
   exit 1
 fi
 
+# Use offline mode for local absolute model paths to bypass HF repo_id validation
+if [[ "${MODEL_PATH:-$1}" == /* ]]; then
+    export TRANSFORMERS_OFFLINE=1
+    export HF_DATASETS_OFFLINE=1
+fi
+
 # Configuration
 MIND_SIZE="${MIND_SIZE:-small}"
 if [[ -z "${MIND_ROOT:-}" ]]; then

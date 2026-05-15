@@ -124,6 +124,7 @@ class PipelineExecutor:
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding='utf-8',
+                errors='replace',
                 bufsize=1,
                 cwd=working_dir if os.path.exists(working_dir) else None
             )

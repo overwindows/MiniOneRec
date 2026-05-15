@@ -276,7 +276,7 @@ python pipeline/run_pipeline.py `
 
 | Exp ID | Status | Approach | AUC | Notes |
 |--------|--------|----------|-----|-------|
-| **CF1.1** | ⬜ Pending | CF score ensemble (MF/LightGCN + L1.3) | - | Train CF model on MIND click data; ensemble CF score + LLM score |
+| **CF1.1** | 🔄 Running | CF score ensemble (item-based CF + L1.3) | 0.7051 (α=0.3) | alpha=0.3: AUC 0.7051 = same as L1.3 baseline (no gain); try α=0.1, 0.2, 0.5 |
 | **CF1.2** | ⬜ Pending | CF-augmented prompt | - | Prepend "Users with similar reading history also clicked: X, Y, Z" to LLM prompt |
 
 **Why**: LLM scores purely from text content. CF captures user-item interaction patterns (users who read A also read B) that are invisible to content-only models. This is a fundamentally different signal — ideal ensemble partner.

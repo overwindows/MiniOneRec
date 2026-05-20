@@ -210,7 +210,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       cmd="${cmd} --use_profile_summary"
     fi
 
-    if [[ -n "${CF_SCORES_FILE}" ]] && [[ "${CF_ALPHA:-0}" != "0" ]]; then
+    if [[ -n "${CF_SCORES_FILE:-}" ]] && [[ "${CF_ALPHA:-0}" != "0" ]]; then
       cmd="${cmd} --cf_scores_file ${CF_SCORES_FILE} --cf_alpha ${CF_ALPHA}"
     fi
 
@@ -343,7 +343,7 @@ else
     CMD="${CMD} --use_profile_summary"
   fi
 
-  if [[ -n "${CF_SCORES_FILE}" ]] && [[ "${CF_ALPHA:-0}" != "0" ]]; then
+  if [[ -n "${CF_SCORES_FILE:-}" ]] && [[ "${CF_ALPHA:-0}" != "0" ]]; then
     CMD="${CMD} --cf_scores_file ${CF_SCORES_FILE} --cf_alpha ${CF_ALPHA}"
   fi
 

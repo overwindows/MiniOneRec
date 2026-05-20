@@ -98,7 +98,8 @@ def train_verl(
         f"actor_rollout_ref.rollout.temperature={temperature}",
         f"actor_rollout_ref.rollout.n={num_generations}",
         f"++actor_rollout_ref.rollout.name={rollout_name}",
-        f"++actor_rollout_ref.rollout.mode={'async' if rollout_name == 'vllm' else 'sync'}",
+        # 'sync' mode removed in newer verl; use 'async' for all rollout backends
+        f"++actor_rollout_ref.rollout.mode=async",
         f"++actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu={ppo_micro_batch_size_per_gpu}",
         "reward_model.enable=False",  # Disable built-in reward model; we use custom_reward_function
         *([f"++reward_model.rollout.name={rollout_name}"] if rollout_name == "vllm" else []),

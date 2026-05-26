@@ -94,6 +94,7 @@ def train(
     wandb_run_name: str = "",
     wandb_run_id: str = "",
     deepspeed_config: str = "",
+    early_stopping_patience: int = 3,
     use_chat_template: bool = None,  # Auto-detect if None
     use_recency: bool = False,  # Mark 5 most recent history items with "(recent)"
     use_profile_summary: bool = False,  # Prepend top-3 category interest summary
@@ -242,7 +243,7 @@ def train(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=30)] if val_data else None,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_data else None,
     )
 
     model.config.use_cache = False

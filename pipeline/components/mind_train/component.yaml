@@ -83,6 +83,10 @@ inputs:
     optional: true
     default: ""
     description: 从指定checkpoint继续训练，留空则从头开始
+  early_stopping_patience:
+    type: integer
+    default: 3
+    description: 早停patience (eval steps), 建议3
 
 code: .
 environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
@@ -109,3 +113,4 @@ command: >-
   --run-eval ${{inputs.run_eval}}
   --eval-split ${{inputs.eval_split}}
   $[[--resume-from-checkpoint ${{inputs.resume_from_checkpoint}}]]
+  --early-stopping-patience ${{inputs.early_stopping_patience}}

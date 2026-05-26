@@ -216,6 +216,7 @@ def main():
     parser.add_argument("--run-eval", help="训练后是否运行评估 (1/0)")
     parser.add_argument("--eval-split", help="评估数据集 (dev/test)")
     parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
+    parser.add_argument("--early-stopping-patience", type=int, default=3, help="早停patience (eval steps, 默认3)")
 
     args = parser.parse_args()
 
@@ -238,6 +239,7 @@ def main():
         'use_abstract': args.use_abstract,
         'use_subcategory': args.use_subcategory,
         'pointwise_ratio': args.pointwise_ratio,
+        'early_stopping_patience': args.early_stopping_patience,
     }
 
     # 合成完整的 data_root 路径

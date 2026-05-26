@@ -86,7 +86,9 @@ def compute_cf_score(
             total += overlap / math.sqrt(pop_c * len(users_h))
         count += 1
 
-    return total / count if count > 0 else 0.0
+    # Divide by len(history) (not count of known items) so scores are comparable
+    # across users with different cold-start rates in the training index.
+    return total / len(history) if history else 0.0
 
 
 def compute_and_save_scores(

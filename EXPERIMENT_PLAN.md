@@ -139,6 +139,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
 | **L1.8** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | 0.6622 | 0.3259 | 0.3621 | 0.4222 | Worse than L1.3 (0.7049); output path shows Base/ep5/no-abstract — likely misconfigured run or job ran wrong parameters; 8d total runtime vs 31d ETA is suspicious; verify AML job params; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
+| **L1.13** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, NEG=3.0 | 0.6647 | 0.3166 | 0.3493 | 0.4116 | **−0.0402 vs L1.3**; combining EP=7+NEG=3.0+abstract collapses; NEG=3.0 consistently toxic on large |
 
 ---
 

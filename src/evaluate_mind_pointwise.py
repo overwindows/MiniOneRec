@@ -311,11 +311,19 @@ def main():
                 import numpy as _np
                 lm_arr = _np.array(scores)
                 cf_arr = _np.array([cf_scores.get((impression_id, nid), 0.0) for nid in candidate_ids])
-                # Min-max normalise each signal to [0,1] within the impression
-                def _norm(x):
-                    mn, mx = x.min(), x.max()
-                    return (x - mn) / (mx - mn + 1e-9)
-                scores = ((1 - args.cf_alpha) * _norm(lm_arr) + args.cf_alpha * _norm(cf_arr)).tolist()
+                # Rank-based normalisation: convert each signal to its within-impression
+                # fractional rank in [0, 1].  This is robust to scale and sparsity —
+                # min-max and z-score both amplify tiny differences in near-zero CF scores
+                # (e.g. [0.041, 0.0, 0.0, 0.038] → z-scores [1.94, -0.33, -0.33, 1.77])
+                # which caused the catastrophic AUC regression (0.7049 → 0.6213).
+                # Rank norm preserves ordinal information without stretching noise.
+                def _rank_norm(x):
+                    n = len(x)
+                    if n <= 1:
+                        return _np.zeros_like(x, dtype=float)
+                    # argsort twice gives rank (0-based); divide by (n-1) → [0, 1]
+                    return _np.argsort(_np.argsort(x)).astype(float) / (n - 1)
+                scores = ((1 - args.cf_alpha) * _rank_norm(lm_arr) + args.cf_alpha * _rank_norm(cf_arr)).tolist()
 
             # Compute metrics (only if we have positive labels)
             if sum(labels) > 0:

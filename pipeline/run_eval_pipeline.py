@@ -113,6 +113,9 @@ def mind_eval_pipeline(
     eval_node.compute = VC_ARM_ID
     eval_node.resources = res_cfg
 
+    # Disable AML component-level job reuse so code changes are always picked up
+    eval_node.settings.force_rerun = True
+
 
 # ============================================================================
 # 6) Parse Args and Submit

@@ -1498,6 +1498,111 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 
 ---
 
+### Phase 7: Architecture Comparisons (Literature Baselines)
+
+> **Motivation**: The deep research survey identified three peer-reviewed paradigms that have been benchmarked on MIND. Implementing each one cleanly against our L1.3 baseline (0.7049 AUC) will show whether alternative architectures can close the gap to SOTA — and which combination is worth ensembling.
+
+---
+
+#### 7A: PBNR-style — Constrained Yes/No Decoding (arXiv:2304.07862)
+
+**What changes vs. current approach**: Current scoring uses raw token logits `P(Yes)/(P(Yes)+P(No))`. PBNR enforces `P(yes)+P(no)=1` via constrained decoding at inference, yielding a properly calibrated binary probability. Training is identical; only inference scoring changes.
+
+**Expected gain**: Small but clean. Better calibration → better ranking especially at the tails of the score distribution.
+
+| Exp ID | Status | Model | Dataset | Config | AUC | Notes |
+|--------|--------|-------|---------|--------|-----|-------|
+| **A7.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | L1.3 + constrained decoding at eval | - | No retraining needed — eval-only change on L1.3 checkpoint |
+
+**Implementation**: Modify `evaluate_mind_pointwise.py` to restrict vocabulary to `["Yes", "No"]` tokens during generation (set all other logits to `-inf` before softmax). Then score = `P(Yes)`.
+
+---
+
+#### 7B: ONCE-style — LLM as Content Encoder (arXiv:2305.06566)
+
+**What changes vs. current approach**: Instead of generative Yes/No scoring, use Qwen3-1.7B as a **semantic encoder** — extract the last-layer hidden state of each news article, then score as `dot_product(user_embedding, candidate_embedding)` where user embedding = mean pool of clicked article embeddings.
+
+**Expected gain**: Faster inference (precompute news embeddings offline), potentially different error profile → good ensemble partner.
+
+| Exp ID | Status | Model | Dataset | Config | AUC | Notes |
+|--------|--------|-------|---------|--------|-----|-------|
+| **A7.2a** | ⬜ Pending | Qwen3-1.7B | MINDlarge | Frozen encoder + mean-pool user rep | - | Frozen baseline — no training |
+| **A7.2b** | ⬜ Pending | Qwen3-1.7B | MINDlarge | Fine-tuned encoder + contrastive loss (InfoNCE) | - | Train with in-batch negatives |
+
+**Implementation notes**:
+- A7.2a: Zero-shot encoder — just extract CLS/mean-pool hidden states, no training
+- A7.2b: Fine-tune with contrastive loss using same train split as L1.3; batch size = 256, same negatives
+
+---
+
+#### 7C: RecRanker-style — Hybrid Pointwise + Pairwise Training (arXiv:2312.16018)
+
+**What changes vs. current approach**: Add a **pairwise Bradley-Terry ranking loss** alongside the existing pointwise cross-entropy. For each impression, construct positive-negative pairs and train the model so `P(Yes|positive) > P(Yes|negative)` using the BT objective. This is also the GLIMPSE approach (arXiv:2409.17711).
+
+**Expected gain**: +0.2–0.5% AUC based on GLIMPSE results. Directly compatible with current architecture — just an additional loss term.
+
+| Exp ID | Status | Model | Dataset | Config | AUC | Notes |
+|--------|--------|-------|---------|--------|-----|-------|
+| **A7.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | L1.3 config + Bradley-Terry pairwise loss (λ=0.5) | - | Joint loss = CE + λ·BT; same epochs/lr as L1.3 |
+| **A7.4** | ⬜ Pending | Qwen3-1.7B | MINDlarge | A7.3 + λ sweep (0.1, 0.3, 0.5, 0.7) | - | Find optimal pairwise loss weight |
+
+**Implementation**: Add `pairwise_loss_weight` parameter to `sft_mind_pointwise_ds.py`. For each batch, sample random pos-neg pairs and add BT loss: `L_BT = -log(sigmoid(score_pos - score_neg))`.
+
+---
+
+#### Summary: Phase 7 Expected Complexity
+
+| Exp | Training Required | Estimated GPU Hours | Risk |
+|-----|-------------------|---------------------|------|
+| A7.1 | ❌ Eval only | ~2h | Low — eval change only |
+| A7.2a | ❌ Eval only | ~2h | Low — frozen encoder |
+| A7.2b | ✅ Full train | ~24h | Medium — new architecture |
+| A7.3 | ✅ Full train | ~24h | Low — additive to L1.3 |
+| A7.4 | ✅ Full train ×4 | ~96h | Medium — sweep |
+
+**Recommended order**: A7.1 → A7.3 → A7.2a → A7.2b (cheapest first, most likely gains first)
+
+---
+
+### A7.5: Frozen LLM + MLP Classifier (Ablation Baseline)
+
+**Paradigm**: Extract the last-token hidden state from a frozen Qwen3-1.7B backbone, then train a 2-layer MLP binary classifier head (`hidden_size → 256 → 1`) on top. BCE loss. No gradient flows through the backbone — only the MLP (~660K params) trains.
+
+**Motivation**: BERT-era methods (NRMS, NAML, PLM4NewsRec) used frozen/fine-tuned PLM encoders + MLP heads and achieved ~67-68% AUC. This experiment asks: does a much stronger frozen LLM backbone close the gap to fine-tuned Qwen3-1.7B, or does task-specific fine-tuning remain essential? Serves as an ablation baseline — if frozen LLM + MLP ≈ fine-tuned LLM, it suggests the LLM's prior is doing most of the work.
+
+**Architecture**:
+- Backbone: Qwen3-1.7B, fully frozen (`requires_grad=False`)
+- Feature: `outputs.hidden_states[-1][:, -1, :]` (last transformer layer, last token)
+- Head: `Linear(2048→256) + GELU + Dropout(0.1) + Linear(256→1)`
+- Loss: `binary_cross_entropy_with_logits`
+- Optimizer: AdamW on MLP only, lr=1e-3, CosineAnnealingLR
+
+**Expected result**: 67–70% AUC — likely below L1.3 (70.49%) because no task-specific fine-tuning. The frozen representation may not optimally encode the "would a user click this?" signal. Main value is as a fast, cheap ablation (single GPU, ~2-4h).
+
+**Novelty assessment**: The pattern itself (frozen encoder + MLP) is known from BERT era. In the decoder-LLM era on MIND specifically, no peer-reviewed paper found doing this exact setup — but PRECTR-V2 (arXiv:2602.20676) explicitly calls out frozen Emb+MLP as suboptimal due to "misalignment between representation learning and CTR fine-tuning." Run as reference baseline, not primary contribution.
+
+| Exp ID | Status | Model | Dataset | Config | AUC | Notes |
+|--------|--------|-------|---------|--------|-----|-------|
+| **A7.5** | ⬜ Pending | Qwen3-1.7B (frozen) | MINDlarge | Frozen backbone + MLP(256), lr=1e-3, BS=64, 10 epochs | - | Reference ablation baseline; single GPU, no DeepSpeed needed |
+
+**Implementation**: `src/train_mind_mlp_classifier.py` + `src/evaluate_mind_mlp_classifier.py` + launch scripts already created.
+
+```bash
+# Train (single GPU, ~2-4h)
+MODEL_PATH=/path/to/Qwen3-1.7B \
+DATA_ROOT=data/MIND \
+bash scripts/train_mind_mlp_classifier.sh
+
+# Eval
+bash scripts/eval_mind_mlp_classifier.sh /path/to/Qwen3-1.7B output_dir/mlp_classifier/best_mlp.pt dev
+```
+
+| Exp | Training Required | Estimated GPU Hours | Risk |
+|-----|-------------------|---------------------|------|
+| A7.5 | ✅ Full train (MLP only) | ~3h | Low — single GPU, only MLP trains |
+
+---
+
 ## 💡 Future Work / Ideas
 
 ### F1: LLM-Generated Narrative User Profiles

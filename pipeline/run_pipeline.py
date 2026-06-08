@@ -43,6 +43,15 @@ VC_ARM_ID = (
 # )
 
 # ============================================================================
+# 2b) Managed Identity (required by Singularity policy for datastore mounting)
+# ============================================================================
+UAI_RESOURCE_ID = (
+    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+    "/resourceGroups/AMLStudio"
+    "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
+)
+
+# ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
 # ============================================================================
 res_cfg = JobResourceConfiguration(
@@ -145,6 +154,12 @@ def mind_train_pipeline(
     # Bind Virtual Cluster and resource configuration
     train_node.compute = VC_ARM_ID
     train_node.resources = res_cfg
+
+    # Required by new Singularity policy: UAI enables the node to authenticate
+    # against the datastore for RW_MOUNT access
+    train_node.environment_variables = {
+        "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
+    }
 
 
 # ============================================================================

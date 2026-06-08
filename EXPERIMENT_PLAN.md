@@ -199,7 +199,7 @@ python pipeline/run_pipeline.py `
 
 | Exp ID | Status | Model | Config | AUC | Notes |
 |--------|--------|-------|--------|-----|-------|
-| **C1.1** | ❌ Failed | Qwen3-1.7B | SFT MINDsmall (ep5) → resume on MINDlarge | - | Failed twice (2026-05-14, 2026-05-15); job loyal_jelly + careful_key |
+| **C1.1** | 🔄 Running | Qwen3-1.7B | SFT MINDsmall (ep5) → resume on MINDlarge | - | Failed twice (2026-05-14, 2026-05-15) due to missing UAI for datastore mount; fixed & resubmitted 2026-06-08; run ID: affable_board_ndq03p3rb3 |
 | **C1.2** | ✅ Completed | Qwen3-1.7B | SFT MINDsmall abstract → resume on MINDlarge abstract | 0.6951 | AUC 0.6951 < L1.3 0.7049; curriculum abstract hurt; 4d 7h runtime; checkpoint-13600 |
 
 **Why**: MINDsmall teaches basic recommendation patterns faster (fewer impressions, tighter feedback loop). MINDlarge then adapts the model to a larger vocabulary and distribution. Direct MINDlarge training may converge to a suboptimal solution that curriculum avoids.

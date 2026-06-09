@@ -27,10 +27,20 @@ ml_client = MLClient(
 # ============================================================================
 # 2) Virtual Cluster Full ARM ID
 # ============================================================================
+# ranking
 VC_ARM_ID = (
     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-    "/resourceGroups/rg-cs-recall-ml-singularity"
-    "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+    "/resourceGroups/rg-cs-ranking-ml-singularity"
+    "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
+)
+
+# ============================================================================
+# 2b) Managed Identity (required by Singularity policy for datastore mounting)
+# ============================================================================
+UAI_RESOURCE_ID = (
+    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+    "/resourceGroups/AMLStudio"
+    "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
 )
 
 # ============================================================================
@@ -41,7 +51,7 @@ res_cfg = JobResourceConfiguration(
     instance_type="Singularity.ND96amrs_A100_v4",
     properties={
         "singularity": {
-            "slaTier": "Premium",
+            "slaTier": "Standard",
             "priority": "High",
             "enableAzmlInt": False,
         }
@@ -129,6 +139,12 @@ def mind_cot_rl_pipeline(
     # Bind Virtual Cluster and resource configuration
     train_node.compute = VC_ARM_ID
     train_node.resources = res_cfg
+
+    # Required by new Singularity policy: UAI enables the node to authenticate
+    # against the datastore for RW_MOUNT access
+    train_node.environment_variables = {
+        "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
+    }
 
 
 # ============================================================================

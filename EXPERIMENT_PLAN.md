@@ -137,7 +137,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.5** | ✅ Completed | Qwen3-1.7B | MINDlarge | NEG=3.0, EP=7, HIST=50 | 0.6863 | 0.3310 | 0.3675 | 0.4307 | HIST=50 bottleneck; [W&B](https://wandb.ai/wuchen/huggingface/runs/36ur6v25) |
 | **L1.6** | 🔄 Running | Qwen3-4B | MINDlarge | USE_ABSTRACT=1, micro_bs=4 | - | - | - | - | ckpt-37376 (19% train) = 0.6819; resumed with timeout+patience fixes; final expected 0.72-0.73+ |
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
-| **L1.8** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | 0.6622 | 0.3259 | 0.3621 | 0.4222 | Worse than L1.3 (0.7049); output path shows Base/ep5/no-abstract — likely misconfigured run or job ran wrong parameters; 8d total runtime vs 31d ETA is suspicious; verify AML job params; [W&B](https://wandb.ai/wuchen/huggingface/runs/p03ej16f) |
+| **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | - | - | - | - | Previous run (0.6622, W&B p03ej16f) was misconfigured (wrong params/UAI missing); fixed UAI + resubmitted 2026-06-08; run ID: neat_cassava_hxz75hmjyk |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
 | **L1.13** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, NEG=3.0 | 0.6647 | 0.3166 | 0.3493 | 0.4116 | **−0.0402 vs L1.3**; combining EP=7+NEG=3.0+abstract collapses; NEG=3.0 consistently toxic on large |
 
@@ -170,7 +170,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 
 | Exp ID | Status | Model | Config | AUC | Notes |
 |--------|--------|-------|--------|-----|-------|
-| **H1.1** | 🔄 Running | Qwen3-1.7B | 100% same-category negatives | - | Force model to learn finer category-level distinctions |
+| **H1.1** | ✅ Completed | Qwen3-1.7B | 100% same-category negatives | 0.6622 | Completed 2026-05-16; AUC 0.6622 < L1.3 0.7049; hard negatives alone not sufficient; abstract likely needed |
 | **H1.2** | ⬜ Pending | Qwen3-1.7B | Model-mined hard negatives | - | Use L1.3 predictions to find borderline negatives (near-zero score) |
 
 **Why**: Current sampling is 50% same-category / 50% random. With 100% same-category negatives the model can't rely on coarse category matching and must learn finer title/abstract-level signals.
@@ -378,7 +378,7 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 
 | Exp ID | Status | Model | Approach | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|----------|-----|-----|--------|---------|-------|
-| **A5.1** | ❌ Crashed | Qwen3-1.7B | CoT RL | - | - | - | - | Chain-of-Thought; [W&B](https://wandb.ai/wuchen/MiniOneRec_MIND/runs/d00m4zay) |
+| **A5.1** | 🔄 Running | Qwen3-1.7B | CoT RL | - | - | - | - | Crashed previously (W&B d00m4zay) due to missing UAI + wrong recall VC; fixed: UAI added, switched to ranking VC, SLA=Standard; resubmitted 2026-06-08 from L1.3 checkpoint; run ID: sad_gold_0hgz2zlrgm |
 | **A5.2** | ⬜ Pending | Qwen3-14B/32B | Large model | - | - | - | - | Resource intensive |
 | **A5.3** | ⬜ Pending | Qwen3-1.7B | Data augmentation | - | - | - | - | Research exploration |
 

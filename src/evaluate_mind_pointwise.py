@@ -206,7 +206,17 @@ def main():
     }
     if local_only:
         model_kwargs["local_files_only"] = True
-    if args.flash_attn:
+    # flash_attention_2 is the fast path for dense causal LMs (e.g. Qwen3).
+    # The hybrid Qwen3.5 text backbone (GatedDeltaNet linear attention + full
+    # attention) cannot dispatch through FA2, so force sdpa for those so that
+    # the pure-text Qwen3_5ForCausalLM loads and scores correctly (vision tower
+    # is auto-ignored — MIND needs no multimodality).
+    import transformers as _tf
+    _is_qwen35 = "qwen3_5" == getattr(_tf.AutoConfig.from_pretrained(model_path_arg), "model_type", None)
+    if _is_qwen35:
+        model_kwargs["attn_implementation"] = "sdpa"
+        print("Detected Qwen3.5 backbone: using sdpa attention (vision tower not loaded)")
+    elif args.flash_attn:
         model_kwargs["attn_implementation"] = "flash_attention_2"
         print("Using Flash Attention 2")
 

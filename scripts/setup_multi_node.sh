@@ -109,7 +109,7 @@ for node in $NODES; do
 
         # Define required versions for consistency across nodes
         TORCH_VERSION=\"2.6.0\"
-        TRANSFORMERS_VERSION=\"4.51.3\"
+        TRANSFORMERS_VERSION=\"5.2.0\"
         DEEPSPEED_VERSION=\"0.18.0\"
         FLASH_ATTN_VERSION=\"2.7.3\"
         TORCHREC_VERSION=\"0.8.0+cu124\"

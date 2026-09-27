@@ -138,16 +138,29 @@ def train(
     _base_model_arg = _Path(base_model) if _local else base_model
     _local_kwargs = {"local_files_only": True} if _local else {}
 
-    if not train_from_scratch:
+    # Attention implementation: flash_attention_2 is the fast path for dense
+    # causal LMs (e.g. Qwen3). The hybrid Qwen3.5 text backbone mixes
+    # GatedDeltaNet (linear attention) with full attention layers, which FA2
+    # cannot dispatch, so fall back to sdpa for those. Qwen3.5 checkpoints
+    # declare multimodal architectures (Qwen3_5ForConditionalGeneration) but
+    # AutoModelForCausalLM loads the pure-text Qwen3_5ForCausalLM, which
+    # automatically ignores the vision tower weights.
+    if train_from_scratch:
+        config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
+        model = AutoModelForCausalLM.from_config(config)
+    else:
+        _config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
+        _arch = " ".join(_config.architectures or [])
+        _hybrid_backbone = "ForConditionalGeneration" in _arch or "Qwen3_5" in _arch
+        _attn = "sdpa" if _hybrid_backbone else "flash_attention_2"
         model = AutoModelForCausalLM.from_pretrained(
             _base_model_arg,
             torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            attn_implementation=_attn,
             **_local_kwargs,
         )
-    else:
-        config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
-        model = AutoModelForCausalLM.from_config(config)
+        if _hybrid_backbone:
+            print(f"  Detected hybrid backbones ({_arch}): using {_attn} attention (vision tower not loaded)")
 
     tokenizer = AutoTokenizer.from_pretrained(_base_model_arg, trust_remote_code=True, **_local_kwargs)
     tokenizer.pad_token = tokenizer.eos_token

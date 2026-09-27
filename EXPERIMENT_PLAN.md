@@ -1,10 +1,17 @@
 # MIND Experiment Plan: Path to SOTA
 
 > Generated: 2026-02-25
-> Updated: 2026-04-21
-> Current Best: **71.44% AUC on test** / 71.52% dev (E3.A: L1.3 + L1.7 ensemble)
-> Target: 72.72% AUC (MIND Leaderboard SOTA)
-> Gap: ~1.28%
+> Updated: 2026-09-27
+> Current Best (submitted): **71.44% AUC on test** / 71.52% dev (E3.A: L1.3 + L1.7 ensemble)
+> **Rank: #14 / 101 on Codabench (MIND News Recommendation, competition 13967)**
+>
+> **Live leaderboard (2026-09-27, private/test):**
+> - #1 SOTA: **zetik 0.7326** AUC (2026-06-23) — target to beat
+> - #2: newsbang 0.7316 · #3: i4never 0.7258 · #4: qinzixuan 0.7249 · #5: jianchunyang 0.7226
+> - **overwindows: 0.7144 AUC** (MRR 0.3621, nDCG@5 0.3975, nDCG@10 0.4539), 2026-04-21
+>
+> **Gap to #1 zetik (SOTA): +0.0182 AUC (~1.8%)** · to top-5 (+0.7226): +0.0082 · to top-3: +0.0114
+> Need ~1.8% AUC gain over E3.A to become SOTA → stack multiple independent gains (ensemble + CF + pairwise/constrained-decoding + scaling).
 
 ## 🚀 Azure ML Pipeline Support
 
@@ -1490,11 +1497,10 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 | Milestone | AUC Target | Status |
 |-----------|------------|--------|
 | Baseline | 69.69% | ✅ Achieved |
-| +0.5% | 70.2% | ⬜ Pending |
-| +1.0% | 70.7% | ⬜ Pending |
-| +1.5% | 71.2% | ⬜ Pending |
-| +2.0% | 71.7% | ⬜ Pending |
-| SOTA | 72.7% | ⬜ Target |
+| Submitted best (E3.A) | 71.44% | ✅ On leaderboard (#14) |
+| +0.8% → top-5 | 72.26% | ⬜ Pending |
+| +1.1% → top-3 | 72.58% | ⬜ Pending |
+| +1.8% → SOTA | 73.26% | ⬜ Target (beat zetik) |
 
 ---
 
@@ -1758,4 +1764,44 @@ When an experiment is completed, copy the row from active table to "Completed Ex
 
 ---
 
-*Last updated: 2026-03-01*
+## 🏆 SOTA Pursuit Roadmap (2026-09-27)
+
+**Goal**: Beat **zetik @ 0.7326 AUC** on Codabench MIND (comp 13967). Currently **#14 @ 0.7144** → need **+0.0182 AUC**.
+
+**Principle**: SOTA gap is too large for any single +1% experiment. Stack **independent, additive** signals:
+ready-to-use ensembles (no training) → CF signal (inference-time blend) → architecture ablations (PBNR constrained decode = eval-only) → scaling (4B/8B). Each contributes a small independent gain; combined they close the gap.
+
+### Tier 0 — Already have (no new training)
+| Lever | ETA | Est. gain | Status |
+|-------|-----|-----------|--------|
+| E3.A ensemble (0.7144) | submitted | baseline | ✅ on board |
+| **E3.C** L1.3+L1.7+L1.2 | ready | +? (was 0.7105 dev) | try `--weights 1.0 0.8 0.8` (E3.D) |
+| **Snapshot ensemble** L1.3 ep3+ep4+final | free | +0.2-0.5% | run E3.S1 |
+
+### Tier 1 — Inference-time (fast, cheap, high ROI — do FIRST)
+| Lever | Where | Est. gain | Effort |
+|-------|-------|-----------|--------|
+| **PBNR constrained decoding** (P(Yes)+P(No)=1) | `evaluate_mind_pointwise.py` (eval-only) | +0.1-0.3% | ~2h |
+| **CF score ensemble** (`--cf_alpha` sweep 0.1-0.5) | `evaluate_mind_pointwise.py` + `compute_cf_scores.py` | +0.1-0.4% | ~2h |
+| **Weighted multi-ensemble** E3.D/E3.F | `eval_mind_pointwise_ensemble.sh` | +0.1-0.3% | ~1h |
+
+### Tier 2 — Training ablations (additive, ~24h GPU each)
+| Lever | Where | Est. gain |
+|-------|-------|-----------|
+| **A7.3 / A7.4** RecRanker pairwise (GLIMPSE) Bradley-Terry loss | `sft_mind_pointwise_ds.py` + λ sweep | +0.2-0.5% |
+| **L1.6** 4B abstract (checkpoint-37376=0.6819 mid; finish + vs train) | `pipeline/run_pipeline.py` | +0.5-1.0% |
+| **6D CF-augmented prompt** "similar users also clicked X,Y,Z" | `sft_mind_pointwise_ds.py` | +0.1-0.3% |
+
+### Tier 3 — Ensemble the new models
+After Tier 2 adds divergent models (4B, pairwise, CF-prompt), fold them into **majority-vote ensembles** (3/5/7 models):
+E3.F → E3.G (5-model). This is where the compounding gain lands.
+
+### Recommended order (cheapest → compound)
+1. **Now**: E3.D weighted + E3.S1 snapshot + PBNR constrained eval + CF α sweep — all inference-time, no GPU training.
+2. If inference gains stall <~0.5-0.8%, launch **A7.3 pairwise training** (additive to L1.3) in parallel with **finishing L1.6 4B**.
+3. Fold winners into **E3.F (3-model) / E3.G (5-model)** majority vote → submit.
+4. Validate on **dev** first; only submit to Codabench when dev shows a clear edge over 0.7152.
+
+---
+
+*Last updated: 2026-09-27*

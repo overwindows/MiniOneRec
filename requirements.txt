@@ -12,7 +12,10 @@ torchvision==0.21.0
 torchaudio==2.6.0
 
 # Transformers & Training
-transformers==4.57.1
+# transformers>=5.2.0 required for qwen3_5 model support (Qwen3_5ForCausalLM,
+# the pure-text causal class that auto-skips the vision tower). 5.2.0 also maps
+# qwen3 -> Qwen3ForCausalLM, so the existing Qwen3 baseline keeps working.
+transformers==5.2.0
 tokenizers==0.22.1
 accelerate==1.10.1
 trl==0.24.0

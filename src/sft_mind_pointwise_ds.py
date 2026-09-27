@@ -56,27 +56,27 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data import MINDPointwiseSFTDataset
 
-def resolve_report_to(wandb_project, timeout=10):
-    """Best-effort WandB: use wandb only if the server is reachable & logged in.
+def resolve_report_to(wandb_project):
+    """Decide the HF `report_to` target for this run.
 
-    On network-isolated compute nodes HF's WandbCallback -> wandb.init() raises
+    WandB CANNOT be reached from AzureML/Singularity compute nodes: the node is
+    network-isolated (`setup_multi_node.sh` logs "WandB login failed") and even
+    with a valid key HF's WandbCallback -> wandb.init() crashes rank 0 with
     "TypeError: the JSON object must be str, bytes or bytearray, not NoneType"
-    from wandb's query_with_timeout (server.py:39). On a DeepSpeed job that
-    crashes rank 0 and hangs the barrier, and the other ranks then dump an NCCL
-    DistBackendError as a misleading secondary symptom. Falling back to "none"
-    keeps training alive without remote logging.
+    from wandb's query_with_timeout (server.py:39) reading a None flags field.
+    Under DeepSpeed that kills rank 0, hangs the barrier, and the other ranks
+    dump a misleading NCCL DistBackendError as a secondary symptom.
+
+    So remote wandb is disabled by default (report_to="none"); checkpoints and
+    eval still write to disk, so training results are unaffected. Set
+    MINIONEREC_ENABLE_WANDB=1 to force real logging (e.g. on a node with
+    outbound access).
     """
     if not wandb_project:
         return "none"
-    try:
-        import wandb
-        # Bounded probe; viewer is None when not logged in / server unreachable
-        api = wandb.Api(timeout=timeout)
-        if not api.viewer:
-            return "none"
+    if os.environ.get("MINIONEREC_ENABLE_WANDB", "") == "1":
         return "wandb"
-    except Exception:
-        return "none"
+    return "none"
 
 
 def set_seed(seed):

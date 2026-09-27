@@ -241,6 +241,12 @@ def train(
         "per_device_train_batch_size": micro_batch_size,
         "per_device_eval_batch_size": micro_batch_size,
         "gradient_accumulation_steps": gradient_accumulation_steps,
+        # Long sequences (cutoff_len up to 8192) with micro_batch 4 produce very
+        # large activation tensors; without checkpointing the forward pass OOMs
+        # an 80GB A100 during the loss logits materialization (seen as CUDA OOM
+        # in fixed_cross_entropy on the first step). Checkpointing trades a
+        # little compute for a large drop in activation memory.
+        "gradient_checkpointing": True,
         "warmup_steps": 100,
         "num_train_epochs": num_epochs,
         "learning_rate": learning_rate,

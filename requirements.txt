@@ -39,7 +39,12 @@ faiss-cpu
 k-means-constrained
 
 # RL Framework (VERL)
-git+https://github.com/volcengine/verl.git@main
+# PINNED to a pre-uv-integration commit (2026-02): verl@main later drifted to
+# numpy>=2.0.0 / torch==2.13.0 / vllm==0.29.0, which conflicts with this repo's
+# torch 2.6.0 + numpy<2.0.0 pin and broke `pip install -r requirements.txt`
+# (ResolutionImpossible at line 42). 52d8ba9b13 uses numpy<2.0.0 and does not
+# pin torch in its base install_requires, so it resolves cleanly with our stack.
+git+https://github.com/volcengine/verl.git@52d8ba9b1393b8b12de1d3a29ebbd810a9252d69
 vllm>=0.7.0
 ray[default]
 tensordict

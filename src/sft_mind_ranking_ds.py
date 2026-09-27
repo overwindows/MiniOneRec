@@ -44,6 +44,29 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
+def resolve_report_to(wandb_project, timeout=10):
+    """Best-effort WandB: use wandb only if the server is reachable & logged in.
+
+    On network-isolated compute nodes HF's WandbCallback -> wandb.init() raises
+    "TypeError: the JSON object must be str, bytes or bytearray, not NoneType"
+    from wandb's query_with_timeout (server.py:39). On a DeepSpeed job that
+    crashes rank 0 and hangs the barrier, and the other ranks then dump an NCCL
+    DistBackendError as a misleading secondary symptom. Falling back to "none"
+    keeps training alive without remote logging.
+    """
+    if not wandb_project:
+        return "none"
+    try:
+        import wandb
+        # Bounded probe; viewer is None when not logged in / server unreachable
+        api = wandb.Api(timeout=timeout)
+        if not api.viewer:
+            return "none"
+        return "wandb"
+    except Exception:
+        return "none"
+
+
 class MINDRankingSFTDataset:
     """
     MIND dataset for ranking-aware SFT training.
@@ -780,7 +803,7 @@ def train(
         "ddp_find_unused_parameters": False if ddp else None,
         # group_by_length removed from TrainingArguments in transformers 5.x;
         # repo default is False (= 5.x default), so dropping is behaviour-neutral
-        "report_to": "wandb" if wandb_project else "none",
+        "report_to": resolve_report_to(wandb_project),
         "run_name": wandb_run_name if wandb_run_name else None,
         "metric_for_best_model": "eval_loss" if val_data else None,
         "greater_is_better": False,

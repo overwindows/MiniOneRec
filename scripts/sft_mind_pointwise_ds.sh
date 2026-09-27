@@ -66,10 +66,20 @@ export MKL_NUM_THREADS=4
 # =========================
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-# WandB Configuration
-export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
-export WANDB_MODE=online
-echo "WandB: online mode"
+# WandB Configuration. Remote wandb is DISABLED by default: AzureML/Singularity
+# compute nodes are network-isolated and HF's WandbCallback -> wandb.init()
+# crashes rank0 ("TypeError ... NoneType" from query_with_timeout), hanging the
+# DeepSpeed barrier and dumping a misleading NCCL DistBackendError. Only enable
+# real wandb when MINIONEREC_ENABLE_WANDB=1 (e.g. on a node with outbound net).
+if [ "${MINIONEREC_ENABLE_WANDB:-0}" = "1" ]; then
+    export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
+    export WANDB_MODE=online
+    echo "WandB: online mode (MINIONEREC_ENABLE_WANDB=1)"
+else
+    export WANDB_MODE=offline
+    unset WANDB_API_KEY
+    echo "WandB: DISABLED (set MINIONEREC_ENABLE_WANDB=1 to enable)"
+fi
 
 # Use a different port to avoid conflicts
 export MASTER_PORT=29503
@@ -210,8 +220,7 @@ deepspeed --hostfile=$HOSTFILE \
         --use_abstract ${USE_ABSTRACT} \
         --use_subcategory ${USE_SUBCATEGORY} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \
-        --wandb_project MiniOneRec_MIND \
-        --wandb_run_name ${WANDB_RUN_NAME} \
+        $(if [ "${MINIONEREC_ENABLE_WANDB:-0}" = "1" ]; then echo "--wandb_project MiniOneRec_MIND --wandb_run_name ${WANDB_RUN_NAME}"; fi) \
         --train_from_scratch False \
         --seed 42 \
         --deepspeed_config ${DS_CONFIG} \

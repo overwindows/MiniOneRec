@@ -778,7 +778,8 @@ def train(
         "save_total_limit": 3,
         "load_best_model_at_end": True if val_data else False,
         "ddp_find_unused_parameters": False if ddp else None,
-        "group_by_length": group_by_length,
+        # group_by_length removed from TrainingArguments in transformers 5.x;
+        # repo default is False (= 5.x default), so dropping is behaviour-neutral
         "report_to": "wandb" if wandb_project else "none",
         "run_name": wandb_run_name if wandb_run_name else None,
         "metric_for_best_model": "eval_loss" if val_data else None,

@@ -232,7 +232,10 @@ def train(
         "save_total_limit": 2,
         "load_best_model_at_end": True if val_data else False,
         "ddp_find_unused_parameters": False if ddp else None,
-        "group_by_length": group_by_length,
+        # NOTE: `group_by_length` was removed from TrainingArguments in
+        # transformers 5.x (it was deprecated in 4.5x). The repo default is
+        # False (no length grouping), which is transformers 5.x default too,
+        # so dropping it is behaviour-neutral here.
         "report_to": "wandb" if wandb_project else "none",
         "run_name": wandb_run_name if wandb_run_name else None,
         "metric_for_best_model": "eval_loss" if val_data else None,

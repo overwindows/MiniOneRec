@@ -25,17 +25,26 @@ VC_ARM_ID = (
     "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
 )
 
-# Single A100 (1 GPU is enough for inference; keeps job small + avoid hogging 8x)
-res_cfg = JobResourceConfiguration(
-    instance_count=1,
-    instance_type="Singularity.ND96amrs_A100_v4",
-    properties={
-        "singularity": {
-            "slaTier": "Premium",
-            "priority": "High",
-            "enableAzmlInt": False,
-        }
-    },
+def make_res_cfg(sla_tier="Premium"):
+    # Single A100 (1 GPU is enough for inference; keeps job small + avoid hogging 8x)
+    return JobResourceConfiguration(
+        instance_count=1,
+        instance_type="Singularity.ND96amrs_A100_v4",
+        properties={
+            "singularity": {
+                "slaTier": sla_tier,
+                "priority": "High",
+                "enableAzmlInt": False,
+            }
+        },
+    )
+
+# User-assigned managed identity required by Singularity policy to authenticate
+# against the datastore for RW_MOUNT access (same UAI the training pipeline uses).
+UAI_RESOURCE_ID = (
+    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+    "/resourceGroups/AMLStudio"
+    "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
 )
 
 SCRIPT_DIR = Path(__file__).parent
@@ -66,7 +75,11 @@ def mind_jev_pipeline(
         debug_mode=debug_mode,
     )
     node.compute = VC_ARM_ID
-    node.resources = res_cfg
+    node.resources = make_res_cfg("Premium")
+    # Singularity policy: UAI lets the node authenticate to the RW_MOUNT datastore
+    node.environment_variables = {
+        "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
+    }
     node.settings.force_rerun = True
 
 
@@ -81,6 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-history", type=int, default=30)
     parser.add_argument("--max-impressions", type=int, default=0)
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun")
+    parser.add_argument("--sla-tier", default="Premium", choices=["Basic", "Standard", "Premium"])
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
@@ -98,6 +112,10 @@ if __name__ == "__main__":
         max_impressions=args.max_impressions,
         debug_mode="true" if args.debug else "false",
     )
+    # Override the eval node's SLA tier (Premium is node-starved on recall; Basic/Standard have free A100s)
+    for n in job.jobs.values():
+        if hasattr(n, "resources") and n.name == "node":
+            n.resources = make_res_cfg(args.sla_tier)
     job.settings.default_compute = VC_ARM_ID
     job.experiment_name = args.experiment_name
     if args.display_name:

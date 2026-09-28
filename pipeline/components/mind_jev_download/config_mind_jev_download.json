@@ -10,15 +10,15 @@
       "working_dir": "."
     },
     {
-      "name": "检查 cosmos 挂载布局",
-      "description": "列出 cosmos datastore 挂载根目录与 qwen3.5 相关路径，确认 dest_path 放置位置",
-      "command": "REPO=./MiniOneRec; cd $REPO && echo '=== mount_dir:' {mount_dir} '===' && echo '--- top-level ---' && ls -la {mount_dir} | head -60 && echo '--- qwen candidates ---' && ls -d {mount_dir}/*wen* {mount_dir}/*Qwen* {mount_dir}/*FP8* 2>/dev/null | head -40 && echo 'MOUNT_LIST_DONE'",
+      "name": "检查 cosmos 挂载布局与可写性",
+      "description": "列出 cosmos datastore 挂载根目录，并探测候选路径是否可写，确认 dest_path 放置位置",
+      "command": "REPO=./MiniOneRec; cd $REPO && echo '=== mount_dir:' {mount_dir} '===' && echo '--- top-level ---' && ls -la {mount_dir} | head -80 && echo '--- write probe: root ---' && (mkdir -p {mount_dir}/__wtest && touch {mount_dir}/__wtest/f && echo 'WRITE_ROOT_OK' && rm -rf {mount_dir}/__wtest || echo 'WRITE_ROOT_FAIL') && echo '--- write probe: inside an existing Qwen dir ---' && (touch {mount_dir}/Qwen2.5-3B/__wtest 2>/dev/null && echo 'WRITE_IN_QWEN_OK' && rm -f {mount_dir}/Qwen2.5-3B/__wtest || echo 'WRITE_IN_QWEN_FAIL') && echo 'PROBE_DONE'",
       "working_dir": "."
     },
     {
       "name": "下载 OpenJev 快照",
       "description": "使用 huggingface_hub snapshot_download 把模型预置到共享 datastore，避免占用 A100 GPU 时长",
-      "command": "REPO=./MiniOneRec; cd $REPO && DEST={mount_dir}/{dest_path} && mkdir -p $(dirname $DEST) && echo '=== downloading {repo_id} ->' $DEST '===' && python src/download_hf_model.py --repo_id {repo_id} --dest $DEST && du -sh $DEST && ls -la $DEST | head -20 && echo 'DOWNLOAD_COMPLETE'",
+      "command": "REPO=./MiniOneRec; cd $REPO && echo '--- probing dest parent before download ---' && DEST={mount_dir}/{dest_path} && echo \"dest candidate: $DEST\" && (mkdir -p $(dirname $DEST) 2>/dev/null && echo 'DEST_PARENT_OK' || echo 'DEST_PARENT_FAIL') && if [ -w $(dirname $DEST) ]; then echo '=== downloading {repo_id} ->' $DEST '===' && python src/download_hf_model.py --repo_id {repo_id} --dest $DEST && du -sh $DEST && ls -la $DEST | head -20 && echo 'DOWNLOAD_COMPLETE'; else echo 'DOWNLOAD_SKIP_NOT_WRITABLE'; fi",
       "working_dir": "."
     },
     {

@@ -404,8 +404,12 @@ def train(
     print(f"Chat template: {'enabled' if use_chat_template else 'disabled'}")
     print("=" * 60)
 
-    # Load model
-    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
+    # Load model. Use sdpa attention: it is a PyTorch-native fused kernel with
+    # no external flash_attn dependency, so it cannot hit the ABI-mismatch crash
+    # (undefined symbol `_ZN3c105ErrorC2...`) seen when a flash_attn wheel is
+    # built against a different torch than the runtime one on AzureML nodes.
+    # sdpa is just as capable for dense causal LMs and is the default HF path.
+    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, attn_implementation="sdpa")
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id

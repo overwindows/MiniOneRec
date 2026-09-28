@@ -231,6 +231,10 @@ def main():
         'max_impressions': args.max_impressions,
     }
 
+    # Expose the raw datastore mount path so configs can reference {mount_dir}
+    # directly (e.g. the download dest "{mount_dir}/{dest_path}").
+    cli_variables['mount_dir'] = args.mount_dir
+
     # 合成完整路径
     if args.mount_dir and args.model_path:
         cli_variables['model_path'] = f"{args.mount_dir}/{args.model_path}"

@@ -161,13 +161,16 @@ def train(
     _base_model_arg = _Path(base_model) if _local else base_model
     _local_kwargs = {"local_files_only": True} if _local else {}
 
-    # Attention implementation: flash_attention_2 is the fast path for dense
-    # causal LMs (e.g. Qwen3). The hybrid Qwen3.5 text backbone mixes
-    # GatedDeltaNet (linear attention) with full attention layers, which FA2
-    # cannot dispatch, so fall back to sdpa for those. Qwen3.5 checkpoints
-    # declare multimodal architectures (Qwen3_5ForConditionalGeneration) but
-    # AutoModelForCausalLM loads the pure-text Qwen3_5ForCausalLM, which
-    # automatically ignores the vision tower weights.
+    # Attention implementation: use sdpa (PyTorch-native) across the board.
+    # flash_attention_2 is nominally faster for dense causal LMs, but it is an
+    # external wheel whose ABI can mismatch the node's torch (undefined symbol
+    # `_ZN3c105ErrorC2...` at import) — seen node-variant on AzureML where
+    # setup_multi_node.sh may install torch==2.6.0 vs a flash_attn built for a
+    # different torch. sdpa has no such external dependency, dispatches both
+    # dense and the hybrid Qwen3.5 GatedDeltaNet backbone (which FA2 cannot
+    # handle anyway), so it is the robust default. Qwen3.5 checkpoints declare
+    # multimodal architectures but AutoModelForCausalLM loads the pure-text
+    # Qwen3_5ForCausalLM, which automatically ignores the vision tower weights.
     if train_from_scratch:
         config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
         model = AutoModelForCausalLM.from_config(config)
@@ -175,15 +178,14 @@ def train(
         _config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
         _arch = " ".join(_config.architectures or [])
         _hybrid_backbone = "ForConditionalGeneration" in _arch or "Qwen3_5" in _arch
-        _attn = "sdpa" if _hybrid_backbone else "flash_attention_2"
         model = AutoModelForCausalLM.from_pretrained(
             _base_model_arg,
             torch_dtype=torch.bfloat16,
-            attn_implementation=_attn,
+            attn_implementation="sdpa",
             **_local_kwargs,
         )
         if _hybrid_backbone:
-            print(f"  Detected hybrid backbones ({_arch}): using {_attn} attention (vision tower not loaded)")
+            print(f"  Detected hybrid backbones ({_arch}): using sdpa attention (vision tower not loaded)")
 
     tokenizer = AutoTokenizer.from_pretrained(_base_model_arg, trust_remote_code=True, **_local_kwargs)
     tokenizer.pad_token = tokenizer.eos_token

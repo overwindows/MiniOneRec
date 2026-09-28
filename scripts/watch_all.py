@@ -11,7 +11,7 @@ IDS = {
     'frosty_zoo_8qlgqlc84z': 'M2B-Base 2BBase multitask RN2 mb2',
     'dreamy_pepper_xzt2wld734': 'R7c2 2B pointwise rerun',
     'keen_lychee_27zbpfkgkg': 'JEV4B download (CPU)',
-    'crimson_date_k8mk9cm6z9': 'JEV4B download to cosmos (CPU)',
+    'amiable_wire_4rc378x92r': 'JEV4B download to cosmos v2 (CPU)',
     'quiet_wheel_d6dplq44x4': 'M3B 2B multitask PW0.5 RN2 mb2 (env fix)',
     'shy_yuca_7qmtcsf96q': 'M3BL 2BBase multitask PW0.5 RN2 mb2 (env fix)',
 }
@@ -24,7 +24,7 @@ logs = {
     'frosty_zoo_8qlgqlc84z': 'scripts/m2b_base_std_log.txt',
     'dreamy_pepper_xzt2wld734': 'scripts/r7c2_std_log.txt',
     'keen_lychee_27zbpfkgkg': 'scripts/jev_dl_std_log.txt',
-    'crimson_date_k8mk9cm6z9': 'scripts/jev_dl_cosmos_std_log.txt',
+    'amiable_wire_4rc378x92r': 'scripts/jev_dl_cosmos_std_log.txt',
     'quiet_wheel_d6dplq44x4': 'scripts/m3b_std_log.txt',
     'shy_yuca_7qmtcsf96q': 'scripts/m3bl_std_log.txt',
 }

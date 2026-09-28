@@ -7,12 +7,12 @@ import time, requests
 IDS = {
     'quiet_wheel_d6dplq44x4': 'M3B 2B multitask (env fix)',
     'shy_yuca_7qmtcsf96q': 'M3BL 2BBase multitask (env fix)',
-    'crimson_date_k8mk9cm6z9': 'JEV4B download to cosmos',
+    'amiable_wire_4rc378x92r': 'JEV4B download to cosmos v2',
 }
 logs = {
     'quiet_wheel_d6dplq44x4': 'scripts/m3b_std_log.txt',
     'shy_yuca_7qmtcsf96q': 'scripts/m3bl_std_log.txt',
-    'crimson_date_k8mk9cm6z9': 'scripts/jev_dl_cosmos_std_log.txt',
+    'amiable_wire_4rc378x92r': 'scripts/jev_dl_cosmos_std_log.txt',
 }
 
 def running_child(children):

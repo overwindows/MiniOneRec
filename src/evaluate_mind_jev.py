@@ -214,13 +214,12 @@ class JevScorer:
         L = max(len(s) for s in seqs)
         batch = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
         mask = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
-        pos = []
+        pos_ids = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
         for r, s in enumerate(seqs):
             off = L - len(s)
             batch[r, off:] = torch.tensor(s, dtype=torch.long, device=self.device)
             mask[r, off:] = 1
-            pos.append(torch.arange(len(s), device=self.device))
-        pos_ids = torch.stack(pos)
+            pos_ids[r, off:] = torch.arange(len(s), device=self.device)
         out = self.model(
             input_ids=batch,
             attention_mask=mask,

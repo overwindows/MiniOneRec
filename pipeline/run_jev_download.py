@@ -48,8 +48,8 @@ if __name__ == "__main__":
     parser.add_argument("--experiment-name", default="mind_jev_download")
     parser.add_argument("--display-name", default=None)
     parser.add_argument("--repo-id", default="apus-ailab/APUS-OpenJev-v1-4B")
-    parser.add_argument("--dest-path", default="shares/users/wuc/models/APUS-OpenJev-v1-4B")
-    parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun")
+    parser.add_argument("--dest-path", default="APUS-OpenJev-v1-4B")
+    parser.add_argument("--datastore", default="copilotexplore_dtalake")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 

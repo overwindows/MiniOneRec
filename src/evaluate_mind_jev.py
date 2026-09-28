@@ -156,9 +156,7 @@ class JevScorer:
             seen.add(t[0])
             self.cand_tokens.append(t[0])
 
-    @torch.inference_mode()
-    def score_yes(self, state: str) -> float:
-        """Return P(yes)=softmax(logits)[A] for the noul prompt."""
+    def _encode(self, state: str):
         prompt = render_noul_prompt(state)
         full = self.tokenizer.apply_chat_template(
             [{"role": "user", "content": prompt}],
@@ -166,12 +164,18 @@ class JevScorer:
             add_generation_prompt=True,
             enable_thinking=False,
         )
-        ids = self.tokenizer.encode(full, add_special_tokens=False)
+        return self.tokenizer.encode(full, add_special_tokens=False)
+
+    def _max_len(self) -> int:
         if sys.platform != "win32":
-            max_len = getattr(self.config, "max_position_embeddings", 262144)
-        else:
-            max_len = 8192
-        if not ids or len(ids) > max_len:
+            return getattr(self.config, "max_position_embeddings", 262144)
+        return 8192
+
+    @torch.inference_mode()
+    def score_yes(self, state: str) -> float:
+        """Return P(yes)=softmax(logits)[A] for a single noul prompt."""
+        ids = self._encode(state)
+        if not ids or len(ids) > self._max_len():
             return -1.0  # too long; caller treats as abstain
         input_ids = torch.tensor([ids], dtype=torch.long, device=self.device)
         out = self.model(
@@ -186,6 +190,52 @@ class JevScorer:
         cand_logits = logits[self.cand_tokens]
         probs = torch.softmax(cand_logits, -1)
         return float(probs[0].item())
+
+    @torch.inference_mode()
+    def score_yes_batch(self, states: List[str]) -> List[float]:
+        """Score many candidate states in one padded forward (left-padded decoder).
+
+        This avoids the serial per-candidate forward passes that made the naive
+        loop ~10-30x slower. Paddings go on the LEFT so the final real token of
+        each row carries its own answer-boundary logit (logits_to_keep=1).
+        Returns P(yes) per state; -1.0 marks an oversized/abstained candidate.
+        """
+        max_len = self._max_len()
+        seqs = []
+        idx = []
+        for i, s in enumerate(states):
+            ids = self._encode(s)
+            if not ids or len(ids) > max_len:
+                continue
+            seqs.append(ids)
+            idx.append(i)
+        if not seqs:
+            return [-1.0] * len(states)
+        L = max(len(s) for s in seqs)
+        batch = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
+        mask = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
+        pos = []
+        for r, s in enumerate(seqs):
+            off = L - len(s)
+            batch[r, off:] = torch.tensor(s, dtype=torch.long, device=self.device)
+            mask[r, off:] = 1
+            pos.append(torch.arange(len(s), device=self.device))
+        pos_ids = torch.stack(pos)
+        out = self.model(
+            input_ids=batch,
+            attention_mask=mask,
+            position_ids=pos_ids,
+            use_cache=False,
+            return_dict=True,
+            logits_to_keep=1,
+        )
+        logits = out.logits[:, -1, :].float()
+        cand_logits = logits[:, self.cand_tokens]
+        probs = torch.softmax(cand_logits, -1)
+        result = [-1.0] * len(states)
+        for j, r in enumerate(idx):
+            result[r] = float(probs[j, 0].item())
+        return result
 
 
 def parse_behaviors_line(line: str):
@@ -245,18 +295,17 @@ def main():
             history_objs = [news[nid] for nid in history_ids if nid in news]
 
             labels = []
-            scores = []
             candidate_ids = []
+            states = []
             for nid, label in impressions:
                 if nid not in news:
                     continue
                 candidate_ids.append(nid)
                 labels.append(label)
-                state = build_jev_state(history_objs, news[nid])
-                s = scorer.score_yes(state)
-                if s < 0:  # abstain / too long -> neutral score
-                    s = 0.5
-                scores.append(s)
+                states.append(build_jev_state(history_objs, news[nid]))
+            # Batch all candidates of the impression into one padded forward.
+            raw = scorer.score_yes_batch(states)
+            scores = [0.5 if s < 0 else s for s in raw]  # abstain/too-long -> neutral
 
             if not candidate_ids:
                 continue

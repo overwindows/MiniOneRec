@@ -11,6 +11,14 @@
 
 set -euo pipefail
 
+# Ensure conda is available and activate the MiniOneRec env. The bare `torchrun`
+# below resolves Python via PATH; without activating the env it can pick up the
+# system /opt/py311 Python whose transformers predates qwen3_5 and fails with
+# `KeyError: 'qwen3_5'` on Qwen3.5 checkpoints. This mirrors pointwise_ds.sh.
+export PATH="$HOME/.conda/envs/MiniOneRec/bin:$PATH"
+source ~/miniconda3/etc/profile.d/conda.sh 2>/dev/null || source ~/anaconda3/etc/profile.d/conda.sh 2>/dev/null || true
+conda activate MiniOneRec 2>/dev/null || true
+
 export NCCL_IB_DISABLE=1
 # WandB is DISABLED by default: AzureML/Singularity compute nodes are
 # network-isolated and HF's WandbCallback -> wandb.init() crashes rank0

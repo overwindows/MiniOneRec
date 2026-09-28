@@ -46,6 +46,25 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
+def resolve_report_to(wandb_project):
+    """Decide the HF `report_to` target for this run.
+
+    WandB CANNOT be reached from AzureML/Singularity compute nodes (the node is
+    network-isolated) and HF's WandbCallback -> wandb.init() crashes rank 0
+    with "TypeError: the JSON object must be str, bytes or bytearray, not
+    NoneType" from wandb's query_with_timeout, which under torchrun/DDP kills
+    rank0, hangs the barrier, and surfaces as a misleading NCCL/DistBackendError
+    on the other ranks. So remote wandb is disabled by default (report_to="none");
+    checkpoints and eval still write to disk. Set MINIONEREC_ENABLE_WANDB=1 to
+    force real logging (e.g. on a node with outbound access).
+    """
+    if not wandb_project:
+        return "none"
+    if os.environ.get("MINIONEREC_ENABLE_WANDB", "") == "1":
+        return "wandb"
+    return "none"
+
+
 def load_news(news_path: str, use_abstract: bool):
     """Load news articles from news.tsv"""
     news = {}
@@ -445,7 +464,13 @@ def train(
         save_total_limit=3,
         load_best_model_at_end=True,
         ddp_find_unused_parameters=False if ddp else None,
-        report_to="wandb" if wandb_project else "none",
+        # Long sequences (cutoff_len up to 8192) with a small micro_batch produce
+        # very large activation tensors; without checkpointing the forward pass
+        # OOMs an 80GB A100 during loss logits materialization (seen as a CUDA
+        # OOM in fixed_cross_entropy on the first step). Checkpointing trades a
+        # little compute for a large drop in activation memory.
+        gradient_checkpointing=True,
+        report_to=resolve_report_to(wandb_project),
         run_name=wandb_run_name if wandb_run_name else None,
         metric_for_best_model="eval_loss",
         greater_is_better=False,

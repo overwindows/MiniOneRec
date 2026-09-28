@@ -12,7 +12,17 @@
 set -euo pipefail
 
 export NCCL_IB_DISABLE=1
-export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
+# WandB is DISABLED by default: AzureML/Singularity compute nodes are
+# network-isolated and HF's WandbCallback -> wandb.init() crashes rank0
+# ("TypeError ... NoneType" from query_with_timeout), hanging the DDP barrier.
+# Only pass/activate real wandb when MINIONEREC_ENABLE_WANDB=1.
+if [ "${MINIONEREC_ENABLE_WANDB:-0}" = "1" ]; then
+    export WANDB_API_KEY="${WANDB_API_KEY:-fd3aec2cadf8ee9a2b3c6f4ac8210f65d73d134b}"
+    export WANDB_MODE=online
+else
+    export WANDB_MODE=offline
+    unset WANDB_API_KEY
+fi
 
 export MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
 export GLOO_SOCKET_IFNAME=${GLOO_SOCKET_IFNAME:-lo}
@@ -141,9 +151,8 @@ torchrun --nproc_per_node ${PROCESS_NUM} \
     --ranking_neg_ratio ${RANKING_NEG_RATIO} \
     --max_history ${MAX_HISTORY} \
     --sample ${SAMPLE} \
-    --wandb_project ${WANDB_PROJECT} \
-    --wandb_run_name ${WANDB_RUN_NAME} \
     --seed 42 \
+    $(if [ "${MINIONEREC_ENABLE_WANDB:-0}" = "1" ]; then echo "--wandb_project ${WANDB_PROJECT} --wandb_run_name ${WANDB_RUN_NAME}"; fi) \
     ${ABSTRACT_FLAG} \
     $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi)
 

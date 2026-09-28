@@ -1,0 +1,52 @@
+{
+  "pipeline_name": "MIND OpenJev Download (CPU)",
+  "description": "克隆 MiniOneRec 仓库并在 CPU 计算上把 OpenJev 快照下载到共享 datastore",
+
+  "commands": [
+    {
+      "name": "切换到 home 目录",
+      "command": "cd /home/aiscuser",
+      "working_dir": ".",
+      "is_cd_command": true,
+      "new_working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "删除旧的 MiniOneRec 目录",
+      "command": "rm -rf /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "克隆 MiniOneRec 仓库",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "切换到 dev 分支",
+      "command": "git checkout dev",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "下载 OpenJev 快照",
+      "description": "使用 huggingface_hub snapshot_download 把模型预置到共享 datastore，避免占用 A100 GPU 时长",
+      "command": "DEST={mount_dir}/{dest_path} && mkdir -p $(dirname $DEST) && echo '=== downloading {repo_id} ->' $DEST '===' && python src/download_hf_model.py --repo_id {repo_id} --dest $DEST && du -sh $DEST && ls -la $DEST | head -20 && echo 'DOWNLOAD_COMPLETE'",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "调试模式-保持容器运行",
+      "command": "echo '=== 调试模式: 容器将保持运行 ===' && sleep infinity",
+      "working_dir": "/home/aiscuser/MiniOneRec",
+      "enabled": true
+    }
+  ],
+
+  "error_handling": {
+    "stop_on_error": true,
+    "retry_failed_commands": false,
+    "max_retries": 1
+  },
+
+  "logging": {
+    "log_level": "INFO",
+    "save_command_outputs": true
+  }
+}

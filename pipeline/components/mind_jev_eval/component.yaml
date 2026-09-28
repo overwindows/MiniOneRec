@@ -1,0 +1,54 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: mind_jev_eval
+display_name: MIND OpenJev Decision-Model Evaluation
+version: "1"
+type: command
+description: Evaluate MIND using APUS-OpenJev as a noul decision scorer
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  model_path:
+    type: string
+    description: OpenJev模型本地快照路径（相对于挂载路径）
+  data_root:
+    type: string
+    default: "shares/users/wuc/data/MIND_small"
+    description: 数据集根目录（相对于挂载路径）
+  split:
+    type: string
+    default: "dev"
+    description: 评估数据集 (dev/test)
+  use_abstract:
+    type: integer
+    default: 0
+    description: 是否使用新闻摘要 (1=是, 0=否)
+  max_history:
+    type: integer
+    default: 30
+    description: 最大历史记录长度
+  max_impressions:
+    type: integer
+    default: 0
+    description: 最多评估的impression数 (0=全部)
+  debug_mode:
+    type: string
+    default: "false"
+    description: 调试模式 (true/false)
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_mind_jev_eval.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --split ${{inputs.split}}
+  --use-abstract ${{inputs.use_abstract}}
+  --max-history ${{inputs.max_history}}
+  --max-impressions ${{inputs.max_impressions}}
+  --debug-mode ${{inputs.debug_mode}}

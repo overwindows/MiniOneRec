@@ -1,0 +1,34 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: mind_jev_download
+display_name: MIND OpenJev Download (CPU)
+version: "1"
+type: command
+description: Pre-stage APUS-OpenJev snapshot onto shared datastore on CPU compute (no GPU hours)
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  repo_id:
+    type: string
+    default: "apus-ailab/APUS-OpenJev-v1-4B"
+    description: HuggingFace repo id
+  dest_path:
+    type: string
+    description: 目标目录（相对于挂载路径）
+  debug_mode:
+    type: string
+    default: "false"
+    description: 调试模式 (true/false)
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_mind_jev_download.json
+  --mount-dir ${{inputs.msndni}}
+  --repo-id ${{inputs.repo_id}}
+  --dest-path ${{inputs.dest_path}}
+  --debug-mode ${{inputs.debug_mode}}

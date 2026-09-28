@@ -209,6 +209,11 @@ def main():
     parser.add_argument("--num-gpus", help="使用的GPU数量")
     parser.add_argument("--cf-alpha", help="CF blend weight (0=no CF, >0 enables CF scoring)", default="0.0")
     parser.add_argument("--debug-mode", help="调试模式 (true/false)")
+    # Model pre-staging (mind_jev_download)
+    parser.add_argument("--repo-id", help="HuggingFace repo id to download", default="")
+    parser.add_argument("--dest-path", help="目标目录（相对于挂载路径）", default="")
+    # OpenJev eval
+    parser.add_argument("--max-impressions", help="最多评估的impression数 (0=全部)", default="0")
 
     args = parser.parse_args()
 
@@ -221,6 +226,9 @@ def main():
         'batch_size': args.batch_size,
         'num_gpus': args.num_gpus,
         'cf_alpha': args.cf_alpha,
+        'repo_id': args.repo_id,
+        'dest_path': args.dest_path,
+        'max_impressions': args.max_impressions,
     }
 
     # 合成完整路径

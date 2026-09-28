@@ -130,6 +130,15 @@ class JevScorer:
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
         self.config = config
 
+        # OpenJev ships its chat template in chat_template.jinja (tokenizer_config has
+        # no inline chat_template). If the tokenizer has none, load it from the file.
+        if not getattr(self.tokenizer, "chat_template", None):
+            import os as _os
+            jinja = _os.path.join(model_path, "chat_template.jinja")
+            if _os.path.exists(jinja):
+                with open(jinja, encoding="utf-8") as f:
+                    self.tokenizer.chat_template = f.read()
+
         # Candidate label tokens must be single and unique at the answer boundary
         prompt = self.tokenizer.apply_chat_template(
             [{"role": "user", "content": "x"}],

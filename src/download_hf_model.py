@@ -42,6 +42,7 @@ def main():
             "*.txt",
             "*.model",
             "*.tokenizer",
+            "*.jinja",
             "*.merges",
             "*.vocab",
             "*tokenizer*",

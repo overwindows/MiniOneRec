@@ -146,6 +146,7 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | **L1.7** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | Base model (non-instruct) | 0.6946 | 0.3373 | 0.3767 | 0.4392 | No chat template; [W&B](https://wandb.ai/wuchen/MIND/runs/i9h0gzwr) |
 | **L1.8** | 🔄 Running | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, micro_bs=2 | - | - | - | - | Previous run (0.6622, W&B p03ej16f) was misconfigured (wrong params/UAI missing); fixed UAI + resubmitted 2026-06-08; run ID: neat_cassava_hxz75hmjyk |
 | **L1.9** | ✅ Completed | Qwen3-1.7B-Base | MINDlarge | USE_ABSTRACT=1, Base model | 0.6880 | 0.3368 | 0.3769 | 0.4382 | Abstract didn't boost base; [W&B](https://wandb.ai/wuchen/huggingface/runs/gzijusub) |
+| **L1.3x** | ✅ Completed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=5, NEG=2.0, gckpt (pipeline re-run) | 0.6622 | - | - | - | AML-pipeline reproduction of L1.3 setting (bold_foot_75cv39dfth); **−0.0427 vs L1.3 0.7049** — gradient-checkpointing/pipeline run diverges from original; original L1.3 remains the reference |
 | **L1.13** | ❌ Failed | Qwen3-1.7B | MINDlarge | USE_ABSTRACT=1, EP=7, NEG=3.0 | 0.6647 | 0.3166 | 0.3493 | 0.4116 | **−0.0402 vs L1.3**; combining EP=7+NEG=3.0+abstract collapses; NEG=3.0 consistently toxic on large |
 
 ---
@@ -326,7 +327,29 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | Exp ID | Status | Model | Dataset | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|-------|---------|--------|-----|-----|--------|---------|-------|
 | **M4.0** | ❌ Failed | Qwen3-1.7B | MINDsmall | POINTWISE_RATIO=0.7, ep3 | 0.6213 | 0.2833 | 0.3124 | 0.3765 | Multitask hurts badly; [W&B](https://wandb.ai/wuchen/MIND/runs/5nb9n11h) |
-| **M4.1** | ⬜ Pending | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.5, EP=5, Abstract | - | - | - | - | Proper test: large data + abstract + 5 epochs + pipeline |
+| **M4.1** | 🔄 Running | Qwen3-1.7B | MINDlarge | POINTWISE_RATIO=0.5, EP=5, Abstract | - | - | - | - | Proper test: large+abstract+EP5+multitask pw. History: shy_fowl env-crash→great_roof OOM (ranking-branch loss.backward)→fixed micro_bs=2→khaki_wall_zgqz3nvhk5 RUNNING |
+
+### Phase 1Lx: Qwen3.5-2B architecture reproduction (2026-09-29)
+
+> **Low-hanging-fruit direction**: reproduce the winning L1.3-style setting (MINDlarge abstract pointwise)
+> but swap the 1.7B model for the new Qwen3.5-2B (linear-attention / chunk_gated_delta_rule backbone).
+> NOTE: Qwen3.5-2B is far more VRAM-hungry on long abstract sequences — full-dev eval at batch 8 OOMs
+> at qwen3_5.py:375 (`torch_chunk_gated_delta_rule`). Training checkpoints stay intact; standalone eval
+> must use `--batch-size 4` (user-directed permanent fix, in config_mind_train.json).
+
+| Exp ID | Status | Model | Dataset | Config | AUC | Notes |
+|--------|--------|-------|---------|--------|-----|-------|
+| **r7** | ✅ Trained / 🔄 Eval queued | Qwen3.5-2B-Base | MINDlarge | abstract, gckpt | - | happy_energy training COMPLETED; standalone eval `stoic_clock_ftbzl0cqyj` (bs4) queued on A100 |
+| **r7** | ✅ Trained / 🔄 Eval queued | Qwen3.5-2B (chat) | MINDlarge | abstract, gckpt | - | neat_band training COMPLETED; standalone eval `good_fennel_5pm69xdzq3` (bs4) queued |
+
+### Secondary Track: OpenJev (JEV) decision-model eval (2026-09-29)
+
+> **JEV track**: use OpenJev as a "no-UL" decision model scoring each candidate's P(yes) on 5000-dev impressions
+> (wheat_plastic_ryxqfpg987, `jev-dev-batch5k-ok`). Predictions at `shares/users/wuc/models/jev_eval_results/dev_jev_predictions.txt`.
+
+| Exp | Model | Split | Max impressions | AUC | Notes |
+|-----|-------|-------|-----------------|-----|-------|
+| **JEV** | APUS-OpenJev-v1-4B | dev@5000 | 5000 | 0.6432 | Pointwise AUC recomputed from predictions; secondary track reference |
 
 ### Phase 2: RL Fine-tuning
 

@@ -39,6 +39,8 @@ KNOWN = {
     "happy_energy_zrvmghx41r": "r7 Qwen3.5-2B-Base MINDlarge abstract gckpt (RUNNING)",
     "shy_fowl_14fkx19tyj": "M4.1 multitask 1.7B large abstract EP5 PW0.5 (queued)",
     "bold_foot_75cv39dfth": "L1.3x pointwise 1.7B large abstract EP5 (queued)",
+    "sleepy_pasta_g9hytyykq9": "r8 Qwen3.5-2B chat abstract EP7 (L1.2-repro)",
+    "olden_drain_3b6psyybwj": "r9 Qwen3.5-2B chat abstract HIST50",
 }
 
 

@@ -341,6 +341,8 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 |--------|--------|-------|---------|--------|-----|-------|
 | **r7** | ✅ Trained / 🔄 Eval queued | Qwen3.5-2B-Base | MINDlarge | abstract, gckpt | - | happy_energy training COMPLETED; standalone eval `stoic_clock_ftbzl0cqyj` (bs4) queued on A100 |
 | **r7** | ✅ Trained / 🔄 Eval queued | Qwen3.5-2B (chat) | MINDlarge | abstract, gckpt | - | neat_band training COMPLETED; standalone eval `good_fennel_5pm69xdzq3` (bs4) queued |
+| **r8** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=7** | - | L1.2-repro (EP7) on 2B; tests if undertrained 2B gains from more epochs; run `sleepy_pasta_g9hytyykq9` |
+| **r9** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **HIST=50** | - | 2B linear-attention backbone natively handles long history — HIST may help where it hurt 1.7B; run `olden_drain_3b6psyybwj` |
 
 ### Secondary Track: OpenJev (JEV) decision-model eval (2026-09-29)
 

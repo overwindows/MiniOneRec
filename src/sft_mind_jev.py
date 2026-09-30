@@ -88,10 +88,15 @@ class JEVWithinModelDistillTrainer(Trainer):
         )
         logits = out.logits  # (B, L, V)
 
-        nz = labels != -100
-        last = nz.sum(dim=1) - 1  # index of the answer token (label) in each row
-        # logits[i] predicts the token at position i+1 -> the answer at `last` is
-        # predicted by logits at `last - 1`.
+        # The answer is the LAST real (non-pad) token: prompt + single answer
+        # token. attention_mask is 1 over every prompt+answer token and 0 on
+        # pads, so its sum - 1 is the answer token's row index (= prompt_len).
+        # (labels != -100) is NOT usable here: it flags only the single answer
+        # token, so (labels != -100).sum() - 1 == 0, not the answer index.
+        real_len = attention_mask.sum(dim=1)  # (B,)
+        last = real_len - 1  # index of the answer token in each row
+        # logits[i] predicts the token at position i+1 -> the answer at `last`
+        # is predicted by logits at `last - 1`.
         predict_pos = last - 1
         batch_idx = torch.arange(logits.shape[0], device=logits.device)
         ans_logits = logits[batch_idx, predict_pos]  # (B, V)

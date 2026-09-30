@@ -336,11 +336,16 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 > NOTE: Qwen3.5-2B is far more VRAM-hungry on long abstract sequences — full-dev eval at batch 8 OOMs
 > at qwen3_5.py:375 (`torch_chunk_gated_delta_rule`). Training checkpoints stay intact; standalone eval
 > must use `--batch-size 4` (user-directed permanent fix, in config_mind_train.json).
+>
+> **r7 eval crash (2026-09-29)**: even bs4 eval over full large dev crashed ~45 impressions in with the same
+> `illegal memory access` at qwen3_5.py:375 (both chat `neat_band` and Base `happy_energy`; training COMPLETED,
+> `final_checkpoint` saved). Re-submitted standalone eval at **bs1** (safest): chat `sharp_napa_myhlzwqvh3`,
+> Base `maroon_brush_xvk6c59278`.
 
 | Exp ID | Status | Model | Dataset | Config | AUC | Notes |
 |--------|--------|-------|---------|--------|-----|-------|
-| **r7** | ✅ Trained / 🔄 Eval queued | Qwen3.5-2B-Base | MINDlarge | abstract, gckpt | - | happy_energy training COMPLETED; standalone eval `stoic_clock_ftbzl0cqyj` (bs4) queued on A100 |
-| **r7** | ✅ Trained / 🔄 Eval queued | Qwen3.5-2B (chat) | MINDlarge | abstract, gckpt | - | neat_band training COMPLETED; standalone eval `good_fennel_5pm69xdzq3` (bs4) queued |
+| **r7** | ✅ Trained / 🔄 Eval bs1 (crashed at bs4) | Qwen3.5-2B-Base | MINDlarge | abstract, gckpt | - | training COMPLETED → eval `maroon_brush_xvk6c59278` (bs1) resubmitted; bs4 eval `stoic_clock_ftbzl0cqyj` failed |
+| **r7** | ✅ Trained / 🔄 Eval bs1 (crashed at bs4) | Qwen3.5-2B (chat) | MINDlarge | abstract, gckpt | - | training COMPLETED → eval `sharp_napa_myhlzwqvh3` (bs1) resubmitted; bs4 eval `good_fennel_5pm69xdzq3` failed |
 | **r8** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=7** | - | L1.2-repro (EP7) on 2B; tests if undertrained 2B gains from more epochs; run `sleepy_pasta_g9hytyykq9` |
 | **r9** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **HIST=50** | - | 2B linear-attention backbone natively handles long history — HIST may help where it hurt 1.7B; run `olden_drain_3b6psyybwj` |
 | **r10** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=5** (L1.3 winner repro) | - | **Exact L1.3-winner setting (0.7049) on 2B** — the true prior-best repro; run `upbeat_leaf_43yqnzr0h8` |
@@ -353,6 +358,23 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | Exp | Model | Split | Max impressions | AUC | Notes |
 |-----|-------|-------|-----------------|-----|-------|
 | **JEV** | APUS-OpenJev-v1-4B | dev@5000 | 5000 | 0.6432 | Pointwise AUC recomputed from predictions; secondary track reference |
+| **JEV-9B** | APUS-OpenJev-v1-9B | dev@5000 | 5000 | pending | neat_stone_3427s7bjrr |
+
+### Secondary Track: JEV-4B training campaign (2026-09-30)
+
+> Train APUS-OpenJev-v1-4B on MIND across 4 paradigms (in dependency order) to make
+> a news-specialized decision model. All train/eval use the **noul A/B prompt**
+> contract (`src/evaluate_mind_jev.py:82` `render_noul_prompt`); P(A)=P(yes) is the
+> rank score, so dev AUC is directly comparable to the stock JEV reference (0.6432).
+> Baseline config: MINDlarge abstract, hist30, neg1.0, cutoff4096, DS ZeRO-2 (mini env),
+> sdpa, micro-batch 2, lr 1e-4 (JEV-published). Eval via `run_jev_eval.py` (noul scorer).
+
+| Campaign | Paradigm | Run ID | Mode | KL/term | AUC(dev) | Notes |
+|----------|----------|--------|------|---------|----------|-------|
+| C1 | SFT + within-model distill | `affable_fork_57j81ydc2b` | running | kl_beta=0.1 R-Drop | pending | `sft_mind_jev.py`, P(rank1 of 4 submitted first) |
+| C2 | RLCD | pending | DPO-style | contrastive teacher | pending | prepare pairs from C1 teacher scores |
+| C3 | RL (GRPO) | pending | verl | pointwise_binary | pending | on C1 ckpt via `rl_mind_verl.py` |
+| C4 | Teacher OPD | pending | KL-to-strong-teacher | frozen L1.3 1.7B | pending | `sft_mind_jev_opd.py` |
 
 ### Phase 2: RL Fine-tuning
 

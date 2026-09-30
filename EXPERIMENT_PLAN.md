@@ -371,8 +371,10 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 
 | Campaign | Paradigm | Run ID | Mode | KL/term | AUC(dev) | Notes |
 |----------|----------|--------|------|---------|----------|-------|
-| C1 | SFT + within-model distill | `affable_fork_57j81ydc2b` | running | kl_beta=0.1 R-Drop | pending | `sft_mind_jev.py`, P(rank1 of 4 submitted first) |
-| C2 | RLCD | pending | DPO-style | contrastive teacher | pending | prepare pairs from C1 teacher scores |
+| C1 | SFT + within-model distill | `affable_fork_57j81ydc2b` | FAILED | kl_beta=0.1 R-Drop | - | `num_items_in_batch` signature crash (transformers 5.x) |
+| C1 | SFT + within-model distill | `frank_chicken_fct2hw878v` | CANCELLED | kl_beta=0.1 R-Drop | - | zero-loss answer-index bug found during C2 offline smoke; model would learn nothing |
+| C1b | SFT + within-model distill | `stoic_hook_xdc9sbfbk6` | running | kl_beta=0.1 R-Drop | pending | **answer-index fix** (`attention_mask`-based last-token), caught by offline unit test; `sft_mind_jev.py` |
+| C2 | RLCD | pending | DPO-style | contrastive | pending | `sft_mind_jev_rlcd.py` + `jev_noul_pair_data.py`: ground-truth (clicked>unclicked) pairs, self-distill P(A) margin; smoke-first |
 | C3 | RL (GRPO) | pending | verl | pointwise_binary | pending | on C1 ckpt via `rl_mind_verl.py` |
 | C4 | Teacher OPD | pending | KL-to-strong-teacher | frozen L1.3 1.7B | pending | `sft_mind_jev_opd.py` |
 

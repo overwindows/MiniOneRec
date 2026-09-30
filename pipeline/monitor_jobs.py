@@ -47,7 +47,8 @@ KNOWN = {
     "boring_snake_zwwk3r461s": "JEV9B-download CPU (APUS-OpenJev-v1-9B staging)",
     "neat_stone_3427s7bjrr": "JEV9B dev@5000 eval",
     "affable_fork_57j81ydc2b": "C1 JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (FAILED num_items_in_batch)",
-    "frank_chicken_fct2hw878v": "C1 JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (retry)",
+    "frank_chicken_fct2hw878v": "C1 JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (retry, CANCELLED zero-loss idx bug)",
+    "stoic_hook_xdc9sbfbk6": "C1b JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (idx-fix)",
 }
 
 

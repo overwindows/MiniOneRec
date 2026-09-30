@@ -42,6 +42,10 @@ KNOWN = {
     "sleepy_pasta_g9hytyykq9": "r8 Qwen3.5-2B chat abstract EP7 (L1.2-repro)",
     "olden_drain_3b6psyybwj": "r9 Qwen3.5-2B chat abstract HIST50",
     "upbeat_leaf_43yqnzr0h8": "r10 Qwen3.5-2B chat L1.3-winner-repro abstract EP5",
+    "sharp_napa_myhlzwqvh3": "r7-ev2 Qwen3.5-2B chat abstract EP3 dev BS1",
+    "maroon_brush_xvk6c59278": "r7-ev2 Qwen3.5-2B-Base abstract EP3 dev BS1",
+    "boring_snake_zwwk3r461s": "JEV9B-download CPU (APUS-OpenJev-v1-9B staging)",
+    "neat_stone_3427s7bjrr": "JEV9B dev@5000 eval",
 }
 
 

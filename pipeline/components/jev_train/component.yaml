@@ -1,0 +1,81 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: jev_train
+display_name: JEV-4B SFT Training (within-model distillation)
+version: "1"
+type: command
+description: Train APUS-OpenJev-4B on MIND noul pointwise data with within-model KL distillation
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  model_path:
+    type: string
+    default: "shares/users/wuc/models/APUS-OpenJev-v1-4B"
+    description: JEV-4B 模型路径 (相对于挂载路径)
+  data_root:
+    type: string
+    default: "shares/users/wuc/data/MIND_large"
+    description: 数据集根目录 (相对于挂载路径)
+  batch_size:
+    type: integer
+    default: 128
+  micro_batch_size:
+    type: integer
+    default: 2
+  num_epochs:
+    type: integer
+    default: 3
+  neg_ratio:
+    type: number
+    default: 1.0
+  hard_neg_ratio:
+    type: number
+    default: 0.5
+  max_history:
+    type: integer
+    default: 30
+  cutoff_len:
+    type: integer
+    default: 4096
+  use_chat_template:
+    type: integer
+    default: 0
+  use_abstract:
+    type: integer
+    default: 1
+  kl_beta:
+    type: string
+    default: "0.1"
+    description: KL 蒸馏系数
+  enable_kl:
+    type: string
+    default: "1"
+    description: 是否启用 KL 蒸馏 (1/0)
+  output_root:
+    type: string
+    default: "shares/users/wuc/output_dir"
+    description: 输出目录根路径 (相对于挂载路径)
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python pipeline_executor.py
+  --config config_jev_train.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --batch-size ${{inputs.batch_size}}
+  --micro-batch-size ${{inputs.micro_batch_size}}
+  --num-epochs ${{inputs.num_epochs}}
+  --neg-ratio ${{inputs.neg_ratio}}
+  --hard-neg-ratio ${{inputs.hard_neg_ratio}}
+  --max-history ${{inputs.max_history}}
+  --cutoff-len ${{inputs.cutoff_len}}
+  --use-chat-template ${{inputs.use_chat_template}}
+  --use-abstract ${{inputs.use_abstract}}
+  --kl-beta ${{inputs.kl_beta}}
+  --enable-kl ${{inputs.enable_kl}}
+  --output-root ${{inputs.output_root}}

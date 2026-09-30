@@ -46,6 +46,7 @@ KNOWN = {
     "maroon_brush_xvk6c59278": "r7-ev2 Qwen3.5-2B-Base abstract EP3 dev BS1",
     "boring_snake_zwwk3r461s": "JEV9B-download CPU (APUS-OpenJev-v1-9B staging)",
     "neat_stone_3427s7bjrr": "JEV9B dev@5000 eval",
+    "affable_fork_57j81ydc2b": "C1 JEV4B SFT+distill MINDlarge abstract EP3 KL0.1",
 }
 
 

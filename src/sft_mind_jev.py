@@ -98,7 +98,8 @@ class JEVWithinModelDistillTrainer(Trainer):
         ans_target = labels.gather(1, last.unsqueeze(1)).squeeze(1)  # (B,)
         return ans_logits, ans_target
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        # `num_items_in_batch` is passed by transformers 5.x Trainer; accept and ignore.
         logits1, target = self._answer_logits(model, inputs)
         ce1 = F.cross_entropy(logits1, target)
 

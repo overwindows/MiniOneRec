@@ -191,26 +191,8 @@ class JevScorer:
         probs = torch.softmax(cand_logits, -1)
         return float(probs[0].item())
 
-    @torch.inference_mode()
-    def score_yes_batch(self, states: List[str]) -> List[float]:
-        """Score many candidate states in one padded forward (left-padded decoder).
-
-        This avoids the serial per-candidate forward passes that made the naive
-        loop ~10-30x slower. Paddings go on the LEFT so the final real token of
-        each row carries its own answer-boundary logit (logits_to_keep=1).
-        Returns P(yes) per state; -1.0 marks an oversized/abstained candidate.
-        """
-        max_len = self._max_len()
-        seqs = []
-        idx = []
-        for i, s in enumerate(states):
-            ids = self._encode(s)
-            if not ids or len(ids) > max_len:
-                continue
-            seqs.append(ids)
-            idx.append(i)
-        if not seqs:
-            return [-1.0] * len(states)
+    def _score_chunk(self, seqs, idx):
+        """One padded forward over a chunk of encoded sequences."""
         L = max(len(s) for s in seqs)
         batch = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
         mask = torch.zeros((len(seqs), L), dtype=torch.long, device=self.device)
@@ -231,9 +213,36 @@ class JevScorer:
         logits = out.logits[:, -1, :].float()
         cand_logits = logits[:, self.cand_tokens]
         probs = torch.softmax(cand_logits, -1)
+        return {r: float(probs[j, 0].item()) for j, r in enumerate(idx)}
+
+    @torch.inference_mode()
+    def score_yes_batch(self, states: List[str], chunk_size: int = 32) -> List[float]:
+        """Score many candidate states in padded forwards, chunked by chunk_size.
+
+        This avoids the serial per-candidate forward passes that made the naive
+        loop ~10-30x slower, while keeping each forward small enough to avoid
+        OOM on large-impression batches (the delta-rule linear attention
+        materializes a workspace ~BxLxR; a whole-impression batch is wasteful).
+        Paddings go on the LEFT so the final real token of each row carries its
+        own answer-boundary logit (logits_to_keep=1). Returns P(yes) per state;
+        -1.0 marks an oversized/abstained candidate.
+        """
+        max_len = self._max_len()
+        seqs = []
+        idx = []
+        for i, s in enumerate(states):
+            ids = self._encode(s)
+            if not ids or len(ids) > max_len:
+                continue
+            seqs.append(ids)
+            idx.append(i)
+        if not seqs:
+            return [-1.0] * len(states)
         result = [-1.0] * len(states)
-        for j, r in enumerate(idx):
-            result[r] = float(probs[j, 0].item())
+        for start in range(0, len(seqs), chunk_size):
+            chunk_seqs = seqs[start:start + chunk_size]
+            chunk_idx = idx[start:start + chunk_size]
+            result.update(self._score_chunk(chunk_seqs, chunk_idx))
         return result
 
 

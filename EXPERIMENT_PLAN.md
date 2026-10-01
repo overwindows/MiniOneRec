@@ -358,7 +358,17 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | Exp | Model | Split | Max impressions | AUC | Notes |
 |-----|-------|-------|-----------------|-----|-------|
 | **JEV** | APUS-OpenJev-v1-4B | dev@5000 | 5000 | 0.6432 | Pointwise AUC recomputed from predictions; secondary track reference |
-| **JEV-9B** | APUS-OpenJev-v1-9B | dev@5000 | 5000 | pending | neat_stone_3427s7bjrr |
+| **JEV-9B** | APUS-OpenJev-v1-9B | dev@5000 | 5000 | pending | neat_stone_3427s7bjrr → OOM in delta-rule (chunk_gated_delta_rule, 3.62 GiB alloc / 2.73 free) → FIXED (chunk batch 32 + `PYTORCH_CUDA_ALLOC_CONF=expandable_segments`), resub `quiet_drop_wfpvxsgwx3` |
+
+> **JEV-9B OOM (2026-09-30)**: `evaluate_mind_jev.py:score_yes_batch` padded the entire impression
+> into one `use_cache=False` forward; the 9B delta-rule linear attention materialized `k_cumdecay =
+> attn @ (k_beta*g.exp())` as a ~3.62 GiB workspace with only 2.73 GiB free (model held 76.5 GiB).
+> Fixed by scoring in 32-row chunks + `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (error's own
+> suggestion, reclaims the 17 GiB reserved-but-unallocated fragmentation). Pushed to dev `eddf1a1`.
+
+> **r7-ev2 eval `NoIdentityOnCompute` (2026-09-30)**: both sharp_napa + maroon_brush failed at eval_node
+> with Singluarity `NoIdentityOnCompute` (nodes never ran python — infra auth, NOT OOM). Resub at bs1:
+> chat `upbeat_nerve_xhyfgsv0sz`, Base `yellow_yak_xh87jbrdmg`.
 
 ### Secondary Track: JEV-4B training campaign (2026-09-30)
 

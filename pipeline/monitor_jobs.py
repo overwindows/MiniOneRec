@@ -49,6 +49,9 @@ KNOWN = {
     "affable_fork_57j81ydc2b": "C1 JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (FAILED num_items_in_batch)",
     "frank_chicken_fct2hw878v": "C1 JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (retry, CANCELLED zero-loss idx bug)",
     "stoic_hook_xdc9sbfbk6": "C1b JEV4B SFT+distill MINDlarge abstract EP3 KL0.1 (idx-fix)",
+    "upbeat_nerve_xhyfgsv0sz": "r7-ev2 chat eval resub (bs1, NoIdentity fix)",
+    "yellow_yak_xh87jbrdmg": "r7-ev2 Base eval resub (bs1, NoIdentity fix)",
+    "quiet_drop_wfpvxsgwx3": "JEV9B dev@5000 eval resub (OOM fix)",
 }
 
 

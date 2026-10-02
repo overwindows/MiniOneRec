@@ -52,6 +52,7 @@ KNOWN = {
     "upbeat_nerve_xhyfgsv0sz": "r7-ev2 chat eval resub (bs1, NoIdentity fix)",
     "yellow_yak_xh87jbrdmg": "r7-ev2 Base eval resub (bs1, NoIdentity fix)",
     "quiet_drop_wfpvxsgwx3": "JEV9B dev@5000 eval resub (OOM fix)",
+    "joyful_juice_zh8gm2z86r": "r9 JEVhist50 resub (force_rerun fix, fresh)",
 }
 
 

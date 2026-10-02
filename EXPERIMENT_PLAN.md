@@ -347,7 +347,7 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | **r7** | ✅ Trained / 🔄 Eval bs1 (crashed at bs4) | Qwen3.5-2B-Base | MINDlarge | abstract, gckpt | - | training COMPLETED → eval `maroon_brush_xvk6c59278` (bs1) resubmitted; bs4 eval `stoic_clock_ftbzl0cqyj` failed |
 | **r7** | ✅ Trained / 🔄 Eval bs1 (crashed at bs4) | Qwen3.5-2B (chat) | MINDlarge | abstract, gckpt | - | training COMPLETED → eval `sharp_napa_myhlzwqvh3` (bs1) resubmitted; bs4 eval `good_fennel_5pm69xdzq3` failed |
 | **r8** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=7** | - | L1.2-repro (EP7) on 2B; tests if undertrained 2B gains from more epochs; run `sleepy_pasta_g9hytyykq9` |
-| **r9** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **HIST=50** | - | 2B linear-attention backbone natively handles long history — HIST may help where it hurt 1.7B; run `olden_drain_3b6psyybwj` |
+| **r9** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **HIST=50** | - | 2B linear-attention backbone natively handles long history — HIST may help where it hurt 1.7B; run `olden_drain_3b6psyybwj` → stale-run reuse (FAILED) → `joyful_juice_zh8gm2z86r` |
 | **r10** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=5** (L1.3 winner repro) | - | **Exact L1.3-winner setting (0.7049) on 2B** — the true prior-best repro; run `upbeat_leaf_43yqnzr0h8` |
 
 ### Secondary Track: OpenJev (JEV) decision-model eval (2026-09-29)

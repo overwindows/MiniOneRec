@@ -54,6 +54,15 @@ def make_res_cfg(sla_tier="Premium"):
 
 res_cfg = make_res_cfg("Premium")
 
+# User-assigned managed identity required by Singularity policy to authenticate
+# against the datastore for RW_MOUNT access (same UAI the training + JEV eval
+# pipelines use). Without it the node has NoIdentityOnCompute and cannot stream.
+UAI_RESOURCE_ID = (
+    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+    "/resourceGroups/AMLStudio"
+    "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
+)
+
 # ============================================================================
 # 4) Load Component from YAML
 # ============================================================================
@@ -116,6 +125,10 @@ def mind_eval_pipeline(
     # Bind Virtual Cluster and resource configuration
     eval_node.compute = VC_ARM_ID
     eval_node.resources = res_cfg
+    # Singularity policy: UAI lets the node authenticate to the RW_MOUNT datastore
+    eval_node.environment_variables = {
+        "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
+    }
 
     # Disable AML component-level job reuse so code changes are always picked up
     eval_node.settings.force_rerun = True

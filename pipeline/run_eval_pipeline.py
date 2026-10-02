@@ -38,17 +38,21 @@ VC_ARM_ID = (
 # ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
 # ============================================================================
-res_cfg = JobResourceConfiguration(
-    instance_count=1,
-    instance_type="Singularity.ND96amrs_A100_v4",
-    properties={
-        "singularity": {
-            "slaTier": "Premium",
-            "priority": "High",
-            "enableAzmlInt": False,
-        }
-    },
-)
+def make_res_cfg(sla_tier="Premium"):
+    return JobResourceConfiguration(
+        instance_count=1,
+        instance_type="Singularity.ND96amrs_A100_v4",
+        properties={
+            "singularity": {
+                "slaTier": sla_tier,
+                "priority": "High",
+                "enableAzmlInt": False,
+            }
+        },
+    )
+
+
+res_cfg = make_res_cfg("Premium")
 
 # ============================================================================
 # 4) Load Component from YAML
@@ -148,6 +152,8 @@ if __name__ == "__main__":
                         help="Datastore 名称 (default: adls_msn_dni_09_rankfun)")
     parser.add_argument("--cf-alpha", type=float, default=0.0,
                         help="CF blend weight: 0=no CF; >0 runs CF scoring first then blends LLM+CF (default: 0)")
+    parser.add_argument("--sla-tier", default="Premium", choices=["Basic", "Standard", "Premium"],
+                        help="SLA tier; Premium is node-starved on recall, Standard has free A100s (default: Premium)")
     parser.add_argument("--debug", action="store_true",
                         help="调试模式：出错继续执行 + 最后 sleep infinity 保持容器运行")
     args = parser.parse_args()
@@ -179,6 +185,11 @@ if __name__ == "__main__":
     job.experiment_name = args.experiment_name
     if args.display_name:
         job.display_name = args.display_name
+
+    # Apply the chosen SLA tier to the eval node (Premium is node-starved on recall)
+    for n in job.jobs.values():
+        if n.name == "eval_node":
+            n.resources = make_res_cfg(args.sla_tier)
 
     # Submit job
     created = ml_client.jobs.create_or_update(job)

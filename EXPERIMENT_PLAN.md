@@ -341,6 +341,12 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 > `illegal memory access` at qwen3_5.py:375 (both chat `neat_band` and Base `happy_energy`; training COMPLETED,
 > `final_checkpoint` saved). Re-submitted standalone eval at **bs1** (safest): chat `sharp_napa_myhlzwqvh3`,
 > Base `maroon_brush_xvk6c59278`.
+>
+> **r7 eval v4 fix (2026-10-03)**: bs1 pointwise evals `brave_rhythm_grkhnk42yf`/`goofy_beet_q8cg4r2mr0`
+> STILL OOM'd (`illegal memory access` @ qwen3_5.py:375 `torch_chunk_gated_delta_rule` `torch.zeros(...)`) —
+> root cause was `config_mind_eval.json` lacking `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (only the
+> JEV eval config had it). Added it to the pointwise/ranking eval command (commit 7c52269), pushed. Resubmitted
+> with the fix live: chat → `loving_fig_d6sw5hr69d`, Base → `nifty_rabbit_8d4hr31sxd` (both Standard tier, bs1).
 
 | Exp ID | Status | Model | Dataset | Config | AUC | Notes |
 |--------|--------|-------|---------|--------|-----|-------|

@@ -163,6 +163,11 @@ def mind_train_pipeline(
         "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
     }
 
+    # Disable AML component-level job reuse so a failed run is never silently
+    # resurrected; forces a genuinely fresh train each submission (matches the
+    # eval pipelines). Without this the train_node can reuse a stale FAILED run.
+    train_node.settings.force_rerun = True
+
 
 # ============================================================================
 # 6) Parse Args and Submit

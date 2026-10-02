@@ -242,7 +242,8 @@ class JevScorer:
         for start in range(0, len(seqs), chunk_size):
             chunk_seqs = seqs[start:start + chunk_size]
             chunk_idx = idx[start:start + chunk_size]
-            result.update(self._score_chunk(chunk_seqs, chunk_idx))
+            for j, prob in self._score_chunk(chunk_seqs, chunk_idx).items():
+                result[j] = prob
         return result
 
 

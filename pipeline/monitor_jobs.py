@@ -53,9 +53,14 @@ KNOWN = {
     "yellow_yak_xh87jbrdmg": "r7-ev2 Base eval resub (bs1, NoIdentity fix)",
     "quiet_drop_wfpvxsgwx3": "JEV9B dev@5000 eval resub (OOM fix)",
     "joyful_juice_zh8gm2z86r": "r9 JEVhist50 resub (force_rerun fix, fresh)",
-    "placid_horse_fb32d274zt": "r7-ev2 chat eval bs1 std (REDO correct MIND_large)",
-    "bright_beard_677p5gz563": "r7-ev2 Base eval bs1 std (REDO correct MIND_large)",
-    "witty_tree_dmkbfy3xkc": "JEV9B dev@5000 eval std (REDO, OOM fix)",
+    "placid_horse_fb32d274zt": "r7-ev2 chat eval bs1 std (FAILED NoIdentity, replaced by brave_rhythm)",
+    "bright_beard_677p5gz563": "r7-ev2 Base eval bs1 std (FAILED NoIdentity, replaced by goofy_beet)",
+    "witty_tree_dmkbfy3xkc": "JEV9B dev@5000 eval std (FAILED list.update bug, replaced by tender_carrot)",
+    "tender_carrot_sbxpx7q8xv": "JEV9B dev@5000 eval v3 std (auth+OOM fix)",
+    "brave_rhythm_grkhnk42yf": "r7-ev2 chat eval bs1 v3 std (FAILED OOM, replaced by loving_fig)",
+    "goofy_beet_q8cg4r2mr0": "r7-ev2 Base eval bs1 v3 std (FAILED OOM, replaced by nifty_rabbit)",
+    "loving_fig_d6sw5hr69d": "r7-ev2 chat eval bs1 v4 std (expandable_segments fix)",
+    "nifty_rabbit_8d4hr31sxd": "r7-ev2 Base eval bs1 v4 std (expandable_segments fix)",
 }
 
 

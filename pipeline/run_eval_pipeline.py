@@ -90,6 +90,7 @@ def mind_eval_pipeline(
     num_gpus: int = 8,
     cf_alpha: float = 0.0,
     debug_mode: str = "false",
+    max_impressions: int = 0,
 ):
     """MIND Model Evaluation Pipeline
 
@@ -120,6 +121,7 @@ def mind_eval_pipeline(
         num_gpus=num_gpus,
         cf_alpha=cf_alpha,
         debug_mode=debug_mode,
+        max_impressions=max_impressions,
     )
 
     # Bind Virtual Cluster and resource configuration
@@ -169,6 +171,8 @@ if __name__ == "__main__":
                         help="SLA tier; Premium is node-starved on recall, Standard has free A100s (default: Premium)")
     parser.add_argument("--debug", action="store_true",
                         help="调试模式：出错继续执行 + 最后 sleep infinity 保持容器运行")
+    parser.add_argument("--max-impressions", type=int, default=0,
+                        help="最多评估的impression数 (0=全部; 用于快速smoke测试, 如500)")
     args = parser.parse_args()
 
     debug_mode = "true" if args.debug else "false"
@@ -191,6 +195,7 @@ if __name__ == "__main__":
         num_gpus=args.num_gpus,
         cf_alpha=args.cf_alpha,
         debug_mode=debug_mode,
+        max_impressions=args.max_impressions,
     )
 
     # Pipeline-level settings

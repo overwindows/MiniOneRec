@@ -53,6 +53,10 @@ inputs:
     type: string
     default: "false"
     description: 调试模式 (true/false) - 出错继续 + sleep infinity
+  max_impressions:
+    type: integer
+    default: 0
+    description: 最多评估的impression数 (0=全部; 用于快速smoke测试)
 
 code: .
 environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
@@ -72,3 +76,4 @@ command: >-
   --num-gpus ${{inputs.num_gpus}}
   --cf-alpha ${{inputs.cf_alpha}}
   --debug-mode ${{inputs.debug_mode}}
+  --max-impressions ${{inputs.max_impressions}}

@@ -364,7 +364,7 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | Exp | Model | Split | Max impressions | AUC | Notes |
 |-----|-------|-------|-----------------|-----|-------|
 | **JEV** | APUS-OpenJev-v1-4B | dev@5000 | 5000 | 0.6432 | Pointwise AUC recomputed from predictions; secondary track reference |
-| **JEV-9B** | APUS-OpenJev-v1-9B | dev@5000 | 5000 | pending | neat_stone_3427s7bjrr → OOM in delta-rule (chunk_gated_delta_rule, 3.62 GiB alloc / 2.73 free) → FIXED (chunk batch 32 + `PYTORCH_CUDA_ALLOC_CONF=expandable_segments`), resub `quiet_drop_wfpvxsgwx3` |
+| **JEV-9B** | APUS-OpenJev-v1-9B | dev@5000 | 5000 | **0.6329** | neat_stone_3427s7bjrr → OOM → FIXED (chunk batch 32 + `expandable_segments`) → `tender_carrot_sbxpx7q8xv` COMPLETED: AUC **0.6329**, MRR 0.3037, nDCG@5 0.3306, nDCG@10 0.3920. **9B slightly WORSE than 4B (0.6432)** — size alone doesn't help on noul. |
 
 > **JEV-9B OOM (2026-09-30)**: `evaluate_mind_jev.py:score_yes_batch` padded the entire impression
 > into one `use_cache=False` forward; the 9B delta-rule linear attention materialized `k_cumdecay =

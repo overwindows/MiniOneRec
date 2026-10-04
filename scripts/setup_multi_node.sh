@@ -192,24 +192,29 @@ for node in $NODES; do
         fi
 
         # Flash Linear Attention (Qwen3.5 GatedDeltaNet hybrid backbone)
-        # Without fla + causal-conv1d, Qwen3_5's linear-attention layers fall
-        # back to a ~10x slower torch path (see "fast path is not available"
-        # warning on every GPU). Keep the whole stack in setup so eval is fast.
+        # Without fla, Qwen3_5's linear-attention layers fall back to a ~10x
+        # slower torch path (see "fast path is not available" warning on every
+        # GPU). We install this as a SEPARATE, NON-FATAL step that runs AFTER
+        # the requirements install, so a fla failure can never abort the
+        # transformers install (which would crash the eval).
         #
-        # Robustness: install is NON-FATAL (|| true). causal-conv1d only ships
-        # wheels for a narrow torch/cu version set and falls back to a source
-        # build that fails on CUDA mismatch (torch 2.6/cu124 vs newer cu13).
-        # If it can't build, we still want the rest of setup (transformers, the
-        # eval script) to proceed — fla's fused kernels are acceleration, not a
-        # hard requirement; without them the torch fallback still runs (slower).
-        # Also pin causal-conv1d to 1.4.x (has cu124/torch2.6-compatible wheels)
-        # instead of >=1.4.0 (resolves to 1.7.0 which needs torch>=2.7/cu13).
-        if ! python -c \"import fla, causal_conv1d\" 2>/dev/null; then
+        # fla 0.4.2 is pure-Python (imports fla-core), so it installs cleanly on
+        # our torch 2.6.0/cu124 stack and alone enables the fast linear-attention
+        # path. causal-conv1d is BEST-EFFORT: it has no prebuilt wheel for
+        # torch2.6/cu124 (only cu13/torch>=2.7), so it always tries a source build
+        # that fails with a CUDA-mismatch error; that is fine/expected and we
+        # continue regardless.
+        if ! python -c \"import fla\" 2>/dev/null; then
             echo \"Installing fla (Flash Linear Attention) on $node...\"
-            pip install -q flash-linear-attention==0.4.2 causal-conv1d==1.4.0 || echo \"WARN: fla/causal-conv1d install failed on $node; will use slow torch fallback\"
-            python -c \"import fla\" 2>/dev/null && echo \"fla installed on $node\" || echo \"fla NOT installed on $node (slow path)\"
+            pip install -q flash-linear-attention==0.4.2 2>/dev/null && echo \"fla installed on $node\" || echo \"WARN: fla install failed on $node; will use slow torch fallback\"
         else
             echo \"fla (Flash Linear Attention) OK on $node\"
+        fi
+        # Best-effort causal-conv1d (may fail to build; not required).
+        if ! python -c \"import causal_conv1d\" 2>/dev/null; then
+            pip install -q causal-conv1d>=1.4.0 2>/dev/null && echo \"causal-conv1d installed on $node\" || echo \"WARN: causal-conv1d not built on $node (ok, fla still provides fast path)\"
+        else
+            echo \"causal-conv1d OK on $node\"
         fi
 
         # Check if flash-attn is installed (requires torch to be installed first)

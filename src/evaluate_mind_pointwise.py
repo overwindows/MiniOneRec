@@ -355,6 +355,14 @@ def main():
 
             count += 1
 
+            # Progress heartbeat (unbuffered) so AML/std_log shows forward progress.
+            # tqdm suppresses its bar on a non-TTY and the parallel sh pipes through
+            # sed which fully buffers, so without this a healthy run looks hung.
+            if count % 25 == 0:
+                print(f"[heartbeat] impressions={count} "
+                      f"AUC={_avg(aucs):.4f} MRR={_avg(mrrs):.4f} "
+                      f"nDCG@10={_avg(ndcg10):.4f}", flush=True)
+
             # Update progress bar
             pbar.update(1)
             pbar.set_postfix({

@@ -77,18 +77,21 @@ wandb==0.22.2
 einops==0.8.0
 
 # Flash Linear Attention (Qwen3.5 GatedDeltaNet hybrid backbone)
-# Qwen3_5 model auto-dispatches its linear-attention layers to fla's fused
-# kernels when fla is installed; without them it silently falls back to a slow
-# torch implementation (~10x slower eval/forward).
+# Qwen3_5's linear-attention (GatedDeltaNet) layers have a fast fused-kernel
+# path that transformers gates on BOTH fla AND causal-conv1d being importable
+# (is_fast_path_available = all(causal_conv1d_fn, causal_conv1d_update,
+# chunk_gated_delta_rule, fused_recurrent_gated_delta_rule)). Without both it
+# silently falls back to a slow torch path (~10x slower eval/forward).
 #
-# NOTE: intentionally NOT installed here. causal-conv1d has no prebuilt wheel for
-# our torch 2.6.0/cu124 stack (only cu13/torch>=2.7 wheels exist), so pip always
-# attempts a source build that fails with a CUDA-mismatch error. Having it in
-# requirements.txt makes `pip install -r requirements.txt` ABORT mid-way, so
-# transformers (and other deps) never install and the eval crashes on
-# `import transformers`. fla + causal-conv1d are instead installed in
-# scripts/setup_multi_node.sh as a separate best-effort, non-fatal step AFTER the
-# requirements install. fla alone still enables the fast path for the
-# linear-attention layers; causal-conv1d is best-effort on top of it.
+# NOTE: both are intentionally NOT installed here so they can never abort the
+# transformers install. causal-conv1d has NO prebuilt wheel for our
+# torch 2.6.0/cu124 stack (GitHub releases only ship cu11 torch2.6 wheels and
+# cu13 torch>=2.7 wheels), so pip attempts a source build that fails with a
+# CUDA-mismatch error. If causal-conv1d were in this file, `pip install -r
+# requirements.txt` would ABORT mid-way, transformers would never install, and
+# the eval would crash on `import transformers`. fla + causal-conv1d are instead
+# installed in scripts/setup_multi_node.sh as a separate best-effort, non-fatal
+# step AFTER the requirements install, so the eval always runs (on the slow path
+# at minimum) and delivers AUCs.
 PyYAML==6.0.1
 requests==2.32.3

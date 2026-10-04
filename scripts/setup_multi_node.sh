@@ -50,7 +50,17 @@ for node in $NODES; do
     echo "Setting up $node..."
     echo "================================"
 
-    ssh $node "bash -c '
+    # Pipe the remote setup body over stdin with `bash -s`, passing local values
+    # as remote env vars. The heredoc delimiter is QUOTED, so none of the body is
+    # expanded or mangled by the local shell — this avoids the single-quote
+    # truncation bug that the old `ssh $node "bash -c '...'"` wrapper had.
+    WORK_DIR="$WORK_DIR" WANDB_API_KEY="$WANDB_API_KEY" \
+    RESOLVED_DATA_PATH="$RESOLVED_DATA_PATH" NODE_NAME="$node" \
+    ssh $node "WORK_DIR='$WORK_DIR' WANDB_API_KEY='$WANDB_API_KEY' \
+RESOLVED_DATA_PATH='$RESOLVED_DATA_PATH' NODE_NAME='$node' bash -s" <<'REMOTE_EOF'
+        # These env vars are set on the remote command line above:
+        #   WORK_DIR, WANDB_API_KEY, RESOLVED_DATA_PATH, NODE_NAME
+
         # Initialize conda
         if [ -f ~/miniconda3/etc/profile.d/conda.sh ]; then
             source ~/miniconda3/etc/profile.d/conda.sh
@@ -61,8 +71,8 @@ for node in $NODES; do
         fi
 
         # Initialize conda for bash if not already done
-        if ! grep -q \"conda initialize\" ~/.bashrc 2>/dev/null; then
-            echo \"Initializing conda for bash on $node...\"
+        if ! grep -q "conda initialize" ~/.bashrc 2>/dev/null; then
+            echo "Initializing conda for bash on $NODE_NAME..."
             if [ -f ~/miniconda3/bin/conda ]; then
                 ~/miniconda3/bin/conda init bash
             elif [ -f ~/anaconda3/bin/conda ]; then
@@ -83,21 +93,21 @@ for node in $NODES; do
         fi
 
         # Create symlink to shared NFS DATA path (code is rsynced separately)
-        if [ -n \"$RESOLVED_DATA_PATH\" ] && [ -d \"$RESOLVED_DATA_PATH\" ]; then
+        if [ -n "$RESOLVED_DATA_PATH" ] && [ -d "$RESOLVED_DATA_PATH" ]; then
             mkdir -p /home/aiscuser/MiniOneRec/data 2>/dev/null || true
             if [ ! -e /home/aiscuser/MiniOneRec/data/GenRecDatasetV3 ]; then
-                echo \"Creating data symlink: /home/aiscuser/MiniOneRec/data/GenRecDatasetV3 -> $RESOLVED_DATA_PATH\"
-                ln -sf \"$RESOLVED_DATA_PATH\" /home/aiscuser/MiniOneRec/data/GenRecDatasetV3
+                echo "Creating data symlink: /home/aiscuser/MiniOneRec/data/GenRecDatasetV3 -> $RESOLVED_DATA_PATH"
+                ln -sf "$RESOLVED_DATA_PATH" /home/aiscuser/MiniOneRec/data/GenRecDatasetV3
             else
-                echo \"Data symlink already exists\"
+                echo "Data symlink already exists"
             fi
         fi
 
         # Check if MiniOneRec environment exists
-        if conda env list | grep -q \"^MiniOneRec \"; then
-            echo \"Environment MiniOneRec already exists on $node\"
+        if conda env list | grep -q "^MiniOneRec "; then
+            echo "Environment MiniOneRec already exists on $NODE_NAME"
         else
-            echo \"Creating MiniOneRec environment on $node...\"
+            echo "Creating MiniOneRec environment on $NODE_NAME..."
             conda create -n MiniOneRec python=3.11 -y
         fi
 
@@ -108,145 +118,142 @@ for node in $NODES; do
         cd $WORK_DIR
 
         # Define required versions for consistency across nodes
-        TORCH_VERSION=\"2.6.0\"
-        TRANSFORMERS_VERSION=\"5.2.0\"
-        DEEPSPEED_VERSION=\"0.18.0\"
-        FLASH_ATTN_VERSION=\"2.7.3\"
-        TORCHREC_VERSION=\"0.8.0+cu124\"
-        FBGEMM_VERSION=\"0.8.0+cu124\"
+        TORCH_VERSION="2.6.0"
+        TRANSFORMERS_VERSION="5.2.0"
+        DEEPSPEED_VERSION="0.18.0"
+        FLASH_ATTN_VERSION="2.7.3"
+        TORCHREC_VERSION="0.8.0+cu124"
+        FBGEMM_VERSION="0.8.0+cu124"
 
         # Check torch version and reinstall if different
-        CURRENT_TORCH=\$(python -c \"import torch; print(torch.__version__)\" 2>/dev/null | cut -d'+' -f1)
-        if [[ \"\$CURRENT_TORCH\" != \"\$TORCH_VERSION\" ]]; then
-            echo \"Torch version mismatch on $node: \$CURRENT_TORCH vs \$TORCH_VERSION\"
-            echo \"Installing torch==\$TORCH_VERSION...\"
-            pip install -q torch==\$TORCH_VERSION
+        CURRENT_TORCH=$(python -c "import torch; print(torch.__version__)" 2>/dev/null | cut -d'+' -f1)
+        if [[ "$CURRENT_TORCH" != "$TORCH_VERSION" ]]; then
+            echo "Torch version mismatch on $NODE_NAME: $CURRENT_TORCH vs $TORCH_VERSION"
+            echo "Installing torch==$TORCH_VERSION..."
+            pip install -q torch==$TORCH_VERSION
         else
-            echo \"Torch version OK: \$CURRENT_TORCH\"
+            echo "Torch version OK: $CURRENT_TORCH"
         fi
 
         # Fix torchvision compatibility (must match torch version)
-        TORCHVISION_VERSION=\"0.21.0\"
-        CURRENT_TV=\$(python -c \"import torchvision; print(torchvision.__version__)\" 2>/dev/null | cut -d'+' -f1)
-        if [[ \"\$CURRENT_TV\" != \"\$TORCHVISION_VERSION\" ]]; then
-            echo \"Fixing torchvision on $node: \$CURRENT_TV -> \$TORCHVISION_VERSION\"
+        TORCHVISION_VERSION="0.21.0"
+        CURRENT_TV=$(python -c "import torchvision; print(torchvision.__version__)" 2>/dev/null | cut -d'+' -f1)
+        if [[ "$CURRENT_TV" != "$TORCHVISION_VERSION" ]]; then
+            echo "Fixing torchvision on $NODE_NAME: $CURRENT_TV -> $TORCHVISION_VERSION"
             pip uninstall torchvision -y 2>/dev/null
-            pip install -q torchvision==\$TORCHVISION_VERSION --index-url https://download.pytorch.org/whl/cu124
+            pip install -q torchvision==$TORCHVISION_VERSION --index-url https://download.pytorch.org/whl/cu124
         else
-            echo \"Torchvision version OK: \$CURRENT_TV\"
+            echo "Torchvision version OK: $CURRENT_TV"
         fi
 
         # Fix NCCL version consistency (critical for multi-node training)
-        NCCL_VERSION=\"2.21.5\"
-        CURRENT_NCCL=\$(python -c \"import nvidia.nccl; print(nvidia.nccl.__version__)\" 2>/dev/null || echo \"unknown\")
-        if [[ \"\$CURRENT_NCCL\" != \"\$NCCL_VERSION\" ]]; then
-            echo \"Fixing NCCL on $node: \$CURRENT_NCCL -> \$NCCL_VERSION\"
+        NCCL_VERSION="2.21.5"
+        CURRENT_NCCL=$(python -c "import nvidia.nccl; print(nvidia.nccl.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$CURRENT_NCCL" != "$NCCL_VERSION" ]]; then
+            echo "Fixing NCCL on $NODE_NAME: $CURRENT_NCCL -> $NCCL_VERSION"
             pip uninstall nvidia-nccl-cu11 nvidia-nccl-cu12 -y 2>/dev/null || true
-            pip install -q nvidia-nccl-cu12==\$NCCL_VERSION
+            pip install -q nvidia-nccl-cu12==$NCCL_VERSION
         else
-            echo \"NCCL version OK: \$CURRENT_NCCL\"
+            echo "NCCL version OK: $CURRENT_NCCL"
         fi
 
         # Fix accelerate version consistency
-        ACCELERATE_VERSION=\"1.10.1\"
-        CURRENT_ACC=\$(python -c \"import accelerate; print(accelerate.__version__)\" 2>/dev/null || echo \"unknown\")
-        if [[ \"\$CURRENT_ACC\" != \"\$ACCELERATE_VERSION\" ]]; then
-            echo \"Fixing accelerate on $node: \$CURRENT_ACC -> \$ACCELERATE_VERSION\"
-            pip install -q accelerate==\$ACCELERATE_VERSION
+        ACCELERATE_VERSION="1.10.1"
+        CURRENT_ACC=$(python -c "import accelerate; print(accelerate.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$CURRENT_ACC" != "$ACCELERATE_VERSION" ]]; then
+            echo "Fixing accelerate on $NODE_NAME: $CURRENT_ACC -> $ACCELERATE_VERSION"
+            pip install -q accelerate==$ACCELERATE_VERSION
         else
-            echo \"Accelerate version OK: \$CURRENT_ACC\"
+            echo "Accelerate version OK: $CURRENT_ACC"
         fi
 
         # Always install requirements to keep nodes consistent
-        echo \"Installing requirements on $node...\"
+        echo "Installing requirements on $NODE_NAME..."
         if [ -f requirements.txt ]; then
             pip install -q -r requirements.txt
         else
-            echo \"requirements.txt not found, installing core packages...\"
-            pip install -q transformers==\$TRANSFORMERS_VERSION accelerate deepspeed==\$DEEPSPEED_VERSION fire wandb scikit-learn tqdm
+            echo "requirements.txt not found, installing core packages..."
+            pip install -q transformers==$TRANSFORMERS_VERSION accelerate deepspeed==$DEEPSPEED_VERSION fire wandb scikit-learn tqdm
         fi
 
         # Enforce exact versions for core native deps (avoid mismatches across nodes)
-        CURRENT_DS=\$(python -c \"import deepspeed; print(deepspeed.__version__)\" 2>/dev/null || echo \"unknown\")
-        if [[ \"\$CURRENT_DS\" != \"\$DEEPSPEED_VERSION\" ]]; then
-            echo \"Fixing DeepSpeed on $node: \$CURRENT_DS -> \$DEEPSPEED_VERSION\"
-            pip install -q deepspeed==\$DEEPSPEED_VERSION
+        CURRENT_DS=$(python -c "import deepspeed; print(deepspeed.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$CURRENT_DS" != "$DEEPSPEED_VERSION" ]]; then
+            echo "Fixing DeepSpeed on $NODE_NAME: $CURRENT_DS -> $DEEPSPEED_VERSION"
+            pip install -q deepspeed==$DEEPSPEED_VERSION
         else
-            echo \"DeepSpeed version OK: \$CURRENT_DS\"
+            echo "DeepSpeed version OK: $CURRENT_DS"
         fi
 
-        CURRENT_TR=\$(python -c \"import torchrec; print(torchrec.__version__)\" 2>/dev/null || echo \"unknown\")
-        if [[ \"\$CURRENT_TR\" != \"\$TORCHREC_VERSION\" ]]; then
-            echo \"Fixing torchrec on $node: \$CURRENT_TR -> \$TORCHREC_VERSION\"
-            pip install -q torchrec==\$TORCHREC_VERSION --index-url https://download.pytorch.org/whl/cu124
+        CURRENT_TR=$(python -c "import torchrec; print(torchrec.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$CURRENT_TR" != "$TORCHREC_VERSION" ]]; then
+            echo "Fixing torchrec on $NODE_NAME: $CURRENT_TR -> $TORCHREC_VERSION"
+            pip install -q torchrec==$TORCHREC_VERSION --index-url https://download.pytorch.org/whl/cu124
         else
-            echo \"torchrec version OK: \$CURRENT_TR\"
+            echo "torchrec version OK: $CURRENT_TR"
         fi
 
-        CURRENT_FB=\$(python -c \"import fbgemm_gpu; print(fbgemm_gpu.__version__)\" 2>/dev/null || echo \"unknown\")
-        if [[ \"\$CURRENT_FB\" != \"\$FBGEMM_VERSION\" ]]; then
-            echo \"Fixing fbgemm_gpu on $node: \$CURRENT_FB -> \$FBGEMM_VERSION\"
-            pip install -q fbgemm_gpu==\$FBGEMM_VERSION --index-url https://download.pytorch.org/whl/cu124
+        CURRENT_FB=$(python -c "import fbgemm_gpu; print(fbgemm_gpu.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$CURRENT_FB" != "$FBGEMM_VERSION" ]]; then
+            echo "Fixing fbgemm_gpu on $NODE_NAME: $CURRENT_FB -> $FBGEMM_VERSION"
+            pip install -q fbgemm_gpu==$FBGEMM_VERSION --index-url https://download.pytorch.org/whl/cu124
         else
-            echo \"fbgemm_gpu version OK: \$CURRENT_FB\"
+            echo "fbgemm_gpu version OK: $CURRENT_FB"
         fi
 
         # Flash Linear Attention (Qwen3.5 GatedDeltaNet hybrid backbone)
-        # Without it, Qwen3_5's linear-attention layers fall back to a ~10x
-        # slower torch path (see "fast path is not available" warning on every
-        # GPU). We install this as a SEPARATE, NON-FATAL step that runs AFTER
-        # the requirements install, so a failure here can never abort the
-        # transformers install (which would crash the eval).
-        #
-        # WARNING: the transformers fast path gates on BOTH fla AND
-        # causal-conv1d being importable. causal-conv1d has NO prebuilt wheel for
-        # torch2.6/cu124 (only cu11 torch2.6 and cu13 torch>=2.7 wheels exist), so
-        # it will try a source build that fails with a CUDA-mismatch error. Both
-        # installs below are therefore best-effort and non-fatal; the eval always
-        # runs (on the slow torch path at minimum) and delivers AUCs.
-        if ! python -c \"import fla\" 2>/dev/null; then
-            echo \"Installing fla (Flash Linear Attention) on $node...\"
-            pip install -q flash-linear-attention==0.4.2 2>/dev/null && echo \"fla installed on $node\" || echo \"WARN: fla install failed on $node; will use slow torch fallback\"
+        # The transformers fast path gates on BOTH fla AND causal-conv1d being
+        # importable. causal-conv1d has NO prebuilt wheel for torch2.6/cu124 (only
+        # cu11 torch2.6 and cu13 torch>=2.7 wheels exist), so it tries a source
+        # build that fails with a CUDA-mismatch error. Both installs below are
+        # therefore BEST-EFFORT and NON-FATAL: if they fail we continue on the
+        # slow torch path, so the eval always runs and delivers AUCs.
+        if ! python -c "import fla" 2>/dev/null; then
+            echo "Installing fla (Flash Linear Attention) on $NODE_NAME..."
+            pip install -q flash-linear-attention==0.4.2 2>/dev/null && echo "fla installed on $NODE_NAME" || echo "WARN: fla install failed on $NODE_NAME; will use slow torch fallback"
         else
-            echo \"fla (Flash Linear Attention) OK on $node\"
+            echo "fla (Flash Linear Attention) OK on $NODE_NAME"
         fi
         # Best-effort causal-conv1d (may fail to build; not required).
-        if ! python -c \"import causal_conv1d\" 2>/dev/null; then
-            pip install -q causal-conv1d>=1.4.0 2>/dev/null && echo \"causal-conv1d installed on $node\" || echo \"WARN: causal-conv1d not built on $node (ok, fla still provides fast path)\"
+        if ! python -c "import causal_conv1d" 2>/dev/null; then
+            pip install -q "causal-conv1d>=1.4.0" 2>/dev/null && echo "causal-conv1d installed on $NODE_NAME" || echo "WARN: causal-conv1d not built on $NODE_NAME (ok, may fall back to slow path)"
         else
-            echo \"causal-conv1d OK on $node\"
+            echo "causal-conv1d OK on $NODE_NAME"
         fi
 
         # Check if flash-attn is installed (requires torch to be installed first)
-        if python -c \"import flash_attn\" 2>/dev/null; then
-            CURRENT_FA=\$(python -c \"import flash_attn; print(getattr(flash_attn, '__version__', 'unknown'))\" 2>/dev/null || echo \"unknown\")
-            if [[ \"\$CURRENT_FA\" != \"\$FLASH_ATTN_VERSION\" ]]; then
-                echo \"Fixing flash-attn on $node: \$CURRENT_FA -> \$FLASH_ATTN_VERSION\"
-                pip install -q flash-attn==\$FLASH_ATTN_VERSION --no-build-isolation
+        if python -c "import flash_attn" 2>/dev/null; then
+            CURRENT_FA=$(python -c "import flash_attn; print(getattr(flash_attn, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
+            if [[ "$CURRENT_FA" != "$FLASH_ATTN_VERSION" ]]; then
+                echo "Fixing flash-attn on $NODE_NAME: $CURRENT_FA -> $FLASH_ATTN_VERSION"
+                pip install -q flash-attn==$FLASH_ATTN_VERSION --no-build-isolation
             else
-                echo \"flash-attn version OK: \$CURRENT_FA\"
+                echo "flash-attn version OK: $CURRENT_FA"
             fi
         else
-            if python -c \"import torch\" 2>/dev/null; then
-                echo \"Installing flash-attn on $node...\"
-                pip install flash-attn==\$FLASH_ATTN_VERSION --no-build-isolation
+            if python -c "import torch" 2>/dev/null; then
+                echo "Installing flash-attn on $NODE_NAME..."
+                pip install flash-attn==$FLASH_ATTN_VERSION --no-build-isolation
             else
-                echo \"Skipping flash-attn (torch not installed)\"
+                echo "Skipping flash-attn (torch not installed)"
             fi
         fi
 
         # Configure WandB authentication
-        if [ -n \"$WANDB_API_KEY\" ]; then
-            echo \"Configuring WandB on $node...\"
-            python -c \"import wandb; wandb.login(key=\\\"$WANDB_API_KEY\\\")\" 2>/dev/null && echo \"WandB configured successfully\" || echo \"WandB login failed\"
+        if [ -n "$WANDB_API_KEY" ]; then
+            echo "Configuring WandB on $NODE_NAME..."
+            python -c "import wandb; wandb.login(key=\"$WANDB_API_KEY\")" 2>/dev/null && echo "WandB configured successfully" || echo "WandB login failed"
         else
-            echo \"WANDB_API_KEY not set, skipping WandB login\"
+            echo "WANDB_API_KEY not set, skipping WandB login"
         fi
 
-        echo \"Setup complete on $node\"
-        echo \"Python: \$(which python)\"
-        echo \"DeepSpeed version: \$(python -c \"import deepspeed; print(deepspeed.__version__)\" 2>/dev/null || echo \"Not installed\")\"
-    '" || echo "Warning: Could not setup $node"
+        echo "Setup complete on $NODE_NAME"
+        echo "Python: $(which python)"
+        echo "DeepSpeed version: $(python -c "import deepspeed; print(deepspeed.__version__)" 2>/dev/null || echo "Not installed")"
+REMOTE_EOF
+    if [ $? -ne 0 ]; then
+        echo "Warning: Could not setup $node"
+    fi
 
     echo ""
 done

@@ -75,5 +75,14 @@ fire==0.7.1
 tqdm==4.67.1
 wandb==0.22.2
 einops==0.8.0
+
+# Flash Linear Attention (Qwen3.5 GatedDeltaNet hybrid backbone)
+# Qwen3_5 model auto-dispatches its linear-attention layers to fla's fused
+# kernels when fla + causal-conv1d are installed; without them it silently
+# falls back to a slow torch implementation (~10x slower eval/forward).
+# Pin 0.4.2 (not 0.5.2, which requires torch>=2.7/triton>=3.3, conflicting
+# with our torch 2.6.0 + triton 3.2.0 stack).
+flash-linear-attention==0.4.2
+causal-conv1d>=1.4.0
 PyYAML==6.0.1
 requests==2.32.3

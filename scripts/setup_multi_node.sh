@@ -191,6 +191,17 @@ for node in $NODES; do
             echo \"fbgemm_gpu version OK: \$CURRENT_FB\"
         fi
 
+        # Flash Linear Attention (Qwen3.5 GatedDeltaNet hybrid backbone)
+        # Without fla + causal-conv1d, Qwen3_5's linear-attention layers fall
+        # back to a ~10x slower torch path (see "fast path is not available"
+        # warning on every GPU). Keep the whole stack in setup so eval is fast.
+        if ! python -c \"import fla, causal_conv1d\" 2>/dev/null; then
+            echo \"Installing fla (Flash Linear Attention) on $node...\"
+            pip install -q flash-linear-attention==0.4.2 causal-conv1d>=1.4.0
+        else
+            echo \"fla (Flash Linear Attention) OK on $node\"
+        fi
+
         # Check if flash-attn is installed (requires torch to be installed first)
         if python -c \"import flash_attn\" 2>/dev/null; then
             CURRENT_FA=\$(python -c \"import flash_attn; print(getattr(flash_attn, '__version__', 'unknown'))\" 2>/dev/null || echo \"unknown\")

@@ -82,7 +82,13 @@ einops==0.8.0
 # falls back to a slow torch implementation (~10x slower eval/forward).
 # Pin 0.4.2 (not 0.5.2, which requires torch>=2.7/triton>=3.3, conflicting
 # with our torch 2.6.0 + triton 3.2.0 stack).
+# IMPORTANT: pin causal-conv1d to 1.4.0 (NOT >=1.4.0). >= resolves to 1.7.0,
+# which only ships cu13/torch>=2.7 wheels and falls back to a source build that
+# fails with a CUDA-mismatch error on our torch 2.6/cu124 stack. That build
+# failure makes `pip install -r requirements.txt` ABORT partway, so transformers
+# (and other deps) never get installed and the eval crashes on `import
+# transformers`. 1.4.x has cu124/torch2.6-compatible wheels.
 flash-linear-attention==0.4.2
-causal-conv1d>=1.4.0
+causal-conv1d==1.4.0
 PyYAML==6.0.1
 requests==2.32.3

@@ -195,9 +195,19 @@ for node in $NODES; do
         # Without fla + causal-conv1d, Qwen3_5's linear-attention layers fall
         # back to a ~10x slower torch path (see "fast path is not available"
         # warning on every GPU). Keep the whole stack in setup so eval is fast.
+        #
+        # Robustness: install is NON-FATAL (|| true). causal-conv1d only ships
+        # wheels for a narrow torch/cu version set and falls back to a source
+        # build that fails on CUDA mismatch (torch 2.6/cu124 vs newer cu13).
+        # If it can't build, we still want the rest of setup (transformers, the
+        # eval script) to proceed — fla's fused kernels are acceleration, not a
+        # hard requirement; without them the torch fallback still runs (slower).
+        # Also pin causal-conv1d to 1.4.x (has cu124/torch2.6-compatible wheels)
+        # instead of >=1.4.0 (resolves to 1.7.0 which needs torch>=2.7/cu13).
         if ! python -c \"import fla, causal_conv1d\" 2>/dev/null; then
             echo \"Installing fla (Flash Linear Attention) on $node...\"
-            pip install -q flash-linear-attention==0.4.2 causal-conv1d>=1.4.0
+            pip install -q flash-linear-attention==0.4.2 causal-conv1d==1.4.0 || echo \"WARN: fla/causal-conv1d install failed on $node; will use slow torch fallback\"
+            python -c \"import fla\" 2>/dev/null && echo \"fla installed on $node\" || echo \"fla NOT installed on $node (slow path)\"
         else
             echo \"fla (Flash Linear Attention) OK on $node\"
         fi

@@ -212,7 +212,13 @@ def main():
     # the pure-text Qwen3_5ForCausalLM loads and scores correctly (vision tower
     # is auto-ignored — MIND needs no multimodality).
     import transformers as _tf
-    _is_qwen35 = "qwen3_5" == getattr(_tf.AutoConfig.from_pretrained(model_path_arg), "model_type", None)
+    _cfg = _tf.AutoConfig.from_pretrained(model_path_arg)
+    _arch = " ".join(_cfg.architectures or [])
+    # Match the trainer's detection (sft_mind_pointwise_ds.py): the hybrid Qwen3.5
+    # GatedDeltaNet backbone declares multimodal architectures / ForConditionalGeneration
+    # but loads as pure-text Qwen3_5ForCausalLM, which FA2 cannot dispatch. Relying on
+    # model_type == "qwen3_5" is unreliable, so sniff the architecture string instead.
+    _is_qwen35 = "ForConditionalGeneration" in _arch or "Qwen3_5" in _arch
     if _is_qwen35:
         model_kwargs["attn_implementation"] = "sdpa"
         print("Detected Qwen3.5 backbone: using sdpa attention (vision tower not loaded)")

@@ -125,6 +125,9 @@ NUM_EPOCHS=${NUM_EPOCHS:-5}
 MAX_HISTORY=${MAX_HISTORY:-30}
 NEG_RATIO=${NEG_RATIO:-2.0}
 HARD_NEG_RATIO=${HARD_NEG_RATIO:-0.5}
+# Cap the number of train samples (pointwise). Default 0 = use all (10M). Bounded
+# samples (e.g. 300000) cut training wall-clock on the slow linear-attn fallback.
+TRAIN_SAMPLE=${TRAIN_SAMPLE:-0}
 EARLY_STOPPING_PATIENCE=${EARLY_STOPPING_PATIENCE:-3}
 USE_ABSTRACT=${USE_ABSTRACT:-0}
 # Convert 1/0 to True/False for Python
@@ -217,6 +220,7 @@ deepspeed --hostfile=$HOSTFILE \
         --neg_ratio ${NEG_RATIO} \
         --hard_neg_ratio ${HARD_NEG_RATIO} \
         --early_stopping_patience ${EARLY_STOPPING_PATIENCE} \
+        --sample ${TRAIN_SAMPLE} \
         --use_abstract ${USE_ABSTRACT} \
         --use_subcategory ${USE_SUBCATEGORY} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \

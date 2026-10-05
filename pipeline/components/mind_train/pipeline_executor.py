@@ -218,6 +218,7 @@ def main():
     parser.add_argument("--eval-split", help="评估数据集 (dev/test)")
     parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
     parser.add_argument("--early-stopping-patience", type=int, default=3, help="早停patience (eval steps, 默认3)")
+    parser.add_argument("--train-sample", type=int, default=0, help="训练样本数上限 (0=全部)")
 
     args = parser.parse_args()
 
@@ -242,6 +243,7 @@ def main():
         'pointwise_ratio': args.pointwise_ratio,
         'ranking_neg_ratio': args.ranking_neg_ratio,
         'early_stopping_patience': args.early_stopping_patience,
+        'train_sample': args.train_sample,
     }
 
     # 合成完整的 data_root 路径

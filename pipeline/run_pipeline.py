@@ -104,6 +104,7 @@ def mind_train_pipeline(
     eval_split: str = "dev",
     resume_from_checkpoint: str = "",
     early_stopping_patience: int = 3,
+    train_sample: int = 0,
 ):
     """MIND SFT Training Pipeline
 
@@ -151,6 +152,7 @@ def mind_train_pipeline(
         eval_split=eval_split,
         resume_from_checkpoint=resume_from_checkpoint,
         early_stopping_patience=early_stopping_patience,
+        train_sample=train_sample,
     )
 
     # Bind Virtual Cluster and resource configuration
@@ -220,6 +222,8 @@ if __name__ == "__main__":
                         help="从指定checkpoint继续训练，填checkpoint路径或留空从头开始 (default: '')")
     parser.add_argument("--early-stopping-patience", type=int, default=3,
                         help="早停patience (eval steps), 建议3 (default: 3)")
+    parser.add_argument("--train-sample", type=int, default=0,
+                        help="训练样本数上限, 0=全部 (default: 0)")
     args = parser.parse_args()
 
     debug_mode = "true" if args.debug else "false"
@@ -251,6 +255,7 @@ if __name__ == "__main__":
         eval_split=args.eval_split,
         resume_from_checkpoint=args.resume_from_checkpoint,
         early_stopping_patience=args.early_stopping_patience,
+        train_sample=args.train_sample,
     )
 
     # Pipeline-level settings

@@ -93,6 +93,11 @@ def jev_train_pipeline(
     train_node.environment_variables = {
         "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
     }
+    # Disable AML component-level job reuse so a failed/stopped run is never
+    # silently resurrected; forces a genuinely fresh train each submission
+    # (mirror run_pipeline.py). Without this a stale stopped component can be
+    # latched as a zombie "Running" that AML refuses to cancel.
+    train_node.settings.force_rerun = True
 
 
 if __name__ == "__main__":

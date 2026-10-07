@@ -218,6 +218,7 @@ def main():
     parser.add_argument("--eval-split", help="评估数据集 (dev/test)")
     parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
     parser.add_argument("--early-stopping-patience", type=int, default=3, help="早停patience (eval steps, 默认3)")
+    parser.add_argument("--sample", default="-1", help="抽样子集上限 (-1=全量)")
     # JEV-specific: within-model distillation term
     parser.add_argument("--kl-beta", default="0.1", help="KL distillation coefficient (default: 0.1)")
     parser.add_argument("--enable-kl", default="1", help="Enable KL distillation (1/0, default: 1)")
@@ -245,6 +246,7 @@ def main():
         'pointwise_ratio': args.pointwise_ratio,
         'ranking_neg_ratio': args.ranking_neg_ratio,
         'early_stopping_patience': args.early_stopping_patience,
+        'sample': args.sample,
         'kl_beta': args.kl_beta,
         'enable_kl': args.enable_kl,
     }

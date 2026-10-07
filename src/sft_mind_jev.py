@@ -6,17 +6,16 @@ point-wise decision model on MIND using the OpenJev **noul** A/B contract that
 src/evaluate_mind_jev.py scores with, so the trained model's P(A)=P(yes) is
 directly comparable to our dev AUC evals.
 
-Distillation term (published OpenJev recipe shape, user-selected single-forward
-teacher KL): the loss is
+Loss is plain point-wise SFT cross-entropy on the single A/B answer token:
 
-    L = 0.5 * CE(forward_1) + 0.5 * CE(forward_2) + beta * KL(P_2 || P_1)
+    L = CE(P(A/B) against the click/no-click label)
 
-over the A/B answer token, where forward_1/forward_2 are two stochastic passes
-of the same JEV backbone under dropout (R-Drop). Because JEV is a stacked
-linear-attention model with no dual-exit wiring in this Single-forward setting,
-this is the correct non-degenerate within-model distillation; beta defaults to
-0.1 to match the published KL coefficient. Set --kl_beta 0 (or --enable_kl False)
-for a plain point-wise SFT baseline without distillation.
+An earlier two-pass R-Drop within-model KL variant collapsed the model to a
+near-constant answer (dev AUC 0.4975 vs stock JEV 0.6432), because the stacked
+linear-attention backbone has no dual-exit to provide a non-degenerate detached
+teacher — the R-Drop KL just drove both stochastic passes to one low-entropy
+constant. Campaign-1 therefore ships the clean SFT CE; distillation is revisited
+only once a valid AUC signal exists.
 
 Usage (multi-node, from repo root):
     MODEL_PATH=... DATA_ROOT=... OUTPUT_DIR=... bash scripts/sft_jev.sh
@@ -105,23 +104,19 @@ class JEVWithinModelDistillTrainer(Trainer):
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # `num_items_in_batch` is passed by transformers 5.x Trainer; accept and ignore.
-        logits1, target = self._answer_logits(model, inputs)
-        ce1 = F.cross_entropy(logits1, target)
-
-        if self.enable_kl and self.kl_beta > 0:
-            logits2, _ = self._answer_logits(model, inputs)
-            ce2 = F.cross_entropy(logits2, target)
-            p2 = torch.softmax(logits2, dim=-1)
-            lp1 = F.log_softmax(logits1, dim=-1)
-            lp2 = F.log_softmax(logits2, dim=-1)
-            # Symmetric KL between the two stochastic passes (R-Drop).
-            kl12 = (p2 * (lp2 - lp1)).sum(dim=-1).mean()
-            p1 = torch.softmax(logits1, dim=-1)
-            kl21 = (p1 * (lp1 - lp2)).sum(dim=-1).mean()
-            kl = 0.5 * (kl12 + kl21)
-            loss = 0.5 * ce1 + 0.5 * ce2 + self.kl_beta * kl
-        else:
-            loss = ce1
+        #
+        # Campaign-1 uses a SINGLE forward and plain point-wise SFT CE on the
+        # A/B answer token. The earlier two-pass R-Drop symmetric-KL variant
+        # (0.5*ce1 + 0.5*ce2 + beta*kl) collapsed to a near-constant P(A) ->
+        # dev AUC 0.4975 (worse than untrained stock JEV 0.6432). The stacked
+        # linear-attention backbone exposes no dual-exit, so there is no
+        # non-degenerate single-forward teacher: a self-KL (teacher=detached
+        # same logits) is identically zero, and the R-Drop two-pass KL instead
+        # drove both dropout passes toward one low-entropy constant answer.
+        # A clean SFT base is the robust first signal; distillation is revisited
+        # only once a valid AUC is demonstrated (see plan risk note).
+        logits, target = self._answer_logits(model, inputs)
+        loss = F.cross_entropy(logits, target)
 
         return (loss, {"loss": loss}) if return_outputs else loss
 

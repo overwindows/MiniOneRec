@@ -70,6 +70,7 @@ NEG_RATIO=${NEG_RATIO:-1.0}
 HARD_NEG_RATIO=${HARD_NEG_RATIO:-0.5}
 KL_BETA=${KL_BETA:-0.1}
 ENABLE_KL=${ENABLE_KL:-1}
+TRAIN_SAMPLE=${TRAIN_SAMPLE:--1}
 USE_ABSTRACT=${USE_ABSTRACT:-1}
 [[ "$USE_ABSTRACT" == "1" || "$USE_ABSTRACT" == "True" || "$USE_ABSTRACT" == "true" ]] && USE_ABSTRACT="True" || USE_ABSTRACT="False"
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"
@@ -120,6 +121,7 @@ deepspeed --hostfile=$HOSTFILE \
         --hard_neg_ratio ${HARD_NEG_RATIO} \
         --kl_beta ${KL_BETA} \
         --enable_kl ${ENABLE_KL} \
+        --sample ${TRAIN_SAMPLE} \
         --use_abstract ${USE_ABSTRACT} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \
         --train_from_scratch False \

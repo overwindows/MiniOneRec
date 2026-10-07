@@ -39,6 +39,10 @@ inputs:
   cutoff_len:
     type: integer
     default: 4096
+  sample:
+    type: integer
+    default: -1
+    description: 抽样子集上限 (>=0 强制截断训练样本数；-1 表示全量)
   use_chat_template:
     type: integer
     default: 0
@@ -74,6 +78,7 @@ command: >-
   --hard-neg-ratio ${{inputs.hard_neg_ratio}}
   --max-history ${{inputs.max_history}}
   --cutoff-len ${{inputs.cutoff_len}}
+  --sample ${{inputs.sample}}
   --use-chat-template ${{inputs.use_chat_template}}
   --use-abstract ${{inputs.use_abstract}}
   --kl-beta ${{inputs.kl_beta}}

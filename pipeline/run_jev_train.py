@@ -66,6 +66,7 @@ def jev_train_pipeline(
     hard_neg_ratio: float = 0.5,
     max_history: int = 30,
     cutoff_len: int = 4096,
+    sample: int = -1,
     use_chat_template: int = 0,
     use_abstract: int = 1,
     kl_beta: str = "0.1",
@@ -83,6 +84,7 @@ def jev_train_pipeline(
         hard_neg_ratio=hard_neg_ratio,
         max_history=max_history,
         cutoff_len=cutoff_len,
+        sample=sample,
         use_chat_template=use_chat_template,
         use_abstract=use_abstract,
         kl_beta=kl_beta,
@@ -114,6 +116,7 @@ if __name__ == "__main__":
     parser.add_argument("--hard-neg-ratio", type=float, default=0.5)
     parser.add_argument("--max-history", type=int, default=30)
     parser.add_argument("--cutoff-len", type=int, default=4096)
+    parser.add_argument("--sample", type=int, default=-1)
     parser.add_argument("--use-chat-template", type=int, default=0, choices=[0, 1])
     parser.add_argument("--use-abstract", type=int, default=1, choices=[0, 1])
     parser.add_argument("--kl-beta", default="0.1")
@@ -137,6 +140,7 @@ if __name__ == "__main__":
         hard_neg_ratio=args.hard_neg_ratio,
         max_history=args.max_history,
         cutoff_len=args.cutoff_len,
+        sample=args.sample,
         use_chat_template=args.use_chat_template,
         use_abstract=args.use_abstract,
         kl_beta=args.kl_beta,

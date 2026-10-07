@@ -78,7 +78,8 @@ KNOWN = {
     "magenta_pasta_7j0yzmwxhw": "r11b 2B Base ckpt4096 s300k resub (TRAIN_SAMPLE=300000, chat_tpl=0)",
     "coral_lion_qrt71styxv": "r11b 2B chat ckpt4096 s300k dev@5000 sdpa eval (eval-fix, CANCELED quota)",
     "olive_steelpan_spqkjfn91t": "r11b 2B chat ckpt4096 s300k dev@5000 sdpa eval (eval-fix, ranking-VC)",
-    "tender_bread_w3zgfpgcsv": "r11b 2B Base ckpt4096 s300k dev@5000 sdpa eval (training done, FAILED in-pipe FA2 eval; standalone sdpa ranking-VC)",
+    "tender_bread_w3zgfpgcsv": "r11b Base eval (FAILED wrong ckpt path, replaced by frosty_whistle)",
+    "frosty_whistle_tlztv5jz9h": "r11b 2B Base ckpt4096 s300k dev@5000 sdpa eval (correct ckpt path, ranking-VC)",
     "icy_school_n62sqfsycd": "JEV-C1 SFT+distill large abstract EP3 KL0.1 dev@5000 eval (ranking-VC)",
 }
 

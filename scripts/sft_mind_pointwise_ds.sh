@@ -175,6 +175,9 @@ fi
 if [[ "${USE_SUBCATEGORY}" -eq 1 ]] || [[ "${USE_SUBCATEGORY}" == "True" ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_subcat"
 fi
+if [[ "${HARD_NEG_RATIO}" != "0.5" ]] && [[ "${HARD_NEG_RATIO}" != "0" ]] && [[ "${HARD_NEG_RATIO}" != "0.0" ]]; then
+    OUTPUT_NAME="${OUTPUT_NAME}_hardneg"
+fi
 if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
     OUTPUT_NAME="${OUTPUT_NAME}_chat"
 fi

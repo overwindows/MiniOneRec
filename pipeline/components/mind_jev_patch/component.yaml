@@ -1,0 +1,27 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: mind_jev_patch
+display_name: MIND OpenJev Patch (fetch missing files onto mount)
+version: "1"
+type: command
+description: Fetch only the missing OpenJev repo files (chat_template.jinja etc.) onto the shared datastore.
+
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+    description: 数据存储挂载路径
+  dest_path:
+    type: string
+    description: 目标目录（相对于挂载路径）
+  debug_mode:
+    type: string
+    default: "false"
+
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+
+command: >-
+  python patch_executor.py
+  --mount-dir ${{inputs.msndni}}
+  --dest-path ${{inputs.dest_path}}
+  --debug-mode ${{inputs.debug_mode}}

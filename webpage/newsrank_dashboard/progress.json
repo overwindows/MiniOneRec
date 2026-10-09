@@ -1,0 +1,253 @@
+{
+  "generated": "2026-10-09 04:32 UTC",
+  "headline": "Target: beat MIND SOTA zetik 0.7326 (currently 0.7144, #14). JEV Campaign-1 SFT trained on MIND_small (COMPLETED); dev eval running.",
+  "campaigns": [
+    {
+      "name": "JEV-4B Campaign-1: SFT (MIND small → large)",
+      "runs": [
+        {
+          "id": "sincere_garlic_7t99m7nxw6",
+          "name": "C1fix SFT CE (MIND_small) train",
+          "metric": "",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "boring_car_qdw46wzq1k",
+          "name": "C1fix SFT CE (MIND_small) dev@5000 eval",
+          "metric": "0.4959",
+          "status": "COMPLETED"
+        }
+      ],
+      "motivation": "Stock OpenJev is a frozen 'no-UL' ranking model (0.6432 AUC) that never saw MIND news. Fine-tune it to P(yes) on MIND pointwise samples to build a news-specialized ranking model — the foundation the RLCD / RL / Teacher-OPD campaigns build on.",
+      "settings": "Qwen3.5 stacked linear-attn JEV-4B · noul A/B prompt · plain pointwise SFT CE on the answer token (R-Drop self-KL collapsed to chance 0.4975 and was removed) · sdpa · micro-batch 2 · lr 1e-4 · DS ZeRO-2 · abstract, hist30, neg1.0, cutoff4096",
+      "data": "MIND_small first (fast validation loop) → re-scale to MINDlarge once signal is confirmed",
+      "eval": "run_jev_eval.py noul scorer on dev@5000 → recompute pointwise AUC vs stock JEV 0.6432",
+      "notes": ""
+    },
+    {
+      "name": "JEV-4B Campaign-2: RLCD",
+      "runs": [],
+      "motivation": "Distill click preferences without an online reward model: score candidates with the Campaign-1 model, build contrastive prefs, fine-tune to raise P(A) on preferred vs dispreferred (DPO-style).",
+      "settings": "DPO-style contrastive distillation from SFT-JEV self-scores · noul A/B contract",
+      "data": "MIND_small smoke → MINDlarge",
+      "eval": "dev@5000 pointwise AUC",
+      "notes": ""
+    },
+    {
+      "name": "JEV-4B Campaign-3: RL (GRPO)",
+      "runs": [],
+      "motivation": "Reinforcement learning from a pointwise reward over noul A/B responses on the Campaign-1 checkpoint, reusing the existing verl/GRPO + vLLM infra.",
+      "settings": "verl GRPO · reward_type=pointwise_binary / mind_auc · vLLM rollout · on C1 checkpoint",
+      "data": "MIND small smoke → MINDlarge",
+      "eval": "dev@5000 pointwise AUC",
+      "notes": ""
+    },
+    {
+      "name": "JEV-4B Campaign-4: Teacher OPD",
+      "runs": [],
+      "motivation": "Offline preference distillation from a strong external teacher (our L1.3 1.7B best pointwise ranker) into JEV-4B — a real, distinct teacher signal (unlike the failed within-model R-Drop).",
+      "settings": "KL-to-frozen-teacher logits term on JEV noul format · β≈0.1",
+      "data": "MIND small smoke → MINDlarge",
+      "eval": "dev@5000 pointwise AUC",
+      "notes": ""
+    },
+    {
+      "name": "Qwen3.5-2B reference pointwise (r11b/r12)",
+      "runs": [
+        {
+          "id": "neat_band_393lt71y7t",
+          "name": "r7 chat abstract gckpt",
+          "metric": "",
+          "status": "FAILED"
+        },
+        {
+          "id": "happy_energy_zrvmghx41r",
+          "name": "r7 Base abstract gckpt",
+          "metric": "",
+          "status": "FAILED"
+        },
+        {
+          "id": "serene_rice_88lx58jm5j",
+          "name": "r11b chat SFT (MINDlarge s300k) train",
+          "metric": "",
+          "status": "FAILED"
+        },
+        {
+          "id": "olive_steelpan_spqkjfn91t",
+          "name": "r11b chat dev@5000 eval",
+          "metric": "0.6542",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "magenta_pasta_7j0yzmwxhw",
+          "name": "r11b Base SFT (MINDlarge s300k) train",
+          "metric": "",
+          "status": "FAILED"
+        },
+        {
+          "id": "frosty_whistle_tlztv5jz9h",
+          "name": "r11b Base dev@5000 eval",
+          "metric": "0.6272",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "zen_sun_11q5r489j4",
+          "name": "r11b chat FULL-DEV eval (376k)",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "nice_plate_8v2hbbvb5y",
+          "name": "r11b Base FULL-DEV eval (376k)",
+          "metric": "",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "green_salt_0m0w4lhcgz",
+          "name": "r12 chat FULL MIND_small (no cap) train",
+          "metric": "",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "tender_box_q646hppnl4",
+          "name": "r12 Base FULL MIND_small (no cap) train",
+          "metric": "",
+          "status": "COMPLETED"
+        }
+      ],
+      "motivation": "Same linear-attention family as JEV; reference pointwise ranker for comparison.",
+      "settings": "abstract gckpt · r12: FULL MIND_small no sample cap (EP5 ckpt4096) · r11b: MINDlarge s300k (30万样本上限)",
+      "data": "r12: MIND_small (no cap) · r11b: MINDlarge (s300k truncated)",
+      "eval": "dev@5000 AUC",
+      "notes": ""
+    },
+    {
+      "name": "Qwen3.5-2B P-series rerun (MIND_small L1.x sweep)",
+      "runs": [
+        {
+          "id": "affable_hamster_dfksgqqfjm",
+          "name": "2B P1.0 ep5 base (small)",
+          "metric": "0.6360",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "dreamy_monkey_rb7j50sqc3",
+          "name": "2B P1.1 neg3.0 (small)",
+          "metric": "0.6287",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "olden_fennel_zvl1kjpwnz",
+          "name": "2B P1.2 ep7 (small)",
+          "metric": "0.6424",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "keen_drain_9d0g467ccp",
+          "name": "2B P1.3 abstract ckpt4096 (small)",
+          "metric": "0.6385",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "serene_station_c7g9br7ph1",
+          "name": "2B P1.4 hist50 (small)",
+          "metric": "0.6429",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "neat_potato_7myz9f6k4w",
+          "name": "2B P1.5 neg3 ep7 hist50 (small)",
+          "metric": "0.6189",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "gentle_root_d1c59cx392",
+          "name": "2B P1.7 subcategory (small)",
+          "metric": "0.6253",
+          "status": "COMPLETED"
+        }
+      ],
+      "motivation": "Rerun the historical Qwen3-1.7B MIND_small P1.x sweep on Qwen3.5-2B — identical settings, only model changes.",
+      "settings": "bs256 micro4 · train_sample=0 (full MIND_small) · chat template · gckpt · cutoff8192 (P1.3=4096)",
+      "data": "MIND_small",
+      "eval": "dev@5000 AUC",
+      "notes": ""
+    },
+    {
+      "name": "Qwen3.5-2B L-series rerun (MIND_small — research phase)",
+      "runs": [
+        {
+          "id": "polite_vulture_6qxy937lfx",
+          "name": "2B L1.1 neg3.0 (small research)",
+          "metric": "0.6287",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "sleepy_cassava_4qtqckylh0",
+          "name": "2B L1.2 ep7 (small research)",
+          "metric": "0.6424",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "gentle_soca_k0yplhlqdz",
+          "name": "2B L1.3 abstract (small research)",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "placid_nut_mvf48tgbm3",
+          "name": "2B L1.4 hist50 (small research)",
+          "metric": "0.6429",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "lemon_pasta_t8ct4b0nkx",
+          "name": "2B L1.5 neg3 ep7 hist50 (small research)",
+          "metric": "0.6189",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "cool_bottle_9hwv3v9tl4",
+          "name": "2B-Base L1.7 (small, no chat)",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "nice_peach_wzg73q6dl8",
+          "name": "2B-Base L1.9 abstract (small research)",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "sweet_cassava_33crdfhp1d",
+          "name": "2B L1.13 abstract ep7 neg3 (small research)",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "blue_plum_21l227nncx",
+          "name": "2B F1.1 abstract+subcat (small research)",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "salmon_squash_t0b7yt5zls",
+          "name": "2B H1.1 hard-neg 100% (small) rerun hardneg-fix",
+          "metric": "",
+          "status": "RUNNING"
+        },
+        {
+          "id": "goofy_box_nghcbmkp1z",
+          "name": "2B H1.1 (OLD — collision w/ P1.0, unreliable)",
+          "metric": "",
+          "status": "COMPLETED"
+        }
+      ],
+      "motivation": "Rerun the historical Qwen3-1.7B L1.x sweep (incl. F1.1/H1.1) on Qwen3.5-2B — identical settings, only model changes. RESEARCH FIRST on MIND_small; winners promote to MIND_large.",
+      "settings": "bs256 micro4 · train_sample=0 (full MIND_small) · chat template (L1.7/L1.9 Base no-chat) · gckpt · cutoff8192",
+      "data": "MIND_small",
+      "eval": "dev@5000 AUC",
+      "notes": ""
+    }
+  ]
+}

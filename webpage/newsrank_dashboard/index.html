@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>NewsRank Live — MIND Ranking-Model Training</title>
+<style>
+  :root{--bg:#0b1120;--card:#151f35;--line:#26334d;--txt:#e2e8f0;--mut:#8fa3bf;
+        --ok:#22c55e;--warn:#eab308;--bad:#ef4444;--run:#38bdf8;--gold:#fbbf24;
+        --accent:#6366f1;--blue:#3b82f6;}
+  *{box-sizing:border-box;}
+  body{background:radial-gradient(1200px 600px at 80% -10%,#1e293b55,transparent),var(--bg);
+       color:var(--txt);font-family:"Segoe UI",system-ui,sans-serif;margin:0;padding:28px;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  .hero{border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:16px;
+        background:linear-gradient(135deg,#1e293b,#0f172a);}
+  h1{font-size:24px;margin:0 0 6px;}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;padding:3px 9px;
+       border-radius:20px;background:#1d4ed8;color:#dbeafe;margin-right:8px;text-transform:uppercase;}
+  .tag.sota{background:#b45309;color:#fef3c7;}
+  .sub{color:var(--mut);font-size:13px;margin:8px 0 0;}
+  .goal{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);}
+  .goal .stat{font-size:13px;color:var(--mut);}
+  .goal .stat b{display:block;font-size:22px;color:var(--txt);}
+  .goal .stat.gold b{color:var(--gold);}
+  .goal .stat.blue b{color:var(--run);}
+  .updated{color:var(--mut);font-size:12px;margin-bottom:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;}
+  .h2{font-size:15px;font-weight:700;letter-spacing:.03em;margin:0 0 14px;color:#cbd5e1;
+      text-transform:uppercase;font-size:13px;color:var(--mut);}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{color:var(--mut);font-weight:600;text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);
+     font-size:11px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+  td{padding:7px 10px;border-bottom:1px solid #1e2a42;vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .num{font-family:Consolas,monospace;text-align:right;}
+  .best{color:var(--gold);font-weight:700;}
+  .sota-row{background:#2a1a05;}
+  .campaign{border-left:3px solid var(--blue);padding-left:14px;margin-bottom:16px;}
+  .campaign h3{margin:0 0 4px;font-size:15px;}
+  .camp-meta{color:var(--mut);font-size:12px;margin-bottom:8px;}
+  .camp-meta b{color:var(--txt);}
+  .motiv{color:#cbd5e1;font-size:13px;background:#0f1a2e;border:1px solid var(--line);
+         border-radius:8px;padding:10px 12px;margin:8px 0;}
+  .run{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .run:last-child{border-bottom:none;}
+  .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;}
+  .s-Completed,.s-Succeeded{background:var(--ok);}
+  .s-Running,.s-Queued,.s-Starting,.s-Provisioning{background:var(--run);}
+  .s-Failed{background:var(--bad);}
+  .s-Canceled,.s-CancelRequested{background:var(--warn);}
+  .s-Preparing{background:var(--warn);}
+  .run-name{flex:1;}
+  .run-id{color:var(--mut);font-size:11px;font-family:Consolas,monospace;}
+  .run-status{font-weight:600;font-size:12.5px;}
+  .st-Running{color:var(--run);}.st-Completed,.st-Succeeded{color:var(--ok);}
+  .st-Failed{color:var(--bad);}.st-Queued,.st-Canceled{color:var(--warn);}
+  .metrics{color:var(--mut);font-size:12px;}
+  .metrics b{color:var(--txt);}
+  .pulse{animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .footer{color:var(--mut);font-size:11px;margin-top:18px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>NewsRank Live — MIND Ranking-Model Training</h1>
+    <div>
+      <span class="tag sota">Target: Beat SOTA</span>
+      <span class="tag">Codabench #13967</span>
+      <span class="tag">MiniOneRec</span>
+    </div>
+    <div class="sub">AWS/AML news-ranking benchmark · overwindows team · Repo <b>Q:\MiniOneRec</b> · AML <b>NewsFeedL2_AML</b></div>
+    <div class="goal">
+      <div class="stat gold"><b>0.7326</b>SOTA · zetik</div>
+      <div class="stat blue"><b>0.7144</b>Our current (leaderboard #14)</div>
+      <div class="stat"><b>+0.0182</b>AUC gap to target</div>
+      <div class="stat"><b>4</b>JEV paradigms in flight</div>
+    </div>
+  </div>
+
+  <div class="updated" id="updated">loading…</div>
+
+  <!-- Prior / reference results -->
+  <div class="card">
+    <div class="h2">Baselines &amp; best-so-far (AUC on MIND)</div>
+    <table id="baseline-table"></table>
+  </div>
+
+  <div id="campaigns"></div>
+
+  <div id="notes" class="card"></div>
+
+  <div class="footer">Live progress regenerated from AML job states by the CodeGuru monitor · auto-refreshes every 60s · data feed progress.json</div>
+</div>
+
+<script>
+// Static reference table — ALL completed experiments with AUCs (curated from MiniOneRec/EXPERIMENT_PLAN.md), sorted by AUC desc.
+// Base models on MINDlarge unless split says MINDsmall.
+const BASELINES = [
+  {exp:"SOTA — zetik", model:"—", split:"MIND test", auc:0.7326, note:"Codabench #13967 target"},
+  {exp:"E3.A best ensemble (leaderboard #14)", model:"L1.3 + L1.7", split:"test/dev", auc:0.7144, note:"test≈dev 0.0008 gap, no overfit"},
+  {exp:"E3.A (dev)", model:"L1.3 + L1.7", split:"dev", auc:0.7152, note:"equal-weight ensemble — best dev"},
+  {exp:"E3.C (dev)", model:"L1.3 + L1.7 + L1.2", split:"dev", auc:0.7105, note:"L1.2 dilutes the ensemble"},
+  {exp:"E3.E (dev)", model:"L1.3 + L1.7 + L1.9", split:"dev", auc:0.7071, note:"+0.0022 over L1.3 solo"},
+  {exp:"E1.2 (L1.3 re-eval)", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.7051, note:"abstract at eval; confirms pipeline fix"},
+  {exp:"CF1.1", model:"L1.3 + item-CF", split:"MINDlarge dev", auc:0.7051, note:"α=0.3, no gain over L1.3"},
+  {exp:"L1.3 (best single)", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.7049, note:"abstract, hist30, EP5, neg1.0 — NEW BEST single"},
+  {exp:"P1.1 (best small)", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6985, note:"NEG_RATIO=3.0, 8h train"},
+  {exp:"F1.1 (abandoned)", model:"Qwen3-1.7B", split:"dev", auc:0.6962, note:"subcategory hurts; 0.78ep only"},
+  {exp:"L1.7", model:"Qwen3-1.7B-Base", split:"MINDlarge dev", auc:0.6946, note:"no chat template"},
+  {exp:"E1.1 (L1.3 no-abstract eval)", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6945, note:"abstract needed at eval (−0.0104)"},
+  {exp:"L1.2", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6932, note:"EP=7"},
+  {exp:"P1.2", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6886, note:"EP=7"},
+  {exp:"P1.4", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6886, note:"HIST=50"},
+  {exp:"L1.1", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6883, note:"NEG=3.0 hurts on large"},
+  {exp:"L1.9", model:"Qwen3-1.7B-Base", split:"MINDlarge dev", auc:0.6880, note:"abstract didn't boost base"},
+  {exp:"L1.4", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6863, note:"HIST=50 hurts on large"},
+  {exp:"L1.5", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6863, note:"NEG=3 EP7 HIST50 bottleneck"},
+  {exp:"P1.0 (anchor)", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6861, note:"default ep5 baseline"},
+  {exp:"P1.1 (pre-pipeline)", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6845, note:"NEG_RATIO=3.0"},
+  {exp:"P1.5", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6804, note:"NEG=3 EP7 HIST50"},
+  {exp:"P1.7", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6767, note:"subcategory hurts"},
+  {exp:"P1.3", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6662, note:"abstract, cutoff 4096 (re-run)"},
+  {exp:"L1.3x (pipeline repro)", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6622, note:"gckpt/pipeline diverges −0.0427 from L1.3"},
+  {exp:"L1.13", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6647, note:"EP7+NEG3+abstract collapses"},
+  {exp:"H1.1", model:"Qwen3-1.7B", split:"MINDlarge dev", auc:0.6622, note:"100% same-category negatives"},
+  {exp:"Qwen3.5-2B P1.0", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6360, note:"2B full MIND_small ep5 base — below 1.7B 0.6861"},
+  {exp:"Qwen3.5-2B P1.1", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6287, note:"2B neg3.0 — below 1.7B 0.6985"},
+  {exp:"Qwen3.5-2B P1.2", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6424, note:"2B ep7 — below 1.7B 0.6886"},
+  {exp:"Qwen3.5-2B P1.3", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6385, note:"2B abstract ckpt4096 — below 1.7B 0.6662"},
+  {exp:"Qwen3.5-2B P1.4", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6429, note:"2B hist50 — below 1.7B 0.6886"},
+  {exp:"Qwen3.5-2B P1.5", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6189, note:"2B neg3 ep7 hist50 — below 1.7B 0.6804"},
+  {exp:"Qwen3.5-2B P1.7", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6253, note:"2B subcategory — below 1.7B 0.6767"},
+  {exp:"Qwen3.5-2B L1.4", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6429, note:"2B hist50 — matches P1.4, below 1.7B 0.6863"},
+  {exp:"Qwen3.5-2B L1.2", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6424, note:"2B ep7 — matches P1.2, below 1.7B 0.6932"},
+  {exp:"Qwen3.5-2B L1.1", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6287, note:"2B neg3.0 — matches P1.1, below 1.7B 0.6883"},
+  {exp:"Qwen3.5-2B L1.5", model:"Qwen3.5-2B", split:"MINDsmall", auc:0.6189, note:"2B neg3 ep7 hist50 — matches P1.5, below 1.7B 0.6804"},
+  {exp:"Qwen3.5-2B r11b (chat)", model:"Qwen3.5-2B", split:"dev@5000", auc:0.6542, note:"MINDlarge s300k (30万样本上限) — undertrained vs L1.3 full-data 0.7049"},
+  {exp:"JEV-4B (stock, frozen)", model:"APUS-OpenJev-v1-4B", split:"dev@5000", auc:0.6432, note:"no-UL secondary track reference (noul contract)"},
+  {exp:"JEV-9B (stock, frozen)", model:"APUS-OpenJev-v1-9B", split:"dev@5000", auc:0.6329, note:"size doesn't help on noul"},
+  {exp:"Qwen3.5-2B r11b (Base)", model:"Qwen3.5-2B-Base", split:"dev@5000", auc:0.6272, note:"MINDlarge s300k; chat-template > base for 2B"},
+  {exp:"M4.0", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.6213, note:"multitask POINTWISE_RATIO=0.7 hurt badly"},
+  {exp:"Qwen3-4B-Instruct (stock, frozen)", model:"Qwen3-4B-Instruct-2507", split:"MINDsmall", auc:0.5811, note:"zero-shot, generic pointwise prompt — NOT noul contract, not directly comparable"},
+  {exp:"Qwen3-1.7B (stock, frozen)", model:"Qwen3-1.7B", split:"MINDsmall", auc:0.5641, note:"zero-shot, generic pointwise prompt — NOT noul contract, not directly comparable"},
+];
+const ST = {Completed:'Completed',Succeeded:'Succeeded',Running:'Running',Queued:'Queued',
+  Failed:'Failed',Canceled:'Canceled',CancelRequested:'CancelRequested',
+  Starting:'Starting',Provisioning:'Provisioning',Preparing:'Preparing'};
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function renderBaselines(){
+  const t=document.getElementById('baseline-table');
+  let h='<tr><th>Experiment</th><th>Model</th><th>Split</th><th class="num">AUC</th><th>Notes</th></tr>';
+  const sorted=[...BASELINES].sort((a,b)=>b.auc-a.auc);
+  for(const b of sorted){
+    const isSota=(b.exp.indexOf('SOTA')===0);
+    const bst=b.auc>=0.7114;
+    h+=`<tr class="${isSota?'sota-row':''}">
+      <td>${esc(b.exp)}</td><td>${esc(b.model)}</td><td>${esc(b.split)}</td>
+      <td class="num ${bst?'best':''}">${b.auc.toFixed(4)}</td><td>${esc(b.note)}</td></tr>`;
+  }
+  t.innerHTML=h;
+}
+
+function renderNote(d){
+  const n=document.getElementById('notes');
+  if(d.headline){ n.innerHTML=`<div class="h2">Status</div><div>${esc(d.headline)}</div>`; }
+  else n.style.display='none';
+}
+
+async function refresh(){
+  try{
+    const r=await fetch('./progress.json?t='+Date.now());
+    const d=await r.json();
+    document.getElementById('updated').textContent='Last updated: '+(d.generated||'?')+' UTC';
+    const app=document.getElementById('campaigns');
+    app.innerHTML='';
+    for(const c of (d.campaigns||[])){
+      const card=document.createElement('div');card.className='card';
+      let html=`<div class="campaign"><h3>${esc(c.name)}</h3>`;
+      if(c.motivation) html+=`<div class="motiv">🎯 ${esc(c.motivation)}</div>`;
+      if(c.settings) html+=`<div class="camp-meta">⚙️ <b>Settings:</b> ${esc(c.settings)}</div>`;
+      if(c.data) html+=`<div class="camp-meta">📊 <b>Data:</b> ${esc(c.data)}</div>`;
+      if(c.eval) html+=`<div class="camp-meta">🧪 <b>Eval:</b> ${esc(c.eval)}</div>`;
+      html+=`</div>`;
+      for(const run of (c.runs||[])){
+        const st=run.status, stCls=st&&ST[st]?'st-'+st:'', dot=st&&ST[st]?'s-'+st:'';
+        const pulse=(st==='Running'||st==='Queued'||st==='Provisioning'||st==='Starting')?' pulse':'';
+        html+=`<div class="run">
+          <span class="dot ${dot}${pulse}"></span>
+          <span class="run-name">${esc(run.name)}</span>
+          <span class="metrics">${esc(run.metric||'')}</span>
+          <span class="run-status ${stCls}">${esc(st||'')}</span>
+          <span class="run-id">${esc(run.id||'')}</span></div>`;
+      }
+      card.innerHTML=html;app.appendChild(card);
+    }
+    renderNote(d);
+  }catch(e){document.getElementById('campaigns').textContent='load error: '+e.message;}
+}
+renderBaselines();
+setInterval(refresh,60000);
+refresh();
+</script>
+</body>
+</html>

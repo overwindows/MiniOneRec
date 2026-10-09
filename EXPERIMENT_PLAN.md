@@ -342,6 +342,16 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 > `final_checkpoint` saved). Re-submitted standalone eval at **bs1** (safest): chat `sharp_napa_myhlzwqvh3`,
 > Base `maroon_brush_xvk6c59278`.
 >
+> **Qwen3.5 eval sdpa fix (2026-10-06, commit 3131435)**: `evaluate_mind_pointwise.py` detected Qwen3.5
+> via `model_type=="qwen3_5"`, which FAILED for these checkpoints → fell back to Flash Attention 2 → illegal
+> memory access crash on the GatedDeltaNet hybrid backbone. Fixed to sniff the `architectures` string
+> (`ForConditionalGeneration`/`Qwen3_5`) exactly like the trainer (sft_mind_pointwise_ds.py:180), forcing sdpa.
+> Also fixed `config_mind_train.json` eval glob `*$(basename model)*` selecting the wrong sibling checkpoint
+> (chat vs Base both live under the shared output_root) → now builds the exact OUTPUT_NAME deterministically.
+> Verified working: dev@5000 eval of r11b chat completed cleanly on the ranking VC (`olive_steelpan_spqkjfn91t`).
+> **Gotcha**: the standalone eval component `run_eval_pipeline.py` is pinned to the **recall** VC (node-starved /
+> `Not enough Standard tier quota`); submit eval on the **ranking** VC (like training) instead.
+>
 > **r7 eval v4 fix (2026-10-03)**: bs1 pointwise evals `brave_rhythm_grkhnk42yf`/`goofy_beet_q8cg4r2mr0`
 > STILL OOM'd (`illegal memory access` @ qwen3_5.py:375 `torch_chunk_gated_delta_rule` `torch.zeros(...)`) —
 > root cause was `config_mind_eval.json` lacking `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (only the
@@ -355,11 +365,77 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | **r8** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=7** | - | L1.2-repro (EP7) on 2B; tests if undertrained 2B gains from more epochs; run `sleepy_pasta_g9hytyykq9` |
 | **r9** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **HIST=50** | - | 2B linear-attention backbone natively handles long history — HIST may help where it hurt 1.7B; run `olden_drain_3b6psyybwj` → stale-run reuse (FAILED) → `joyful_juice_zh8gm2z86r` |
 | **r10** | 🔄 Submitted | Qwen3.5-2B (chat) | MINDlarge | abstract, **EP=5** (L1.3 winner repro) | - | **Exact L1.3-winner setting (0.7049) on 2B** — the true prior-best repro; run `upbeat_leaf_43yqnzr0h8` |
+| **r11b** | ✅ Completed | Qwen3.5-2B (chat) | MINDlarge | abstract, ckpt4096, EP=5, ckpt4096, s300k (30万样本上限) | **0.6542** dev@5000 | `serene_rice_88lx58jm5j` trained + checkpoint saved; **dev@5000 eval `olive_steelpan_spqkjfn91t` (ranking-VC) COMPLETED: AUC 0.6542**, MRR 0.3041, nDCG@5 0.3290, nDCG@10 0.3952. Note: **s300k = only 30万 samples** (feasible 5860-step run) — VALID but on a reduced train set, so not directly comparable to full-L1.3-repro R10 (no eval fix there yet). |
+| **r11b** | ✅ Completed | Qwen3.5-2B (Base) | MINDlarge | abstract, ckpt4096, EP=5, s300k | **0.6272** dev@5000 | **Base eval COMPLETED: AUC 0.6272** dev@5000 (recomputed from pred file keyed by impression ID; 5000/5000 matched). Chat (0.6542) > Base (0.6272) — chat-template training helps 2B. Both positive; Qwen3.5-2B is a working L1.x reproduction. |
+
+### Phase 1P: Qwen3.5-2B P-series rerun (MIND_small — full data, no s300k cap)
+
+> User directive: for all historical Qwen3-1.7B experiments, swap the model to **Qwen3.5-2B** and
+> rerun with *identical* settings — research FIRST on full **MIND_small** (`--train-sample 0`),
+> promote winners to MIND_large after validation. Full MIND_small dev = 73,152 impressions (AUC
+> computed from ADLS pred files via `calc_mind_metrics.py`, impression-ID keyed, 73,152/73,152 matched).
+
+| Exp | Model | Dataset | Config | AUC | vs 1.7B | Notes |
+|-----|-------|---------|--------|-----|---------|-------|
+| **P1.0** | Qwen3.5-2B | MINDsmall | ep5 default | **0.6360** | 1.7B 0.6861 (−0.0501) | `affable_hamster_dfksgqqfjm` COMPLETED. 2B clearly underperforms 1.7B on full small. |
+| **P1.1** | Qwen3.5-2B | MINDsmall | neg3.0 | **0.6287** | 1.7B 0.6985 (−0.0698) | `dreamy_monkey_rb7j50sqc3` COMPLETED. |
+| **P1.5** | Qwen3.5-2B | MINDsmall | neg3 ep7 hist50 | **0.6189** | 1.7B 0.6804 (−0.0615) | `neat_potato_7myz9f6k4w` COMPLETED. |
+| **P1.2** | Qwen3.5-2B | MINDsmall | ep7 | **0.6424** | 1.7B 0.6886 (−0.0462) | `olden_fennel_zvl1kjpwnz` COMPLETED. ep7 = 2B's best alongside hist50 — supports undertraining theory. |
+| **P1.3** | Qwen3.5-2B | MINDsmall | abstract ckpt4096 | **0.6385** | 1.7B 0.6662 (−0.0277) | `keen_drain_9d0g467ccp` COMPLETED. |
+| **P1.4** | Qwen3.5-2B | MINDsmall | hist50 | **0.6429** | 1.7B 0.6886 (−0.0457) | `serene_station_c7g9br7ph1` COMPLETED. |
+| **P1.7** | Qwen3.5-2B | MINDsmall | subcategory | **0.6253** | 1.7B 0.6767 (−0.0514) | `gentle_root_d1c59cx392` COMPLETED. |
+
+> **Read (2026-10-09, all 7 completed)**: Qwen3.5-2B is consistently **~0.05–0.07 AUC below**
+> Qwen3-1.7B on every P-series config → the ~0.05–0.07 deficit is confirmed accurate & reproduced.
+> Best 2B configs are **ep7 (P1.2 0.6424) and hist50 (P1.4 0.6429)** — both add more training signal,
+> consistent with the "linear-attention 2B is undertrained at 5 epochs" hypothesis; stacking everything
+> (P1.5) or subcategory (P1.7) hurts. No 2B config closes the gap to 1.7B. Decision point: the 2B
+> L-series on MIND_large will likely show the same deficit — whether to keep scaling the 2B path or
+> fall back to 1.7B as the primary ranker.
+
+### Phase 1L: Qwen3.5-2B L-series rerun (MIND_small — research phase)
+
+> RESEARCH-FIRST: rerun the historical Qwen3-1.7B L1.x sweep (incl. F1.1/H1.1) on Qwen3.5-2B with
+> identical settings on full MIND_small (`train_sample=0`); promote winners to MIND_large after.
+> Baseline (L1.3) = ep5, neg2.0, hist30, abstract, chat. Model `Qwen/Qwen3.5-2B` (L1.7/L1.9 = `-Base`,
+> no chat). Submitted via `pipeline/submit_2b_l1x_lseries.py`.
+
+| Exp | Config | 2B AUC | vs 1.7B | Notes |
+|-----|--------|--------|---------|-------|
+| **L1.1** | neg3.0 | **0.6287** | 0.6883 (−0.0596) | `polite_vulture_6qxy937lfx` COMPLETED. |
+| **L1.2** | ep7 | **0.6424** | 0.6932 (−0.0508) | `sleepy_cassava_4qtqckylh0` COMPLETED. |
+| **L1.3** | abstract (baseline) | *(running)* | 0.7049 | `gentle_soca_k0yplhlqdz` RUNNING |
+| **L1.4** | hist50 | **0.6429** | 0.6863 (−0.0434) | `placid_nut_mvf48tgbm3` COMPLETED. |
+| **L1.5** | neg3 ep7 hist50 | **0.6189** | 0.6804 (−0.0615) | `lemon_pasta_t8ct4b0nkx` COMPLETED. |
+| **L1.7** | Base, no chat | *(running)* | 0.6946 | `cool_bottle_9hwv3v9tl4` RUNNING |
+| **L1.9** | Base abstract | *(running)* | 0.6880 | `nice_peach_wzg73q6dl8` RUNNING |
+| **L1.13** | abstract ep7 neg3 | *(running)* | 0.6647 | `sweet_cassava_33crdfhp1d` RUNNING |
+| **F1.1** | abstract+subcat | *(running)* | 0.6962 (0.78ep) | `blue_plum_21l227nncx` RUNNING |
+| **H1.1** | hard-neg 100% | *(rerunning)* | 0.6622 | Original `goofy_box_nghcbmkp1z` polluted by eval-name collision w/ P1.0 → rerun `salmon_squash_t0b7yt5zls` with `_hardneg` naming fix. |
+
+> **Interim (2026-10-09, 4 complete)**: L1.1/L1.2/L1.4/L1.5 match the P-series AUCs exactly (same
+> settings → same numbers → pipeline reproducible). Same ~0.05–0.06 deficit vs 1.7B. **L1.4 hist50
+> 0.6429 and L1.2 ep7 0.6424 are best so far** — same direction as P-series. H1.1 excluded pending
+> clean rerun (collision bug).
+
+> **Bug found & fixed (2026-10-09)**: `OUTPUT_NAME` in `scripts/sft_mind_pointwise_ds.sh` and
+> `pipeline/components/mind_train/config_mind_train.json` **did not include `HARD_NEG_RATIO`**, so
+> H1.1 (hard_neg=1.0, neg2.0) collided with P1.0 (hard_neg=0, neg2.0) at
+> `..._bs256_ep5_neg2.0_hist30_chat`. Added `_hardneg` suffix for non-default (≠0/≠0.5) hard-neg
+> configs — future hard-neg runs get a distinct dir. No existing default dirs rename; only future
+> non-default hard-neg runs are affected.
 
 ### Secondary Track: OpenJev (JEV) decision-model eval (2026-09-29)
 
 > **JEV track**: use OpenJev as a "no-UL" decision model scoring each candidate's P(yes) on 5000-dev impressions
 > (wheat_plastic_ryxqfpg987, `jev-dev-batch5k-ok`). Predictions at `shares/users/wuc/models/jev_eval_results/dev_jev_predictions.txt`.
+
+> **Qwen (stock, frozen) baseline**: NOT yet evaluated on the same noul dev@5000 contract.
+> Every Qwen row in this doc is a *trained* model. The only frozen/untrained Qwen numbers live
+> in the zero-shot baseline table (lines 62-66: Qwen3-1.7B 56.41%, Qwen3-4B-Instruct 58.11%),
+> but those use the generic pointwise prompt on MINDsmall — **not** the noul A/B opener — so they
+> are NOT directly comparable to the JEV stock reference 0.6432. TODO: run a frozen Qwen3.5-2B
+> noul eval on dev@5000 for an apples-to-apples stock comparison.
 
 | Exp | Model | Split | Max impressions | AUC | Notes |
 |-----|-------|-------|-----------------|-----|-------|

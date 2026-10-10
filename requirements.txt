@@ -29,17 +29,18 @@ bitsandbytes==0.48.1
 # in sync. 3.2.0 keeps numpy>=1.17 (fits the repo numpy<2 pen) and satisfies
 # lm-eval's datasets>=2.16.0.
 huggingface-hub==1.3.0
-# datasets is CAPPED + pyarrow PINNED to kill per-node env drift in the shared
-# AML image. The repo pins numpy>=1.26.3,<2.0.0, but the unbounded
-# "datasets>=3.2.0" let pip resolve a pyarrow>=19 wheel that REQUIRES numpy 2.0,
-# surfacing as "ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4"
-# at transformers.Trainer() init (lazy `import datasets`). The resolution is
-# node-image-cache-dependent -> the SAME job spec succeeded on some nodes and
-# failed on others (qwen2.5 ok, qwen3 failed), so retries kept landing on bad
-# nodes. Pinning datasets==3.2.0 (its pyarrow floor is 15.x) and pyarrow==17.0.0
-# (supports numpy 1.26) makes the numpy<2 pin actually satisfiable everywhere.
-datasets==3.2.0
-pyarrow==17.0.0
+# pyarrow is CAPPED at <19 to stop per-node env drift in the shared AML image.
+# The repo pins numpy>=1.26.3,<2.0.0, but the unbounded default let pip resolve
+# a pyarrow>=19 wheel that REQUIRES numpy 2.0, surfacing as "ImportError:
+# pyarrow requires NumPy 2.0 or newer, found 1.26.4" at transformers.Trainer()
+# init (lazy `import datasets`). The resolution is node-image-cache dependent ->
+# the SAME job spec succeeded on some nodes and failed on others, so retries kept
+# landing on bad nodes. An UPPER bound (not an exact pin) is critical: exact
+# pyarrow==17.0.0 broke the whole -r requirements resolve against verl/ray (line
+# ~62), which let pip fail and left `fire` uninstalled -> a worse crash. <19 kills
+# the numpy-2-only wheels while still resolving with verl/ray.
+datasets>=3.2.0
+pyarrow<19
 safetensors==0.6.2
 
 # Scientific Computing

@@ -164,6 +164,10 @@ KNOWN = {
     "bubbly_box_22mqqbhx3t": "qwen3-1p7b P1.4 hist50 (small, r3-pyarrowfix)",
     "modest_planet_jtcx7s990g": "qwen3-1p7b P1.5 neg3 ep7 hist50 (small, r3-pyarrowfix)",
     "sharp_whistle_8qmk29l9pv": "qwen3-1p7b P1.7 subcategory (small, r3-pyarrowfix)",
+    # --- r4 gemma pyarrowfix reruns (datasets==3.2.0 + pyarrow==17.0.0) ---
+    "jovial_carpet_l4ffzdyc0w": "gemma2-2b P1.0 ep5 base (small, r4-pyarrowfix)",
+    "cool_apricot_94sxgdj0sl": "gemma2-2b P1.4 hist50 (small, r4-pyarrowfix)",
+    "bright_actor_ljf1zl92gw": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r4-pyarrowfix)",
 }
 
 

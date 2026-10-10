@@ -174,7 +174,11 @@ RESOLVED_DATA_PATH='$RESOLVED_DATA_PATH' NODE_NAME='$node' bash -s" <<'REMOTE_EO
         # (non-fatal): it may abort on a cold node image-cache, but that must not
         # block training.
         echo "Installing SFT-critical deps on $NODE_NAME..."
-        pip install -q --no-cache-dir fire==0.7.1 tqdm==4.67.1 safetensors==0.6.2 einops==0.8.0 datasets>=3.2.0 pyarrow<19
+        # Each spec is QUOTED so bash never parses the >=/< as a shell
+        # redirection. Unquoted `pyarrow<19` is read as "redirect stdin from
+        # file 19" -> "19: No such file or directory" -> the whole pip line
+        # fails -> fire never installs -> deepspeed import fire crash (r6).
+        pip install -q --no-cache-dir 'fire==0.7.1' 'tqdm==4.67.1' 'safetensors==0.6.2' 'einops==0.8.0' 'datasets>=3.2.0' 'pyarrow<19'
         echo "Installing requirements on $NODE_NAME (best-effort)..."
         if [ -f requirements.txt ]; then
             pip install -q -r requirements.txt || echo "WARN: -r requirements.txt resolve failed on $NODE_NAME (non-fatal; SFT-critical deps already installed)"

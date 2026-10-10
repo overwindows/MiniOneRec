@@ -157,6 +157,13 @@ KNOWN = {
     "musing_avocado_8g37lg0lx9": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r3-licensed)",
     "hungry_leek_vmldssjx7m": "gemma2-2b P1.7 subcategory (small, r3-licensed)",
     "mighty_kale_6j7jh9tbk7": "gemma2-2b P1.0 ep5 base (small, r3-licensed)",
+    # --- r3 qwen3 pyarrowfix reruns (datasets==3.2.0 + pyarrow==17.0.0) ---
+    "lucid_roti_1d3mh2hm55": "qwen3-1p7b P1.0 ep5 base (small, r3-pyarrowfix)",
+    "sharp_sun_wzxh205ybv": "qwen3-1p7b P1.1 neg3.0 (small, r3-pyarrowfix)",
+    "ivory_evening_8q8xqvk660": "qwen3-1p7b P1.2 ep7 (small, r3-pyarrowfix)",
+    "bubbly_box_22mqqbhx3t": "qwen3-1p7b P1.4 hist50 (small, r3-pyarrowfix)",
+    "modest_planet_jtcx7s990g": "qwen3-1p7b P1.5 neg3 ep7 hist50 (small, r3-pyarrowfix)",
+    "sharp_whistle_8qmk29l9pv": "qwen3-1p7b P1.7 subcategory (small, r3-pyarrowfix)",
 }
 
 

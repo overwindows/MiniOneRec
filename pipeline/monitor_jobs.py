@@ -136,6 +136,27 @@ KNOWN = {
     "neat_feather_nk1dky1l3y": "gemma2-2b P1.4 hist50 (small)",
     "silver_needle_vnttdxcyqq": "gemma2-2b P1.5 neg3 ep7 hist50 (small)",
     "tough_lunch_rp8063c5wd": "gemma2-2b P1.7 subcategory (small)",
+    # --- r2 retries: qwen3 (transient pyarrow env) + gemma (HF token/license fix) ---
+    "jovial_mangos_b3vnpz62gw": "qwen3-1p7b P1.0 ep5 base (small, r2)",
+    "strong_snail_gcyswk8n9n": "qwen3-1p7b P1.1 neg3.0 (small, r2)",
+    "ashy_bee_91p17lxbnl": "qwen3-1p7b P1.2 ep7 (small, r2)",
+    "silver_shampoo_s24fl6tjvl": "qwen3-1p7b P1.4 hist50 (small, r2)",
+    "mighty_yuca_4ql3d1h4k7": "qwen3-1p7b P1.5 neg3 ep7 hist50 (small, r2)",
+    "olden_pot_bvb2nl0c21": "qwen3-1p7b P1.7 subcategory (small, r2)",
+    "dreamy_root_1cy02qhc1d": "gemma2-2b P1.0 ep5 base (small, r2-401)",
+    "joyful_foot_x4z0lcxv4q": "gemma2-2b P1.1 neg3.0 (small, r2-401)",
+    "jolly_chin_9xwnc8kl6p": "gemma2-2b P1.2 ep7 (small, r2-401)",
+    "quirky_vase_pc75nzy6sy": "gemma2-2b P1.3 abstract ckpt4096 (small, r2-401)",
+    "salmon_machine_1x233rfk2y": "gemma2-2b P1.4 hist50 (small, r2-401)",
+    "dynamic_cat_ybt0ly8dwy": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r2-401)",
+    "good_yak_y6t0vwm341": "gemma2-2b P1.7 subcategory (small, r2-401)",
+    "sincere_root_48xlvknh42": "gemma2-2b P1.1 neg3.0 (small, r3-licensed)",
+    "lemon_hand_dnb7c9srtp": "gemma2-2b P1.2 ep7 (small, r3-licensed)",
+    "helpful_bread_ltfmydxw4j": "gemma2-2b P1.3 abstract ckpt4096 (small, r3-licensed)",
+    "musing_spring_ynv7vcd7ds": "gemma2-2b P1.4 hist50 (small, r3-licensed)",
+    "musing_avocado_8g37lg0lx9": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r3-licensed)",
+    "hungry_leek_vmldssjx7m": "gemma2-2b P1.7 subcategory (small, r3-licensed)",
+    "mighty_kale_6j7jh9tbk7": "gemma2-2b P1.0 ep5 base (small, r3-licensed)",
 }
 
 

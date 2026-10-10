@@ -105,6 +105,7 @@ def mind_train_pipeline(
     resume_from_checkpoint: str = "",
     early_stopping_patience: int = 3,
     train_sample: int = 0,
+    hf_token: str = "",
 ):
     """MIND SFT Training Pipeline
 
@@ -153,6 +154,7 @@ def mind_train_pipeline(
         resume_from_checkpoint=resume_from_checkpoint,
         early_stopping_patience=early_stopping_patience,
         train_sample=train_sample,
+        hf_token=hf_token,
     )
 
     # Bind Virtual Cluster and resource configuration

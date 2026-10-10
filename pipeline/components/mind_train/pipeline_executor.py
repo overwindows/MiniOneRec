@@ -42,6 +42,12 @@ class PipelineExecutor:
         self.debug_mode = debug_mode
         self.code_dir = os.getcwd()
         self.variables = self._prepare_variables()
+        # Export HF token (gated models like google/gemma-2-2b-it) into the
+        # process env. DeepSpeed's launcher inherits this and propagates it to
+        # every rank/node; AutoConfig/AutoModelForCausalLM.from_pretrained read
+        # HF_TOKEN automatically, so gated repos resolve instead of 401.
+        if self.variables.get("hf_token"):
+            os.environ["HF_TOKEN"] = self.variables["hf_token"]
         self.current_working_dir = os.getcwd()
 
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -219,6 +225,7 @@ def main():
     parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
     parser.add_argument("--early-stopping-patience", type=int, default=3, help="早停patience (eval steps, 默认3)")
     parser.add_argument("--train-sample", type=int, default=0, help="训练样本数上限 (0=全部)")
+    parser.add_argument("--hf-token", default="", help="HuggingFace token (gated models)")
 
     args = parser.parse_args()
 
@@ -229,6 +236,7 @@ def main():
         model_path = f"{args.mount_dir}/{model_path}"
 
     cli_variables = {
+        'hf_token': args.hf_token or "",
         'model_path': model_path,
         'batch_size': args.batch_size,
         'micro_batch_size': args.micro_batch_size,

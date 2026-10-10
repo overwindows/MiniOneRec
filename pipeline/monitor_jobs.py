@@ -168,6 +168,31 @@ KNOWN = {
     "jovial_carpet_l4ffzdyc0w": "gemma2-2b P1.0 ep5 base (small, r4-pyarrowfix)",
     "cool_apricot_94sxgdj0sl": "gemma2-2b P1.4 hist50 (small, r4-pyarrowfix)",
     "bright_actor_ljf1zl92gw": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r4-pyarrowfix)",
+    # --- r5 sweep (pyarrow<19 upper bound on dev; died 9/10 to missing fire) ---
+    "loving_train_5wymwgs0dn": "qwen3-1p7b P1.4 hist50 (small, r5)",
+    "affable_cherry_4ds5g340c0": "qwen3-1p7b P1.5 neg3 ep7 hist50 (small, r5)",
+    "magenta_stomach_75x1p480ll": "qwen3-1p7b P1.7 subcategory (small, r5)",
+    "witty_sock_n1cpbf80gy": "gemma2-2b P1.0 ep5 base (small, r5)",
+    "modest_basket_3qtb3vkd9m": "gemma2-2b P1.1 neg3.0 (small, r5)",
+    "silly_snake_hv828wyt7f": "gemma2-2b P1.2 ep7 (small, r5)",
+    "gentle_sail_g26thpl15j": "gemma2-2b P1.3 abstract ckpt4096 (small, r5)",
+    "sad_lock_svwk998wk7": "gemma2-2b P1.4 hist50 (small, r5)",
+    "ashy_lettuce_y7n2yg0z56": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r5)",
+    "olive_diamond_dwggvjtjx1": "gemma2-2b P1.7 subcategory (small, r5)",
+    # --- r6 sweep (explicit SFT-deps install + best-effort -r resolve) ---
+    "ashy_drop_k4mb0b36m8": "qwen3-1p7b P1.0 ep5 base (small, r6)",
+    "tidy_board_n8v1kftlfs": "qwen3-1p7b P1.1 neg3.0 (small, r6)",
+    "funny_chicken_k6vcjyttjz": "qwen3-1p7b P1.2 ep7 (small, r6)",
+    "jovial_melon_zlg852frmd": "qwen3-1p7b P1.4 hist50 (small, r6)",
+    "hungry_grass_kmr6vkyzrc": "qwen3-1p7b P1.5 neg3 ep7 hist50 (small, r6)",
+    "icy_rainbow_mdn3phwqm0": "qwen3-1p7b P1.7 subcategory (small, r6)",
+    "sleepy_calypso_ddjrh3p3b0": "gemma2-2b P1.0 ep5 base (small, r6)",
+    "teal_street_vcclvpvy09": "gemma2-2b P1.1 neg3.0 (small, r6)",
+    "cyan_grass_4z64jsp7rl": "gemma2-2b P1.2 ep7 (small, r6)",
+    "kind_candle_y1qdm7m4lc": "gemma2-2b P1.3 abstract ckpt4096 (small, r6)",
+    "icy_raisin_7xr5296sqx": "gemma2-2b P1.4 hist50 (small, r6)",
+    "gentle_yak_rxtxshrlky": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r6)",
+    "boring_match_xgypcdbkvj": "gemma2-2b P1.7 subcategory (small, r6)",
 }
 
 

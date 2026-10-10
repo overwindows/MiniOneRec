@@ -203,6 +203,23 @@ class MINDPointwiseSFTDataset:
         self.use_impression_timestamp = use_impression_timestamp
         self.seed = seed
 
+        # Some instruct variants' chat templates do NOT accept a "system" role
+        # (e.g. gemma-2-2b-it raises jinja2 TemplateError "System role not
+        # supported"). Pre-detect support once so __getitem__ can fold the
+        # system prompt into the user message instead of crashing at train time.
+        self._system_role_supported = True
+        if self.use_chat_template and tokenizer is not None:
+            try:
+                tokenizer.apply_chat_template(
+                    [{"role": "system", "content": "x"},
+                     {"role": "user", "content": "y"}],
+                    tokenize=False, add_generation_prompt=True,
+                )
+            except Exception:
+                self._system_role_supported = False
+                print("  Chat template does not support a 'system' role; "
+                      "folding the system prompt into the user message.")
+
         # Load news articles
         self.news = self._load_news(news_path)
 
@@ -466,10 +483,17 @@ class MINDPointwiseSFTDataset:
                 "Each article includes its category and title. "
                 "Answer with Yes or No."
             )
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ]
+            if getattr(self, "_system_role_supported", True):
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+            else:
+                # Template doesn't accept a system role; prepend the system
+                # instruction to the user turn so the user still sees it.
+                messages = [
+                    {"role": "user", "content": f"{system_prompt}\n\n{prompt}"}
+                ]
 
             # Apply chat template to get the formatted prompt with generation prompt
             formatted_prompt = self.tokenizer.apply_chat_template(

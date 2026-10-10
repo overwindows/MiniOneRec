@@ -193,6 +193,19 @@ KNOWN = {
     "icy_raisin_7xr5296sqx": "gemma2-2b P1.4 hist50 (small, r6)",
     "gentle_yak_rxtxshrlky": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r6)",
     "boring_match_xgypcdbkvj": "gemma2-2b P1.7 subcategory (small, r6)",
+    # --- r7 qwen3 (quoted SFT-deps fix; qwen3 healthy) ---
+    "green_cat_cb3nzb09t0": "qwen3-1p7b P1.4 hist50 (small, r7)",
+    "sincere_kiwi_m75zg3tvq2": "qwen3-1p7b P1.5 neg3 ep7 hist50 (small, r7)",
+    "frank_arch_ywb1psqw4g": "qwen3-1p7b P1.7 subcategory (small, r7)",
+    # --- r8 gemma (system-role fold fix) ---
+    "purple_rhythm_b8l64csd10": "gemma2-2b P1.0 ep5 base (small, r8)",
+    "sincere_match_qw22y2xx3r": "gemma2-2b P1.1 neg3.0 (small, r8)",
+    "boring_kitchen_jwl9ll67vj": "gemma2-2b P1.2 ep7 (small, r8)",
+    "mango_carrot_369rck3m53": "gemma2-2b P1.3 abstract ckpt4096 (small, r8)",
+    "lucid_circle_lmm0f5qcx6": "gemma2-2b P1.4 hist50 (small, r8)",
+    "boring_pencil_5w5v5lxt0s": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r8)",
+    "sincere_sand_4ny6qdgq9w": "gemma2-2b P1.7 subcategory (small, r8)",
+    "polite_flag_qypz0hpf0x": "qwen3-1p7b P1.4 hist50 (small, r8q-infra-fix)",
 }
 
 

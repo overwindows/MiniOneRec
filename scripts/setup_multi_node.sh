@@ -167,10 +167,17 @@ RESOLVED_DATA_PATH='$RESOLVED_DATA_PATH' NODE_NAME='$node' bash -s" <<'REMOTE_EO
             echo "Accelerate version OK: $CURRENT_ACC"
         fi
 
-        # Always install requirements to keep nodes consistent
-        echo "Installing requirements on $NODE_NAME..."
+        # SFT-launch-critical deps are installed EXPLICITLY and independently so a
+        # weak/failing resolve of the heavy RL deps (verl git, vllm, ray) below can
+        # never leave `import fire`/dataset/tokenizer missing -> ModuleNotFoundError
+        # at trainer init. The mono `-r` resolve is intentionally BEST-EFFORT
+        # (non-fatal): it may abort on a cold node image-cache, but that must not
+        # block training.
+        echo "Installing SFT-critical deps on $NODE_NAME..."
+        pip install -q --no-cache-dir fire==0.7.1 tqdm==4.67.1 safetensors==0.6.2 einops==0.8.0 datasets>=3.2.0 pyarrow<19
+        echo "Installing requirements on $NODE_NAME (best-effort)..."
         if [ -f requirements.txt ]; then
-            pip install -q -r requirements.txt
+            pip install -q -r requirements.txt || echo "WARN: -r requirements.txt resolve failed on $NODE_NAME (non-fatal; SFT-critical deps already installed)"
         else
             echo "requirements.txt not found, installing core packages..."
             pip install -q transformers==$TRANSFORMERS_VERSION accelerate deepspeed==$DEEPSPEED_VERSION fire wandb scikit-learn tqdm

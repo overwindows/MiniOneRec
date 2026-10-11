@@ -95,6 +95,14 @@ inputs:
     type: integer
     default: 0
     description: 训练样本数上限 (0=使用全部约1000万, e.g. 300000=只训30万样本以缩短耗时)
+  trainer_script:
+    type: string
+    default: "sft_mind_pointwise_ds.sh"
+    description: 训练脚本文件名 (pointwise 默认; pairwise 用 sft_mind_pointwise_pairwise.sh)
+  pairwise_loss_weight:
+    type: number
+    default: 0.5
+    description: A7.3 pairwise (Bradley-Terry) loss weight lambda
   hf_token:
     type: string
     default: ""
@@ -129,4 +137,6 @@ command: >-
   $[[--resume-from-checkpoint ${{inputs.resume_from_checkpoint}}]]
   --early-stopping-patience ${{inputs.early_stopping_patience}}
   --train-sample ${{inputs.train_sample}}
+  --trainer-script ${{inputs.trainer_script}}
+  --pairwise-loss-weight ${{inputs.pairwise_loss_weight}}
   $[[--hf-token ${{inputs.hf_token}}]]

@@ -105,6 +105,8 @@ def mind_train_pipeline(
     resume_from_checkpoint: str = "",
     early_stopping_patience: int = 3,
     train_sample: int = 0,
+    trainer_script: str = "sft_mind_pointwise_ds.sh",
+    pairwise_loss_weight: float = 0.5,
     hf_token: str = "",
 ):
     """MIND SFT Training Pipeline
@@ -154,6 +156,8 @@ def mind_train_pipeline(
         resume_from_checkpoint=resume_from_checkpoint,
         early_stopping_patience=early_stopping_patience,
         train_sample=train_sample,
+        trainer_script=trainer_script,
+        pairwise_loss_weight=pairwise_loss_weight,
         hf_token=hf_token,
     )
 
@@ -226,6 +230,10 @@ if __name__ == "__main__":
                         help="早停patience (eval steps), 建议3 (default: 3)")
     parser.add_argument("--train-sample", type=int, default=0,
                         help="训练样本数上限, 0=全部 (default: 0)")
+    parser.add_argument("--trainer-script", default="sft_mind_pointwise_ds.sh",
+                        help="训练脚本文件名; pairwise 用 sft_mind_pointwise_pairwise.sh (default: sft_mind_pointwise_ds.sh)")
+    parser.add_argument("--pairwise-loss-weight", type=float, default=0.5,
+                        help="A7.3 pairwise (Bradley-Terry) loss weight lambda (default: 0.5)")
     args = parser.parse_args()
 
     debug_mode = "true" if args.debug else "false"
@@ -258,6 +266,8 @@ if __name__ == "__main__":
         resume_from_checkpoint=args.resume_from_checkpoint,
         early_stopping_patience=args.early_stopping_patience,
         train_sample=args.train_sample,
+        trainer_script=args.trainer_script,
+        pairwise_loss_weight=args.pairwise_loss_weight,
     )
 
     # Pipeline-level settings

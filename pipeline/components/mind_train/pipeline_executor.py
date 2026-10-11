@@ -225,6 +225,8 @@ def main():
     parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
     parser.add_argument("--early-stopping-patience", type=int, default=3, help="早停patience (eval steps, 默认3)")
     parser.add_argument("--train-sample", type=int, default=0, help="训练样本数上限 (0=全部)")
+    parser.add_argument("--pairwise-loss-weight", type=float, default=0.5, help="A7.3 pairwise (Bradley-Terry) loss weight lambda (仅 pairwise 训练模式)")
+    parser.add_argument("--trainer-script", default="sft_mind_pointwise_ds.sh", help="训练脚本文件名 (默认 pointwise; pairwise 用 sft_mind_pointwise_pairwise.sh)")
     parser.add_argument("--hf-token", default="", help="HuggingFace token (gated models)")
 
     args = parser.parse_args()
@@ -252,6 +254,8 @@ def main():
         'ranking_neg_ratio': args.ranking_neg_ratio,
         'early_stopping_patience': args.early_stopping_patience,
         'train_sample': args.train_sample,
+        'pairwise_loss_weight': args.pairwise_loss_weight,
+        'trainer_script': args.trainer_script,
     }
 
     # 合成完整的 data_root 路径

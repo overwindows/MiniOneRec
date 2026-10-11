@@ -189,6 +189,7 @@ class MINDPointwiseSFTDataset:
         use_recency: bool = False,  # Mark 5 most recent history items with "(recent)"
         use_profile_summary: bool = False,  # Prepend top-3 category interest summary
         use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
+        return_meta: bool = False,  # Also return impression_id/label/answer_len (for pairwise loss)
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -201,6 +202,7 @@ class MINDPointwiseSFTDataset:
         self.use_recency = use_recency
         self.use_profile_summary = use_profile_summary
         self.use_impression_timestamp = use_impression_timestamp
+        self.return_meta = return_meta
         self.seed = seed
 
         # Some instruct variants' chat templates do NOT accept a "system" role
@@ -530,11 +532,23 @@ class MINDPointwiseSFTDataset:
         input_ids = (prompt_ids + target_ids)[:self.max_len]
         train_labels = ([-100] * len(prompt_ids) + target_ids)[:self.max_len]
 
-        return {
+        out = {
             'input_ids': torch.tensor(input_ids, dtype=torch.long),
             'labels': torch.tensor(train_labels, dtype=torch.long),
             'attention_mask': torch.ones(len(input_ids), dtype=torch.long),
         }
+        if self.return_meta:
+            # Expose the metadata needed to reconstruct pos/neg pairs per
+            # impression for the pairwise (Bradley-Terry) loss term:
+            #   impression_id  -> group samples from the same impression
+            #   label          -> 1 (positive) / 0 (negative)
+            #   answer_len     -> number of answer tokens (" Yes"/" No"), the
+            #                     only non -100 positions in labels
+            sample = self.samples[idx]
+            out['impression_id'] = sample['impression_id']
+            out['label'] = sample['label']
+            out['answer_len'] = len(target_ids)
+        return out
 
 
 class InstructionJSONLDataset(Dataset):

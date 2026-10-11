@@ -219,9 +219,21 @@ KNOWN = {
     "dreamy_cumin_sf41x5xjkz": "eval sub2b gemma P1.5 evalonly",
     "mango_pea_35h81yt951": "eval sub2b gemma P1.7 evalonly",
     # --- A7.3 hybrid pointwise+pairwise (Bradley-Terry) on MIND_small ---
-    "magenta_ocean_ftdzs7pqt8": "A7.3 pw0.0 abs0 pointwise control (small)",
-    "jovial_sun_48100pm3yb": "A7.3 pw0.5 abs0 pairwise title-only (small)",
-    "dreamy_apricot_ft6l3k5f9q": "A7.3 pw0.5 abs1 pairwise abstract (small)",
+    "magenta_ocean_ftdzs7pqt8": "A7.3 pw0.0 abs0 pointwise control (small, FAILED num_items_in_batch)",
+    "jovial_sun_48100pm3yb": "A7.3 pw0.5 abs0 pairwise title-only (small, FAILED num_items_in_batch)",
+    "dreamy_apricot_ft6l3k5f9q": "A7.3 pw0.5 abs1 pairwise abstract (small, FAILED num_items_in_batch)",
+    # --- A7.3 r2 (compute_loss num_items_in_batch fix) ---
+    "silver_ring_l47fyrmkx0": "A7.3 pw0.0 abs0 pointwise control (small, r2)",
+    "serene_bell_nmnm20cn4v": "A7.3 pw0.5 abs0 pairwise title-only (small, r2)",
+    "bubbly_screw_j68j6vw7rs": "A7.3 pw0.5 abs1 pairwise abstract (small, r2)",
+    # --- sub-2B eval-only recovery (removed cf_scores crash + subcat passthrough) ---
+    "frank_cord_yby9j1rl5h": "eval sub2b qwen3 P1.4 evalonly r2 (cf-fix)",
+    "ashy_cartoon_mdz49cwrh6": "eval sub2b qwen3 P1.7 evalonly r2 (cf-fix, subcat)",
+    "olive_leek_6k8svsx0lw": "eval sub2b qwen3 P1.5 evalonly r2 (cf-fix)",
+    "helpful_planet_9ch6y47pr9": "eval sub2b gemma P1.2 evalonly r2 (cf-fix)",
+    "silver_spring_qf8hlzc0bn": "eval sub2b gemma P1.4 evalonly r2 (cf-fix)",
+    "gentle_cumin_p0hk9n82m5": "eval sub2b gemma P1.5 evalonly r2 (cf-fix)",
+    "coral_kitchen_w35lvg2cxk": "eval sub2b gemma P1.7 evalonly r2 (cf-fix, subcat)",
 }
 
 

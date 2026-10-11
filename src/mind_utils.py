@@ -90,6 +90,32 @@ def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str,
     return news
 
 
+_system_role_supported_cache = {}
+
+
+def _chat_template_supports_system(tokenizer) -> bool:
+    """Probe once whether tokenizer.apply_chat_template accepts a 'system' role.
+
+    Some instruct chat templates (e.g. gemma-2-2b-it) raise a jinja2
+    TemplateError "System role not supported". Mirrors the pre-detect done in
+    data.py:MINDPointwiseSFTDataset so eval prompts use the SAME folding as
+    training and do not crash at inference time.
+    """
+    key = id(tokenizer)
+    if key not in _system_role_supported_cache:
+        supported = True
+        try:
+            tokenizer.apply_chat_template(
+                [{"role": "system", "content": "x"},
+                 {"role": "user", "content": "y"}],
+                tokenize=False, add_generation_prompt=True,
+            )
+        except Exception:
+            supported = False
+        _system_role_supported_cache[key] = supported
+    return _system_role_supported_cache[key]
+
+
 def build_pointwise_prompt(
     history: List[Dict[str, str]],
     candidate: Dict[str, str],
@@ -163,10 +189,17 @@ def build_pointwise_prompt(
             "Each article includes its category and title. "
             "Answer with Yes or No."
         )
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content}
-        ]
+        if _chat_template_supports_system(tokenizer):
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ]
+        else:
+            # gemma-2-it and similar reject a 'system' role; fold it into the
+            # user message exactly as data.py does at train time.
+            messages = [
+                {"role": "user", "content": f"{system_prompt}\n\n{content}"}
+            ]
         return tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -215,10 +248,15 @@ def build_pointwise_prompt_subcategory(
             "Each article includes its category, subcategory and title. "
             "Answer with Yes or No."
         )
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content}
-        ]
+        if _chat_template_supports_system(tokenizer):
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ]
+        else:
+            messages = [
+                {"role": "user", "content": f"{system_prompt}\n\n{content}"}
+            ]
         return tokenizer.apply_chat_template(
             messages,
             tokenize=False,

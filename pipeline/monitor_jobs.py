@@ -206,6 +206,22 @@ KNOWN = {
     "boring_pencil_5w5v5lxt0s": "gemma2-2b P1.5 neg3 ep7 hist50 (small, r8)",
     "sincere_sand_4ny6qdgq9w": "gemma2-2b P1.7 subcategory (small, r8)",
     "polite_flag_qypz0hpf0x": "qwen3-1p7b P1.4 hist50 (small, r8q-infra-fix)",
+    # --- r9 gemma retrain (3 died mid-training to datastore data_capability; sklearn eval fix in) ---
+    "silver_card_gkfbvh9vj7": "gemma2-2b P1.0 ep5 base (small, r9-retrain)",
+    "olive_boniato_0jtf0jq8vc": "gemma2-2b P1.1 neg3.0 (small, r9-retrain)",
+    "placid_yuca_yztdxpmpgm": "gemma2-2b P1.3 abstract ckpt4096 (small, r9-retrain)",
+    # --- eval-only recovery of r7/r8 completed checkpoints (sklearn eval crash) ---
+    "quirky_date_dkv0tt8bk8": "eval sub2b qwen3 P1.5 evalonly",
+    "silly_airport_dy16bqyk4s": "eval sub2b qwen3 P1.4 evalonly",
+    "frosty_scooter_7g4b0lz065": "eval sub2b qwen3 P1.7 evalonly",
+    "blue_rabbit_zsx7q7bqd7": "eval sub2b gemma P1.2 evalonly",
+    "cyan_stick_ysl99gl86l": "eval sub2b gemma P1.4 evalonly",
+    "dreamy_cumin_sf41x5xjkz": "eval sub2b gemma P1.5 evalonly",
+    "mango_pea_35h81yt951": "eval sub2b gemma P1.7 evalonly",
+    # --- A7.3 hybrid pointwise+pairwise (Bradley-Terry) on MIND_small ---
+    "magenta_ocean_ftdzs7pqt8": "A7.3 pw0.0 abs0 pointwise control (small)",
+    "jovial_sun_48100pm3yb": "A7.3 pw0.5 abs0 pairwise title-only (small)",
+    "dreamy_apricot_ft6l3k5f9q": "A7.3 pw0.5 abs1 pairwise abstract (small)",
 }
 
 

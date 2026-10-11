@@ -210,7 +210,8 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       cmd="${cmd} --use_profile_summary"
     fi
 
-    if [[ -n "${CF_SCORES_FILE:-}" ]] && [[ "${CF_ALPHA:-0}" != "0" ]]; then
+    cf_enabled=$(awk -v a="${CF_ALPHA:-0}" 'BEGIN{print (a+0>0)?1:0}')
+    if [[ -n "${CF_SCORES_FILE:-}" ]] && [[ "${cf_enabled}" == "1" ]]; then
       cmd="${cmd} --cf_scores_file ${CF_SCORES_FILE} --cf_alpha ${CF_ALPHA}"
     fi
 
@@ -343,7 +344,8 @@ else
     CMD="${CMD} --use_profile_summary"
   fi
 
-  if [[ -n "${CF_SCORES_FILE:-}" ]] && [[ "${CF_ALPHA:-0}" != "0" ]]; then
+  cf_enabled=$(awk -v a="${CF_ALPHA:-0}" 'BEGIN{print (a+0>0)?1:0}')
+  if [[ -n "${CF_SCORES_FILE:-}" ]] && [[ "${cf_enabled}" == "1" ]]; then
     CMD="${CMD} --cf_scores_file ${CF_SCORES_FILE} --cf_alpha ${CF_ALPHA}"
   fi
 

@@ -85,6 +85,7 @@ def mind_eval_pipeline(
     split: str = "dev",
     use_chat_template: int = 1,
     use_abstract: int = 0,
+    use_subcategory: int = 0,
     max_history: int = 30,
     batch_size: int = 8,
     num_gpus: int = 8,
@@ -116,6 +117,7 @@ def mind_eval_pipeline(
         split=split,
         use_chat_template=use_chat_template,
         use_abstract=use_abstract,
+        use_subcategory=use_subcategory,
         max_history=max_history,
         batch_size=batch_size,
         num_gpus=num_gpus,
@@ -157,6 +159,8 @@ if __name__ == "__main__":
                         help="是否使用 chat template, 1=是 0=否 (default: 1)")
     parser.add_argument("--use-abstract", type=int, default=0, choices=[0, 1],
                         help="是否使用新闻摘要, 1=是 0=否 (default: 0)")
+    parser.add_argument("--use-subcategory", type=int, default=0, choices=[0, 1],
+                        help="是否使用子类别, 1=是 0=否 (default: 0)")
     parser.add_argument("--max-history", type=int, default=30,
                         help="最大历史记录长度 (default: 30)")
     parser.add_argument("--batch-size", type=int, default=8,
@@ -190,6 +194,7 @@ if __name__ == "__main__":
         split=args.split,
         use_chat_template=args.use_chat_template,
         use_abstract=args.use_abstract,
+        use_subcategory=args.use_subcategory,
         max_history=args.max_history,
         batch_size=args.batch_size,
         num_gpus=args.num_gpus,

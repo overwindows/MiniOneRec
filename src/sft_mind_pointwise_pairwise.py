@@ -133,7 +133,7 @@ class _PairwiseTrainer(transformers.Trainer):
         self._pw = pairwise_loss_weight
         super().__init__(**kwargs)
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         labels = inputs.pop("labels", None)
         impressions = inputs.pop("impression_id", None)
         cls = inputs.pop("label", None)  # 1 = clicked, 0 = not clicked

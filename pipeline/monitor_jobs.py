@@ -234,6 +234,10 @@ KNOWN = {
     "silver_spring_qf8hlzc0bn": "eval sub2b gemma P1.4 evalonly r2 (cf-fix)",
     "gentle_cumin_p0hk9n82m5": "eval sub2b gemma P1.5 evalonly r2 (cf-fix)",
     "coral_kitchen_w35lvg2cxk": "eval sub2b gemma P1.7 evalonly r2 (cf-fix, subcat)",
+    "strong_basket_q5jzrgqrbd": "eval sub2b gemma P1.2 evalonly r3 (sysrole-fix)",
+    "boring_ghost_15449mswxn": "eval sub2b gemma P1.4 evalonly r3 (sysrole-fix)",
+    "mango_leather_m2t42q6bqr": "eval sub2b gemma P1.5 evalonly r3 (sysrole-fix)",
+    "gentle_salt_5hpqn3nqmy": "eval sub2b gemma P1.7 evalonly r3 (sysrole-fix, subcat)",
 }
 
 

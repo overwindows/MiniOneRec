@@ -24,6 +24,7 @@ Usage:
 """
 
 import argparse
+import json
 import random
 from typing import List
 
@@ -194,6 +195,23 @@ def main():
         if (parent / "tokenizer_config.json").exists():
             print(f"Tokenizer files not found in checkpoint dir, loading from parent: {parent}")
             tokenizer_path = parent
+
+    # Defensive: some checkpoint snapshots carry an empty/corrupt
+    # special_tokens_map.json (0 bytes), which makes transformers
+    # json.load crash at tokenizer load time even though the actual token
+    # definitions live in tokenizer_config.json / added_tokens_decoder.json.
+    # Replace any unparseable special_tokens_map.json with a valid empty {}
+    # (semantically a no-op) so the tokenizer loads.
+    stm = _Path(tokenizer_path) / "special_tokens_map.json"
+    if stm.exists():
+        try:
+            with open(stm, "r", encoding="utf-8") as _f:
+                json.load(_f)
+        except Exception:
+            print(f"  Corrupt special_tokens_map.json; rewriting as empty {{}}")
+            with open(stm, "w", encoding="utf-8") as _f:
+                _f.write("{}")
+
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True, local_files_only=local_only)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id

@@ -52,7 +52,7 @@ def main():
         except Exception as e:
             print(f"{label:<16} status ERR {e}")
             continue
-        if status != "JobStatus.Completed":
+        if status.upper() != "JOBSTATUS.COMPLETED":
             print(f"{label:<16} {status}")
             continue
         c = child_of(rid)
@@ -76,8 +76,8 @@ def main():
         except Exception as e:
             print(f"{label:<16} fetch ERR {e}")
             continue
-        # final AUC line
-        m = re.findall(r"AUC\s*=\s*([\d.]+)", tail)
+        # final AUC line (format: "AUC:      0.6582")
+        m = re.findall(r"AUC\s*[:=]\s*([\d.]+)", tail)
         aucs = m[-3:] if m else []
         print(f"{label:<16} COMPLETED  final AUC={aucs}")
 

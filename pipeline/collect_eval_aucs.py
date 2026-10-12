@@ -9,10 +9,10 @@ Usage:
 import sys, io, urllib.request, re
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, "Q:/MiniOneRec/pipeline")
-from azure.identity import DefaultAzureCredential
+from azure_auth import get_credential
 from azure.ai.ml import MLClient
 
-ML = MLClient(DefaultAzureCredential(),
+ML = MLClient(get_credential(),
               subscription_id="b6dc87f3-c479-49c8-8cb5-7896da3ff895",
               resource_group_name="AMLStudio",
               workspace_name="NewsFeedL2_AML")
@@ -26,6 +26,9 @@ JOBS = {
     "boring_ghost_15449mswxn": "gemma P1.4",
     "mango_leather_m2t42q6bqr": "gemma P1.5",
     "gentle_salt_5hpqn3nqmy": "gemma P1.7 subcat",
+    "quiet_giraffe_3zk1gxdxgj": "A7.3 pw0.0 abs0 control",
+    "ashy_corn_rdvd7kf9r4": "A7.3 pw0.5 abs0 title",
+    "polite_pig_mnty8f5v9f": "A7.3 pw0.5 abs1 abstract",
 }
 
 

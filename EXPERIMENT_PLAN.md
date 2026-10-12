@@ -393,6 +393,23 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 > L-series on MIND_large will likely show the same deficit — whether to keep scaling the 2B path or
 > fall back to 1.7B as the primary ranker.
 
+### Phase 1S: Sub-2B rivals P-series sweep (dev-AUC results — task #23/#24)
+
+> COMPARISON (2026-10-11, all dev evals complete): evaluate whether *other* sub-2B base models
+> (Gemma-2-2B, Qwen2.5-1.5B, Qwen3-1.7B) on the same P-series MIND_small recipes beat our Qwen3.5-2B.
+> Dev AUC collected via `pipeline/collect_eval_aucs.py`.
+
+| Model | P1.2 (ep7) | P1.4 (hist50) | P1.5 | P1.7 (subcat) |
+|-------|-----------|--------------|------|---------------|
+| **Qwen3.5-2B** (ours, ref) | 0.6424 | 0.6429 | 0.6189 | 0.6253 |
+| **Qwen3-1.7B** | ~0.68 (hist) | 0.6612 | 0.6705 | 0.6582 |
+| **Gemma-2-2B** | 0.6420 | 0.6504 | 0.6387 | 0.6314 |
+
+> **Read**: Qwen3-1.7B remains the strongest sub-2B (P1.5 0.6705, P1.7 0.6582 > any 2B). Gemma-2-2B
+> (best P1.4 0.6504) is competitive with our Qwen3.5-2B and is a cheap **ensemble diversity** member.
+> Qwen3.5-2B's P1.7/p1.5 still lag; the 2B linear-attention deficit vs 1.7B holds across families.
+> Ensemble: combining Qwen3-1.7B + Gemma-2-2B + Qwen3.5-2B diversity is the highest-certainty path.
+
 ### Phase 1L: Qwen3.5-2B L-series rerun (MIND_small — research phase)
 
 > RESEARCH-FIRST: rerun the historical Qwen3-1.7B L1.x sweep (incl. F1.1/H1.1) on Qwen3.5-2B with
@@ -1647,6 +1664,11 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 ---
 
 ### Phase 7: Architecture Comparisons (Literature Baselines)
+
+> **Survey / lit review:** see `docs/MIND_SURVEY.md` for the full deep-dive grounding each baseline
+> (PBNR, ONCE, RecRanker/GLIMPSE pairwise, frozen-LLM+MLP) and the broader MIND landscape (NRMS/NAML/DKN
+> dual-encoders, LLaRA/GLIMPSE LLM rankers, SFT/RLCD/RL/Teacher-OPD paradigms, and the "distillation needs a
+> real teacher" lesson from the JEV R-Drop collapse).
 
 > **Motivation**: The deep research survey identified three peer-reviewed paradigms that have been benchmarked on MIND. Implementing each one cleanly against our L1.3 baseline (0.7049 AUC) will show whether alternative architectures can close the gap to SOTA — and which combination is worth ensembling.
 

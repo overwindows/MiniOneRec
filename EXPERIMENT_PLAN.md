@@ -1730,6 +1730,9 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 > needs short, discriminative candidates (title), and the longer abstract prompt dilutes the
 > relative ordering signal. Promotable config for MINDlarge: **pw0.5, title-only, no abstract**
 > (λ=0.5). A7.4 λ-sweep should focus on the title-only setting.
+>
+> **MINDlarge submission (2026-10-13)**: `patient_brick_b829btzn4v` — A7.3L pw0.5 abs0
+> title-only, Qwen3-1.7B, MIND_large (train_sample=0), matching L1.3 otherwise. RUNNING.
 
 **Implementation**: Add `pairwise_loss_weight` parameter to `sft_mind_pointwise_ds.py`. For each batch, sample random pos-neg pairs and add BT loss: `L_BT = -log(sigmoid(score_pos - score_neg))`.
 

@@ -1716,6 +1716,21 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 | **A7.3** | ⬜ Pending | Qwen3-1.7B | MINDlarge | L1.3 config + Bradley-Terry pairwise loss (λ=0.5) | - | Joint loss = CE + λ·BT; same epochs/lr as L1.3 |
 | **A7.4** | ⬜ Pending | Qwen3-1.7B | MINDlarge | A7.3 + λ sweep (0.1, 0.3, 0.5, 0.7) | - | Find optimal pairwise loss weight |
 
+> **MIND_small pilot (2026-10-13, dev evals `auto_eval_a73.py` + `collect_eval_aucs.py`)**:
+> pairwise BT on the small dataset gives a clear but content-sensitive signal.
+>
+> | Variant | train | dev AUC |
+> |---------|-------|---------|
+> | pw0.0 abs0 (control = pointwise CE) | `silver_ring_l47fyrmkx0` | 0.6562 |
+> | **pw0.5 abs0 (title-only + BT)** | `serene_bell_nmnm20cn4v` | **0.6669** (+0.0107) |
+> | pw0.5 abs1 (abstract + BT) | `bubbly_screw_j68j6vw7rs` | 0.6563 (≈control) |
+>
+> **Read**: adding BT pairwise on **title-only** lifts dev AUC +0.0107 over pure pointwise CE;
+> adding **abstract cancels the pairwise gain** (0.6563 ≈ control). Suggests the pairwise term
+> needs short, discriminative candidates (title), and the longer abstract prompt dilutes the
+> relative ordering signal. Promotable config for MINDlarge: **pw0.5, title-only, no abstract**
+> (λ=0.5). A7.4 λ-sweep should focus on the title-only setting.
+
 **Implementation**: Add `pairwise_loss_weight` parameter to `sft_mind_pointwise_ds.py`. For each batch, sample random pos-neg pairs and add BT loss: `L_BT = -log(sigmoid(score_pos - score_neg))`.
 
 ---

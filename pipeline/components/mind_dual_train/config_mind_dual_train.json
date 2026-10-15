@@ -1,0 +1,81 @@
+{
+  "pipeline_name": "MIND Dual-Encoder Train + Eval",
+  "description": "克隆 MiniOneRec 仓库、配置多节点环境、启动 from-scratch contrastive dual-encoder 训练并在 dev 上产出可折叠的归一化分数文件",
+
+  "commands": [
+    {
+      "name": "切换到 home 目录",
+      "command": "cd /home/aiscuser",
+      "is_cd_command": true,
+      "new_working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "删除旧的 MiniOneRec 目录",
+      "command": "rm -rf /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "克隆 MiniOneRec 仓库",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git /home/aiscuser/MiniOneRec",
+      "working_dir": "/home/aiscuser"
+    },
+    {
+      "name": "切换到 dev 分支",
+      "command": "git checkout dev",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "配置多节点环境",
+      "command": "bash scripts/setup_multi_node.sh",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "创建输出目录",
+      "command": "mkdir -p {output_root}/dual_encoder_{mind_size}",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "训练 Contrastive Dual-Encoder",
+      "description": "从零训练 NRMS-style 双塔（InfoNCE+BCE），保存 checkpoint 到 output_root/dual_encoder_{mind_size}",
+      "command": "TRAIN_BEHAVIORS={data_root}/train/behaviors.tsv TRAIN_NEWS={data_root}/train/news.tsv OUTPUT_DIR={output_root}/dual_encoder_{mind_size} D_MODEL={d_model} NUM_EPOCHS={num_epochs} BATCH_SIZE={batch_size} MAX_HISTORY={max_history} MAX_NEWS_LEN={max_news_len} NUM_HIST={num_hist} LR={lr} USE_ABSTRACT={use_abstract} PER_POS_NEG={per_pos_neg} HISTORY_AS_NEG={history_as_neg} INFONCE_WEIGHT={infonce_weight} BCE_WEIGHT={bce_weight} TEMPERATURE={temperature} NUM_WORKERS={num_workers} bash scripts/train_mind_dual_encoder.sh",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "评估 Dual-Encoder（dev 归一化分数）",
+      "description": "用训练好的 best_dual.pt 在 dev 上跑评估，逐 impression min-max 归一化到 [0,1]，产出可折叠入 weighted-sum ensemble 的分数文件",
+      "command": "MIND_SIZE={mind_size} python src/evaluate_mind_dual_encoder.py --checkpoint {output_root}/dual_encoder_{mind_size}/best_dual.pt --behaviors_path {data_root}/dev/behaviors.tsv --news_path {data_root}/dev/news.tsv --output_scores_file {output_root}/dual_encoder_{mind_size}/dev_dual_scores_{mind_size}_bs{batch_size}_ep{num_epochs}_hist{max_history}_l{d_model}.txt --output_file {output_root}/dual_encoder_{mind_size}/dev_dual_preds_{mind_size}.txt",
+      "working_dir": "/home/aiscuser/MiniOneRec"
+    },
+    {
+      "name": "调试模式-保持容器运行",
+      "command": "echo '=== 调试模式: 容器将保持运行 ===' && sleep infinity",
+      "working_dir": "/home/aiscuser/MiniOneRec",
+      "enabled": true
+    }
+  ],
+
+  "variables": {
+    "mind_size": "small",
+    "d_model": "128",
+    "num_hist": "20",
+    "max_news_len": "64",
+    "lr": "1e-3",
+    "per_pos_neg": "2",
+    "history_as_neg": "0",
+    "infonce_weight": "1.0",
+    "bce_weight": "1.0",
+    "temperature": "0.07",
+    "num_workers": "8"
+  },
+
+  "error_handling": {
+    "stop_on_error": true,
+    "retry_failed_commands": false,
+    "max_retries": 1
+  },
+
+  "logging": {
+    "log_level": "INFO",
+    "save_command_outputs": true
+  }
+}

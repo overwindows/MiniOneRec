@@ -1732,7 +1732,16 @@ bash scripts/eval_mind_pointwise.sh <checkpoint> dev 100
 > (λ=0.5). A7.4 λ-sweep should focus on the title-only setting.
 >
 > **MINDlarge submission (2026-10-13)**: `patient_brick_b829btzn4v` — A7.3L pw0.5 abs0
-> title-only, Qwen3-1.7B, MIND_large (train_sample=0), matching L1.3 otherwise. RUNNING.
+> title-only, Qwen3-1.7B, MIND_large (train_sample=0), matching L1.3 otherwise. COMPLETED.
+>
+> **MINDlarge eval (2026-10-13, `purple_malanga_09mg6l4ncq`)**: **dev AUC 0.6422**
+> (MRR 0.2998, nDCG@5 0.3303, nDCG@10 0.3935), verified on **MIND_large dev
+> (376,471 impressions)** with checkpoint `..._pw0.5_chat/final_checkpoint`.
+>
+> **Read**: the pairwise title-only gain **does NOT transfer to MIND_large**. 0.6422 is
+> well below the L1.3 pointwise reference (0.7049) and even the L1.3 AML-pipeline repro
+> (0.6622). The +0.0107 from small was noise/small-scale artifact. **Deprioritize A7.3/A7.4
+> pairwise** — no clear signal at production scale; λ-sweep (A7.4) not justified.
 
 **Implementation**: Add `pairwise_loss_weight` parameter to `sft_mind_pointwise_ds.py`. For each batch, sample random pos-neg pairs and add BT loss: `L_BT = -log(sigmoid(score_pos - score_neg))`.
 

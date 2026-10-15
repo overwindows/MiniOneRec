@@ -238,6 +238,7 @@ KNOWN = {
     "boring_ghost_15449mswxn": "eval sub2b gemma P1.4 evalonly r3 (sysrole-fix)",
     "mango_leather_m2t42q6bqr": "eval sub2b gemma P1.5 evalonly r3 (sysrole-fix)",
     "gentle_salt_5hpqn3nqmy": "eval sub2b gemma P1.7 evalonly r3 (sysrole-fix, subcat)",
+    "gifted_diamond_zf9wq2wc33": "eval sub2b qwen3 P1.7 evalonly r2 (stm-fix, subcat)",
 }
 
 

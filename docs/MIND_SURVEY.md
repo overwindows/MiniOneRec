@@ -93,3 +93,29 @@ Goal references for this project:
 - OpenJev recipe (within-model two-exit distillation loss `0.5CE+0.5CE+0.1KL`) — APUS-OpenJev-v1-4B.
 - Bradley & Terry — *Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons* (1952) — the BT pairwise loss used in A7.3/A7.4.
 - Oord et al. — *Representation Learning with Contrastive Predictive Coding* (InfoNCE) — the contrastive loss in A7.2b.
+
+---
+
+## 6. Addendum: what our own runs established (2026-10-13)
+
+Empirical findings from the MIND_large SOTA push, kept alongside the literature so the two stay distinguished (the literature says "dual-encoder is the ceiling"; our numbers say *which* members actually fuse well).
+
+### 6.1 Offline score-space ensembles are faithful and cheap
+- The datastore keeps raw per-model score vectors under `output_dir/ensemble_<tag>_dev/scores/*_scores.txt` — one line `imp_id<TAB>score1<TAB>score2...` per impression, row-aligned with `behaviors.tsv` (MIND_large dev = 376,471 impressions).
+- `src/ensemble_from_scores.py` + our vectorized `.offline/eval_equal_combos.py` / `eval_augmented.py` reproduce each other exactly. **Score-space ensemble sweeps need no GPU** — this is the cheapest way to test a fusion hypothesis before burning AML.
+- Format: equal-weight `sum(w_k·score_k)` per candidate, then pairwise numpy AUC `(gt.sum()+0.5·eq.sum())/(|pos|·|neg|)`.
+
+### 6.2 Re-ensembling the existing 1.7B checkpoints is EXHAUSTED (~0.709 ceiling)
+- Singles (dev): L13(ep5 abs)=0.7050, L17(Base ep5)=0.6949, EP7C(ep7)=0.6964, BASEABS=0.6595.
+- **L13+L17 = 0.7089** (the E3.A rebuild). Adding any 3rd/4th existing member dilutes: L13+L17+EP7C=0.7082, L13+L17+BASEABS=0.7048, all4=0.7066.
+- Weight sweep w_L13∈[0,1] on L13+L17 peaks 0.7093 at w=0.65 → **weight tuning = +0.0004, a wash**.
+- Conclusion: inference-time gain on dev requires *genuinely new, diverse* members (different base arch / base model / training signal), not re-fusing the same four 1.7B variants.
+
+### 6.3 The pairwise (BT) sweet spot — A7.3
+- On MIND_small the **pairwise hybrid pw=0.5, TITLE-ONLY (abs=0)** added **+1.07 AUC** (0.6669 vs 0.6562 pointwise control); adding abstract canceled the gain (0.6563). So content-field choice matters as much as pw.
+- On MIND_large the trained title-only checkpoint scored only **0.6422** standalone — **the +1.07 small gain did NOT transfer** to large. Pairwise helps on small; on large it underperforms even single L17. Don't expect the small result to port.
+
+### 6.4 New diverse members (the live bet per "bring up your own new model")
+- The 4B abstract checkpoints (`Qwen3-4B`, never an ensemble member, different base model) stand alone ~0.6819 — lower than L13 but decorrelated, so the test is whether it lifts L13+L17.
+- Qwen3-4B/8B abstract variants and Qwen3.5-2B abstract exist as predictions; only score files are missing to fuse them.
+- **No NRMS/contrastive dual-encoder trainer exists in this repo** — building one (A7.2b: frozen encoder + InfoNCE in-batch negatives; or a lean NRMS dual-tower) is the biggest remaining architecture lever and would give a maximally-decorrelated ensemble member. Decision gate for §2.2: if a tuned dual-tower approaches our LLM pointwise AUC it is likely the cheapest path to break 0.709; if not, keep investing in LLM diversity.

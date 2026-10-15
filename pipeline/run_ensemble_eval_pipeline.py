@@ -37,6 +37,14 @@ VC_ARM_ID = (
 # ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
 # ============================================================================
+# User-assigned managed identity required by Singularity policy to authenticate
+# against the RW_MOUNT datastore (same UAI the training / pointwise-eval
+# pipelines use). Without it the node gets NoIdentityOnCompute and cannot stream.
+UAI_RESOURCE_ID = (
+    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+    "/resourceGroups/AMLStudio"
+    "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
+)
 res_cfg = JobResourceConfiguration(
     instance_count=1,
     instance_type="Singularity.ND96amrs_A100_v4",
@@ -110,6 +118,11 @@ def mind_ensemble_eval_pipeline(
 
     eval_node.compute = VC_ARM_ID
     eval_node.resources = res_cfg
+    # Singularity policy: UAI lets the node authenticate to the RW_MOUNT datastore
+    # (avoids NoIdentityOnCompute / datastore mount failures).
+    eval_node.environment_variables = {
+        "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
+    }
 
 
 # ============================================================================

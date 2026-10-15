@@ -90,9 +90,11 @@ def main():
         print("ERROR: HF_TOKEN env var not set (gated gemma-2-2b-it).")
         sys.exit(1)
     total = 0
-    total += submit("qwen3-1p7b", "Qwen/Qwen3-1.7B", QWEN3, "r6")
-    total += submit("gemma2-2b", "google/gemma-2-2b-it", GEMMA, "r6")
-    print(f"\nSubmitted {total} r6 jobs (explicit SFT-deps + best-effort -r resolve).")
+    # r8 = gemma only. qwen3 r7 runs are healthy (chat template accepts system
+    # role); gemma r7 failed to the system-role TemplateError, fixed in
+    # data.py (fold system prompt into user turn), pushed to dev.
+    total += submit("gemma2-2b", "google/gemma-2-2b-it", GEMMA, "r8")
+    print(f"\nSubmitted {total} r8 jobs (gemma system-role fold fix).")
 
 
 if __name__ == "__main__":

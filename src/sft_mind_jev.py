@@ -198,7 +198,18 @@ def train(
     else:
         _config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
         _arch = " ".join(_config.architectures or [])
-        model = AutoModelForCausalLM.from_pretrained(
+        # JEV is a hybrid ForConditionalGeneration backbone (model_type "qwen3_5").
+        # Load it through the SAME explicit class family the eval scorer uses
+        # (evaluate_mind_jev.py). AutoModelForCausalLM can instantiate a wrapped or
+        # mismatched class for the stacked linear-attention head that emits NaN on
+        # the first training forward (observed: FloatingPointError at step 0/14666
+        # on every C1-clean attempt), whereas the conditional-generation loader
+        # yields finite logits (proven by eval producing valid P(A) outputs).
+        loader = AutoModelForCausalLM
+        if _config.model_type == "qwen3_5":
+            from transformers import Qwen3_5ForConditionalGeneration
+            loader = Qwen3_5ForConditionalGeneration
+        model = loader.from_pretrained(
             _base_model_arg,
             torch_dtype=torch.bfloat16,
             attn_implementation="sdpa",

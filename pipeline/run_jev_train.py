@@ -10,14 +10,19 @@ Usage:
     python run_jev_train.py --micro-batch-size 2 --neg-ratio 1.0
 """
 import argparse
+import sys
 from pathlib import Path
-from azure.identity import DefaultAzureCredential
 from azure.ai.ml import MLClient, Input, dsl, load_component
 from azure.ai.ml.entities import JobResourceConfiguration
 from azure.ai.ml.constants import InputOutputModes
 
+# Use the repo's reliable `cmd /c az` credential (DefaultAzureCredential's
+# bare-`az` subprocess spawn is flaky on this Windows box — see azure_auth.py).
+sys.path.insert(0, str(Path(__file__).parent))
+from azure_auth import get_credential
+
 ml_client = MLClient(
-    DefaultAzureCredential(),
+    get_credential(),
     subscription_id="b6dc87f3-c479-49c8-8cb5-7896da3ff895",
     resource_group_name="AMLStudio",
     workspace_name="NewsFeedL2_AML",

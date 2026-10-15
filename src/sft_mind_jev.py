@@ -38,7 +38,6 @@ from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
-    EarlyStoppingCallback,
     Trainer,
 )
 import fire
@@ -117,6 +116,17 @@ class JEVWithinModelDistillTrainer(Trainer):
         # only once a valid AUC is demonstrated (see plan risk note).
         logits, target = self._answer_logits(model, inputs)
         loss = F.cross_entropy(logits, target)
+
+        # NaN guard: halt with a clear message instead of silently feeding a NaN
+        # loss through optimization (where it poisons the whole run and surfaces
+        # later as a spurious EarlyStopping trigger via eval_loss=NaN).
+        if not torch.isfinite(loss):
+            raise FloatingPointError(
+                "JEV SFT loss is NaN/Inf. This indicates unstable training "
+                "(bf16 overflow or a bad answer-token index), NOT a normal "
+                "high-CE value. Check predict_pos / answer index and mixed "
+                "precision BEFORE spending GPU on a doomed run."
+            )
 
         return (loss, {"loss": loss}) if return_outputs else loss
 
@@ -219,24 +229,13 @@ def train(
 
     val_data = None
     if eval_behaviors_path and eval_news_path:
-        val_data = JEVNoulPointwiseDataset(
-            behaviors_path=eval_behaviors_path,
-            news_path=eval_news_path,
-            tokenizer=tokenizer,
-            max_len=cutoff_len,
-            sample=min(5000, len(train_data) // 10) if sample <= 0 else min(1000, sample // 10),
-            seed=seed,
-            max_history=max_history,
-            neg_ratio=neg_ratio,
-            hard_neg_ratio=hard_neg_ratio,
-            use_abstract=use_abstract,
-            use_subcategory=use_subcategory,
-            use_chat_template=use_chat_template,
-        )
+        # In-band eval dataset is intentionally not wired in: dev AUC is produced
+        # by the external noul scorer (evaluate_mind_jev.py) after training, which
+        # is the only signal that matters. keep the block so the CLI args stay valid.
+        pass
 
     print(f"\nJEV-4B noul training:")
     print(f"  Train samples: {len(train_data)}")
-    print(f"  Val samples: {len(val_data) if val_data else 0}")
     print(f"  Max history: {'unlimited' if max_history == 0 else max_history}")
     print(f"  Cutoff: {cutoff_len}, micro_batch: {micro_batch_size}")
     print(f"  Distill: kl_beta={kl_beta}, enable_kl={enable_kl}")
@@ -253,18 +252,23 @@ def train(
         "bf16": True,
         "logging_steps": 10,
         "logging_first_step": True,
-        "eval_strategy": "steps" if val_data else "no",
+        # NO in-band HF eval. Dev AUC is produced by the EXTERNAL noul scorer
+        # (src/evaluate_mind_jev.py via run_jev_eval.py) after training, which is
+        # the only signal that matters. The in-band HF eval on this stacked
+        # linear-attention backbone emitted eval_loss=NaN from the very first
+        # eval, and metric_for_best_model=eval_loss + EarlyStoppingCallback then
+        # killed every C1 run at ~0.14ep before it could learn (see EXPERIMENT_PLAN
+        # C1fix row). Full-vocab next-token CE over history is legitimately O(50-150);
+        # reading that as divergence was a red herring — the NaN eval was the killer.
+        "eval_strategy": "no",
         "save_strategy": "steps",
-        "eval_steps": 256 if val_data else None,
         "save_steps": 2048,
         "output_dir": output_dir,
         "save_total_limit": 2,
-        "load_best_model_at_end": True if val_data else False,
+        "load_best_model_at_end": False,
         "ddp_find_unused_parameters": False if ddp else None,
         "report_to": resolve_report_to(wandb_project),
         "run_name": wandb_run_name if wandb_run_name else None,
-        "metric_for_best_model": "eval_loss" if val_data else None,
-        "greater_is_better": False,
         "disable_tqdm": False,
     }
     if deepspeed_config and os.path.exists(deepspeed_config):
@@ -276,12 +280,10 @@ def train(
     trainer = JEVWithinModelDistillTrainer(
         model=model,
         train_dataset=train_data,
-        eval_dataset=val_data if val_data else None,
         args=training_args,
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_data else None,
         kl_beta=kl_beta,
         enable_kl=enable_kl,
     )

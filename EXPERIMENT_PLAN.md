@@ -482,7 +482,27 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 |----------|----------|--------|------|---------|----------|-------|
 | C1 | SFT + within-model distill | `affable_fork_57j81ydc2b` | FAILED | kl_beta=0.1 R-Drop | - | `num_items_in_batch` signature crash (transformers 5.x) |
 | C1 | SFT + within-model distill | `frank_chicken_fct2hw878v` | CANCELLED | kl_beta=0.1 R-Drop | - | zero-loss answer-index bug found during C2 offline smoke; model would learn nothing |
-| C1b | SFT + within-model distill | `stoic_hook_xdc9sbfbk6` | running | kl_beta=0.1 R-Drop | pending | **answer-index fix** (`attention_mask`-based last-token), caught by offline unit test; `sft_mind_jev.py` |
+| C1c | SFT (plain CE, no KL) | `lemon_ship_f2nfshcfh9` | FAILED | enable_kl=0 | - | fresh run (force_rerun); still diverges → see C1fix NB |
+| C1fix | SFT plain CE, no distill | `sincere_garlic_7t99m7nxw6` | ⚠️ **0.4959** | enable_kl=0 EP2 small | **0.4959** | **Confirmed: model NEVER learned.** The `dev_jev_predictions.txt` (5000 MIND_small dev impressions, recovered from datalake + rescored offline) gives **AUC 0.4959 ≈ chance** — because the NaN in-band eval triggered EarlyStopping at 0.14ep. Train loss 12-150 is normal full-vocab CE (NOT divergence); the NaN eval was the only real fault. |
+
+> **C1 autopsy (2026-10-16)**: BOTH C1 "collapses" share ONE root cause — the **in-band HF eval loop**.
+> 1. **Train loss on full-vocab CE is legitimately O(50-150)** (JEV vocab ~150k, CE over next-token of
+>    the run), NOT a 2-class ~0.7 — reading it as "divergence" was a red herring. Weights stay finite.
+> 2. **The in-band eval (`eval_strategy="steps"` + `metric_for_best_model=eval_loss` +
+>    `EarlyStoppingCallback`) emits `eval_loss=NaN` from the very first eval** (epoch 0.034) and HF
+>    EarlyStopping kills the run at ~0.14ep — before the model learns anything. That's why both C1
+>    (R-Drop) and C1fix (plain CE) came out at chance (0.4975 / **0.4959**). The R-Drop KL was *not*
+>    the cause.
+> 3. **Fix (implemented in `src/sft_mind_jev.py`)**: drop the in-band HF eval entirely
+>    (`eval_strategy="no"`, `load_best_model_at_end=False`, no EarlyStopping, no eval_dataset). Dev AUC
+>    is produced only by the external `evaluate_mind_jev.py` scorer after training — matching every
+>    other MiniOneRec pipeline. Also added a NaN `FloatingPointError` guard in `compute_loss` so a real
+>    divergence halts loudly instead of silently poisoning state. The AML component does
+>    `git clone && checkout dev`, so **the fix must be pushed before resubmitting**.
+> 4. C1fix WAS externally scored (recovered `dev_jev_predictions.txt`, 5000 MIND_small dev impressions,
+>    rescored offline -> AUC **0.4959**). This confirms the eval-path diagnosis but the checkpoint is
+>    useless (killed at 0.14ep). **Next: push the fix and resubmit C1-clean (plain CE, no in-band eval),
+>    then external-eval for a real dev AUC.**
 | C2 | RLCD | pending | DPO-style | contrastive | pending | `sft_mind_jev_rlcd.py` + `jev_noul_pair_data.py`: ground-truth (clicked>unclicked) pairs, self-distill P(A) margin; smoke-first |
 | C3 | RL (GRPO) | pending | verl | pointwise_binary | pending | on C1 ckpt via `rl_mind_verl.py` |
 | C4 | Teacher OPD | pending | KL-to-strong-teacher | frozen L1.3 1.7B | pending | `sft_mind_jev_opd.py` |

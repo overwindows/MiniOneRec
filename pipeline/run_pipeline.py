@@ -28,19 +28,21 @@ ml_client = MLClient(
 # ============================================================================
 # 2) Virtual Cluster Full ARM ID
 # ============================================================================
-# ranking
-VC_ARM_ID = (
-    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-    "/resourceGroups/rg-cs-ranking-ml-singularity"
-    "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
-)
-
-# recall
-# VC_ARM_ID = (
-#     "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-#     "/resourceGroups/rg-cs-recall-ml-singularity"
-#     "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
-# )
+VC_ARM_ID_MAP = {
+    # ranking
+    "ranking": (
+        "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+        "/resourceGroups/rg-cs-ranking-ml-singularity"
+        "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
+    ),
+    # recall (fallback when ranking compute is busy)
+    "recall": (
+        "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+        "/resourceGroups/rg-cs-recall-ml-singularity"
+        "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+    ),
+}
+VC_ARM_ID = VC_ARM_ID_MAP["ranking"]
 
 # ============================================================================
 # 2b) Managed Identity (required by Singularity policy for datastore mounting)
@@ -234,7 +236,12 @@ if __name__ == "__main__":
                         help="训练脚本文件名; pairwise 用 sft_mind_pointwise_pairwise.sh (default: sft_mind_pointwise_ds.sh)")
     parser.add_argument("--pairwise-loss-weight", type=float, default=0.5,
                         help="A7.3 pairwise (Bradley-Terry) loss weight lambda (default: 0.5)")
+    parser.add_argument("--vm-cluster", default="ranking", choices=["ranking", "recall"],
+                        help="Virtual cluster to submit to; use 'recall' when ranking compute is busy (default: ranking)")
     args = parser.parse_args()
+
+    # Select the compute cluster. `recall` is the fallback when `ranking` is busy.
+    VC_ARM_ID = VC_ARM_ID_MAP[args.vm_cluster]
 
     debug_mode = "true" if args.debug else "false"
 
@@ -286,6 +293,7 @@ if __name__ == "__main__":
     print(f"Studio URL:        {created.studio_url}")
     print(f"Experiment:        {args.experiment_name}")
     print(f"Display Name:      {args.display_name or created.display_name}")
+    print(f"Virtual Cluster:   {args.vm_cluster} ({VC_ARM_ID})")
     print(f"Model Path:        {args.model_path}")
     print(f"Data Root:         {args.data_root}")
     print(f"Output Root:       {args.output_root}")

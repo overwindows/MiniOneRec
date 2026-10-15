@@ -184,6 +184,19 @@ def main():
     print(f"Loading model from: {args.model_path}")
     import os as _os
     from pathlib import Path as _Path
+    import time as _time
+    # Cold fuse mounts (RW_MOUNT on Singularity) can take a while to populate
+    # deep subpaths. isdir() returning False on first access makes HF treat the
+    # absolute path as a repo id ("Repo id must be in the form ..."), a flaky
+    # mount-warmup race. Wait until the checkpoint dir + safetensors are visible.
+    MARKER = "model.safetensors"
+    for _attempt in range(60):
+        mp = _Path(args.model_path)
+        if mp.is_dir() and (mp / MARKER).is_file():
+            break
+        print(f"  mount warm-up: {mp} not visible yet (attempt {_attempt+1}/60)...",
+              flush=True)
+        _time.sleep(10)
     # Treat any absolute path or existing directory as local to avoid
     # huggingface_hub validate_repo_id rejecting absolute paths
     local_only = _os.path.isabs(args.model_path) or _os.path.isdir(args.model_path)

@@ -15,6 +15,7 @@ from pathlib import Path
 from azure.ai.ml import MLClient, Input, dsl, load_component
 from azure.ai.ml.entities import JobResourceConfiguration
 from azure.ai.ml.constants import InputOutputModes
+import subprocess
 
 # Use the repo's reliable `cmd /c az` credential (DefaultAzureCredential's
 # bare-`az` subprocess spawn is flaky on this Windows box — see azure_auth.py).
@@ -76,6 +77,7 @@ def jev_train_pipeline(
     use_abstract: int = 1,
     kl_beta: str = "0.1",
     enable_kl: str = "1",
+    code_revision: str = "0",
 ):
     train_node = jev_train_component(
         msndni=msndni_input,
@@ -94,6 +96,7 @@ def jev_train_pipeline(
         use_abstract=use_abstract,
         kl_beta=kl_beta,
         enable_kl=enable_kl,
+        code_revision=code_revision,
     )
     train_node.compute = VC_ARM_ID
     train_node.resources = res_cfg
@@ -127,7 +130,23 @@ if __name__ == "__main__":
     parser.add_argument("--kl-beta", default="0.1")
     parser.add_argument("--enable-kl", default="1", choices=["0", "1"])
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun")
+    parser.add_argument(
+        "--code-revision",
+        default=None,
+        help="Cache-buster string (default: current git short sha). Bump to force a "
+        "genuine rerun even if component inputs are identical.",
+    )
     args = parser.parse_args()
+
+    if not args.code_revision:
+        try:
+            args.code_revision = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, cwd=Path(__file__).parent.parent,
+            ).stdout.strip()
+        except Exception:
+            args.code_revision = "unknown"
+    print(f"[code_revision cache-buster] {args.code_revision}")
 
     job = jev_train_pipeline(
         msndni_input=Input(
@@ -150,6 +169,7 @@ if __name__ == "__main__":
         use_abstract=args.use_abstract,
         kl_beta=args.kl_beta,
         enable_kl=args.enable_kl,
+        code_revision=args.code_revision,
     )
 
     job.settings.default_compute = VC_ARM_ID

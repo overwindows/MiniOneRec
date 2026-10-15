@@ -1,7 +1,7 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: jev_train
 display_name: JEV-4B SFT Training (within-model distillation)
-version: "1"
+version: "2"
 type: command
 description: Train APUS-OpenJev-4B on MIND noul pointwise data with within-model KL distillation
 
@@ -61,6 +61,13 @@ inputs:
     type: string
     default: "shares/users/wuc/output_dir"
     description: 输出目录根路径 (相对于挂载路径)
+  code_revision:
+    type: string
+    default: "0"
+    description: >-
+      Cache-buster. The actual training code is git-cloned at runtime inside the
+      node, which AML's component-level reuse can't see. Bump this (pass the git
+      sha) on every submission so the run is never deduplicated to a stale output.
 
 code: .
 environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
@@ -84,3 +91,4 @@ command: >-
   --kl-beta ${{inputs.kl_beta}}
   --enable-kl ${{inputs.enable_kl}}
   --output-root ${{inputs.output_root}}
+  --code-revision ${{inputs.code_revision}}

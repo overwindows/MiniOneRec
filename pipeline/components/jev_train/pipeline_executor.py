@@ -222,6 +222,7 @@ def main():
     # JEV-specific: within-model distillation term
     parser.add_argument("--kl-beta", default="0.1", help="KL distillation coefficient (default: 0.1)")
     parser.add_argument("--enable-kl", default="1", help="Enable KL distillation (1/0, default: 1)")
+    parser.add_argument("--code-revision", default="0", help="Cache-buster; ignored functionally")
 
     args = parser.parse_args()
 

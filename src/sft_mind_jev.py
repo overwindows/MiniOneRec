@@ -115,7 +115,16 @@ class JEVWithinModelDistillTrainer(Trainer):
         # A clean SFT base is the robust first signal; distillation is revisited
         # only once a valid AUC is demonstrated (see plan risk note).
         logits, target = self._answer_logits(model, inputs)
-        loss = F.cross_entropy(logits, target)
+        # Compute the answer-token CE in fp32, NOT the model's bf16 dtype.
+        # JEV's real loss is a full-vocab next-token CE over the whole suffix,
+        # legitimately O(50-150); in bf16 such large logits overflow and the
+        # gradient becomes NaN on the very first real backward step (the
+        # FloatingPointError at step 0 on every C1-clean attempt). Eval avoids
+        # this by casting .float() before softmax; the stock HF causal-LM loss
+        # likewise computes internally in fp32 (which is why the Qwen3.5 pointwise
+        # trainer trains fine in this env). Cast here to match, then backprop
+        # through the bf16 model as usual.
+        loss = F.cross_entropy(logits.float(), target)
 
         # NaN guard: halt with a clear message instead of silently feeding a NaN
         # loss through optimization (where it poisons the whole run and surfaces
@@ -198,18 +207,11 @@ def train(
     else:
         _config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
         _arch = " ".join(_config.architectures or [])
-        # JEV is a hybrid ForConditionalGeneration backbone (model_type "qwen3_5").
-        # Load it through the SAME explicit class family the eval scorer uses
-        # (evaluate_mind_jev.py). AutoModelForCausalLM can instantiate a wrapped or
-        # mismatched class for the stacked linear-attention head that emits NaN on
-        # the first training forward (observed: FloatingPointError at step 0/14666
-        # on every C1-clean attempt), whereas the conditional-generation loader
-        # yields finite logits (proven by eval producing valid P(A) outputs).
-        loader = AutoModelForCausalLM
-        if _config.model_type == "qwen3_5":
-            from transformers import Qwen3_5ForConditionalGeneration
-            loader = Qwen3_5ForConditionalGeneration
-        model = loader.from_pretrained(
+        # JEV is a hybrid ForConditionalGeneration backbone, but AutoModelForCausalLM
+        # resolves it to Qwen3_5ForCausalLM and ignores the vision tower — the same
+        # proven path sft_mind_pointwise_ds.py uses to train these Qwen3.5 hybrid
+        # backbones to 0.70 AUC in this exact env.
+        model = AutoModelForCausalLM.from_pretrained(
             _base_model_arg,
             torch_dtype=torch.bfloat16,
             attn_implementation="sdpa",

@@ -72,35 +72,6 @@ class JEVWithinModelDistillTrainer(Trainer):
         self.kl_beta = kl_beta
         self.enable_kl = enable_kl
 
-    def _answer_logits(self, model, inputs):
-        """Single forward; return (answer_logits, answer_target) for last num_labels = 1 answer token."""
-        input_ids = inputs["input_ids"]
-        attention_mask = inputs["attention_mask"]
-        labels = inputs["labels"]
-
-        out = model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=None,  # we compute CE ourselves on the single answer token
-            return_dict=True,
-        )
-        logits = out.logits  # (B, L, V)
-
-        # The answer is the LAST real (non-pad) token: prompt + single answer
-        # token. attention_mask is 1 over every prompt+answer token and 0 on
-        # pads, so its sum - 1 is the answer token's row index (= prompt_len).
-        # (labels != -100) is NOT usable here: it flags only the single answer
-        # token, so (labels != -100).sum() - 1 == 0, not the answer index.
-        real_len = attention_mask.sum(dim=1)  # (B,)
-        last = real_len - 1  # index of the answer token in each row
-        # logits[i] predicts the token at position i+1 -> the answer at `last`
-        # is predicted by logits at `last - 1`.
-        predict_pos = last - 1
-        batch_idx = torch.arange(logits.shape[0], device=logits.device)
-        ans_logits = logits[batch_idx, predict_pos]  # (B, V)
-        ans_target = labels.gather(1, last.unsqueeze(1)).squeeze(1)  # (B,)
-        return ans_logits, ans_target
-
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # `num_items_in_batch` is passed by transformers 5.x Trainer; accept and ignore.
         #
@@ -114,17 +85,25 @@ class JEVWithinModelDistillTrainer(Trainer):
         # drove both dropout passes toward one low-entropy constant answer.
         # A clean SFT base is the robust first signal; distillation is revisited
         # only once a valid AUC is demonstrated (see plan risk note).
-        logits, target = self._answer_logits(model, inputs)
-        # Compute the answer-token CE in fp32, NOT the model's bf16 dtype.
-        # JEV's real loss is a full-vocab next-token CE over the whole suffix,
-        # legitimately O(50-150); in bf16 such large logits overflow and the
-        # gradient becomes NaN on the very first real backward step (the
-        # FloatingPointError at step 0 on every C1-clean attempt). Eval avoids
-        # this by casting .float() before softmax; the stock HF causal-LM loss
-        # likewise computes internally in fp32 (which is why the Qwen3.5 pointwise
-        # trainer trains fine in this env). Cast here to match, then backprop
-        # through the bf16 model as usual.
-        loss = F.cross_entropy(logits.float(), target)
+        #
+        # Loss is the STOCK HF next-token cross-entropy over the single answer
+        # position, exactly as the proven pointwise trainer (sft_mind_pointwise_ds.py)
+        # computes it on this same Qwen3.5 linear-attention backbone (trains to
+        # 0.70 AUC in this env). The dataset labels are -100 on every prompt token
+        # and the answer token id at the single answer position, so the stock loss
+        # is precisely the pointwise A/B CE we want, and HF computes it INTERNALLY
+        # in fp32 (the reason the pointwise trainer never sees the bf16 overflow
+        # that the manual full-logits materialization + manual CE hit here).
+        #
+        # Why this replaced the manual path: the previous compute_loss did a
+        # `labels=None` forward, materialized the FULL (B, L, V) logits, sliced the
+        # answer-token row, and CE'd it manually. That path NaNs on the very first
+        # training_step (every retry: quirky_corn, olive_pin) even after casting the
+        # manual CE to fp32. Materializing + manually indexing full logits through
+        # the gradient-checkpointed hybrid forward is the outlier; the stock HF loss
+        # path is known-good on this backbone.
+        outputs = model(**inputs, return_dict=True)
+        loss = outputs.loss
 
         # NaN guard: halt with a clear message instead of silently feeding a NaN
         # loss through optimization (where it poisons the whole run and surfaces
@@ -133,8 +112,8 @@ class JEVWithinModelDistillTrainer(Trainer):
             raise FloatingPointError(
                 "JEV SFT loss is NaN/Inf. This indicates unstable training "
                 "(bf16 overflow or a bad answer-token index), NOT a normal "
-                "high-CE value. Check predict_pos / answer index and mixed "
-                "precision BEFORE spending GPU on a doomed run."
+                "high-CE value. Check answer token ids / mixed precision BEFORE "
+                "spending GPU on a doomed run."
             )
 
         return (loss, {"loss": loss}) if return_outputs else loss

@@ -56,7 +56,16 @@ def main():
     max_news_len = ckpt.get("max_news_len", 64)
     use_abstract = ckpt.get("use_abstract", False)
 
-    tok = T.WordTokenizer.load(ckpt["tokenizer_path"])
+    # Tokenizer path stored in the ckpt may be an absolute scratch path from the
+    # training node that no longer exists on the eval node. Fall back to a
+    # tokenizer.pt sitting next to the checkpoint if the stored path is missing.
+    tok_path = ckpt["tokenizer_path"]
+    if not os.path.isfile(tok_path):
+        alt = os.path.join(os.path.dirname(os.path.abspath(args.checkpoint)), "tokenizer.pt")
+        if os.path.isfile(alt):
+            print(f"Stored tokenizer_path missing ({tok_path}); using sibling {alt}")
+            tok_path = alt
+    tok = T.WordTokenizer.load(tok_path)
     news_enc = T.NewsEncoder(tok.vocab_size, d_model=d_model).to(device)
     user_enc = T.UserEncoder(d_model=d_model).to(device)
     news_enc.load_state_dict(ckpt["news_enc"])

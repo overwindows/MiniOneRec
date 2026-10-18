@@ -189,10 +189,16 @@ def main():
     # deep subpaths. isdir() returning False on first access makes HF treat the
     # absolute path as a repo id ("Repo id must be in the form ..."), a flaky
     # mount-warmup race. Wait until the checkpoint dir + safetensors are visible.
-    MARKER = "model.safetensors"
+    # Single-shard checkpoints carry a "model.safetensors"; sharded dirs carry a
+    # "model.safetensors.index.json" + model-000NN-of-MMMM.safetensors files.
+    # Accept either as the mount-ready marker so multi-shard checkpoints (e.g.
+    # the Qwen3-8B large, 4 shards) are not mis-flagged as a cold-mount race.
     for _attempt in range(60):
         mp = _Path(args.model_path)
-        if mp.is_dir() and (mp / MARKER).is_file():
+        if mp.is_dir() and (
+            (mp / "model.safetensors").is_file()
+            or (mp / "model.safetensors.index.json").is_file()
+        ):
             break
         print(f"  mount warm-up: {mp} not visible yet (attempt {_attempt+1}/60)...",
               flush=True)

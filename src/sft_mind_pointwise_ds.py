@@ -285,6 +285,21 @@ def train(
     training_args = transformers.TrainingArguments(**training_args_dict)
 
     # Initialize trainer
+    # Early stopping is gated on completing at least one full epoch: eval-loss
+    # often dips and recovers within epoch 1 (LR warmup + data-order effects),
+    # and stopping at epoch 0.3 wastes the run. The wrapper below defers the
+    # HF EarlyStoppingCallback until trainer.state.epoch >= 1.0.
+    class _EpochGatedEarlyStopping(transformers.TrainerCallback):
+        def __init__(self, patience, min_epoch=1.0):
+            self.inner = EarlyStoppingCallback(early_stopping_patience=patience)
+            self.min_epoch = min_epoch
+        def on_step_end(self, args, state, control, **kwargs):
+            if state.epoch is not None and state.epoch >= self.min_epoch:
+                return self.inner.on_step_end(args, state, control, **kwargs)
+            return control
+        def on_train_begin(self, args, state, control, **kwargs):
+            return self.inner.on_train_begin(args, state, control, **kwargs)
+
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_data,
@@ -293,7 +308,7 @@ def train(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_data else None,
+        callbacks=[_EpochGatedEarlyStopping(early_stopping_patience)] if val_data else None,
     )
 
     # Length-grouped training batches (opt-in via MINIONEREC_LENGTH_GROUPED=1).

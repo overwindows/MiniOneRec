@@ -260,8 +260,8 @@ def train(
         "logging_first_step": True,
         "eval_strategy": "steps" if val_data else "no",
         "save_strategy": "steps",
-        "eval_steps": 256 if val_data else None,
-        "save_steps": 2048,
+        "eval_steps": int(os.environ.get("MINIONEREC_EVAL_STEPS", "256")) if val_data else None,
+        "save_steps": int(os.environ.get("MINIONEREC_SAVE_STEPS", "2048")),
         "output_dir": output_dir,
         "save_total_limit": 2,
         "load_best_model_at_end": True if val_data else False,
@@ -304,7 +304,7 @@ def train(
     if os.environ.get("MINIONEREC_LENGTH_GROUPED", "") == "1":
         from torch.utils.data import DataLoader
 
-        def _length_grouped_dataloader(ds, batch_size, collate_fn, num_workers, seed, world_size):
+        def _length_grouped_dataloader(ds, batch_size, collate_fn, num_workers, seed, world_size, rank):
             # Token lengths are not precomputed (samples store raw history/candidate
             # dicts; tokenization happens in __getitem__), so estimate length from
             # the raw text: chars/4 is a robust token proxy for English news text.
@@ -327,26 +327,54 @@ def train(
             for i in range(0, len(indices), mega):
                 chunk = sorted(indices[i:i + mega], key=lambda j: lengths[j])
                 grouped.extend(chunk)
-            # re-shuffle within same-length bands is unnecessary; batches are contiguous slices
+            # Contiguous micro-batches of the length-sorted order
+            batches = [grouped[i:i + batch_size] for i in range(0, len(grouped), batch_size)]
+
+            # CRITICAL: shard at the BATCH level across DDP ranks. The Trainer's
+            # default dataloader installs a DistributedSampler; this custom one
+            # must do its own sharding, otherwise every rank trains on the FULL
+            # dataset (8x duplicated compute, 8x too many optimizer steps).
+            class _GroupedBatchSampler(torch.utils.data.Sampler):
+                def __init__(self, batches, world_size, rank, seed):
+                    self.batches = batches
+                    self.world_size = world_size
+                    self.rank = rank
+                    self.seed = seed
+                    self.epoch = 0
+                def set_epoch(self, epoch):
+                    self.epoch = epoch
+                def __iter__(self):
+                    # reshuffle batch order each epoch (different batch composition)
+                    rng2 = _random.Random(self.seed + 1000 * self.epoch)
+                    self.epoch += 1
+                    order = list(range(len(self.batches)))
+                    rng2.shuffle(order)
+                    # trim to an equal shard per rank so all ranks iterate the
+                    # same number of batches (avoids DDP/DeepSpeed barrier hang)
+                    n = (len(order) // self.world_size) * self.world_size
+                    for b in order[:n][self.rank::self.world_size]:
+                        yield self.batches[b]
+                def __len__(self):
+                    return len(self.batches) // self.world_size
+
             class _GroupedDS(torch.utils.data.Dataset):
-                def __init__(self, ds, order):
+                def __init__(self, ds):
                     self.ds = ds
-                    self.order = order
                 def __len__(self):
                     return len(self.ds)
                 def __getitem__(self, i):
-                    return self.ds[self.order[i]]
+                    return self.ds[i]
+
             return DataLoader(
-                _GroupedDS(ds, grouped),
-                batch_size=batch_size,
+                _GroupedDS(ds),
+                batch_sampler=_GroupedBatchSampler(batches, world_size, rank, seed),
                 collate_fn=collate_fn,
                 num_workers=num_workers,
                 pin_memory=True,
-                shuffle=False,
-                drop_last=False,
             )
 
         world_size = int(os.environ.get("WORLD_SIZE", "1"))
+        rank = int(os.environ.get("RANK", os.environ.get("LOCAL_RANK", "0")))
         _dl = _length_grouped_dataloader(
             train_data,
             training_args.per_device_train_batch_size,
@@ -354,10 +382,11 @@ def train(
             training_args.dataloader_num_workers,
             seed,
             world_size,
+            rank,
         )
         if _dl is not None:
             trainer.get_train_dataloader = lambda: _dl
-            print("Length-grouped train dataloader enabled")
+            print(f"Length-grouped train dataloader enabled (world_size={world_size}, rank={rank})")
 
     model.config.use_cache = False
 

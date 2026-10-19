@@ -248,7 +248,10 @@ def train(
         # an 80GB A100 during the loss logits materialization (seen as CUDA OOM
         # in fixed_cross_entropy on the first step). Checkpointing trades a
         # little compute for a large drop in activation memory.
-        "gradient_checkpointing": True,
+        # On large-VRAM GPUs (B200 180GB) checkpointing is a pure ~2x slowdown:
+        # disable via MINIONEREC_NO_GRADIENT_CHECKPOINTING=1.
+        "gradient_checkpointing": os.environ.get("MINIONEREC_NO_GRADIENT_CHECKPOINTING", "") != "1",
+        "dataloader_num_workers": int(os.environ.get("MINIONEREC_NUM_WORKERS", "0")),
         "warmup_steps": 100,
         "num_train_epochs": num_epochs,
         "learning_rate": learning_rate,
@@ -292,6 +295,69 @@ def train(
         ),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_data else None,
     )
+
+    # Length-grouped training batches (opt-in via MINIONEREC_LENGTH_GROUPED=1).
+    # transformers 5.x removed `group_by_length`; without it every micro-batch pads
+    # to its longest member (~2048) while the median prompt is ~1250 tokens — ~40%
+    # wasted compute. This sampler restores the old LengthGroupedSampler behavior:
+    # random megabatches sorted by length, so batches are homogeneous.
+    if os.environ.get("MINIONEREC_LENGTH_GROUPED", "") == "1":
+        from torch.utils.data import DataLoader
+
+        def _length_grouped_dataloader(ds, batch_size, collate_fn, num_workers, seed, world_size):
+            # Token lengths are not precomputed (samples store raw history/candidate
+            # dicts; tokenization happens in __getitem__), so estimate length from
+            # the raw text: chars/4 is a robust token proxy for English news text.
+            def _est_len(s):
+                cand = s.get("candidate", {}) or {}
+                hist = s.get("history", []) or []
+                txt = cand.get("text", "") + " ".join(h.get("text", "") for h in hist)
+                return len(txt) // 4
+            try:
+                lengths = [_est_len(s) for s in ds.samples]
+            except Exception:
+                return None
+            import random as _random
+            rng = _random.Random(seed)
+            indices = list(range(len(ds)))
+            rng.shuffle(indices)
+            # megabatches of 50*batch_size sorted internally by length
+            mega = max(50 * batch_size, batch_size * world_size)
+            grouped = []
+            for i in range(0, len(indices), mega):
+                chunk = sorted(indices[i:i + mega], key=lambda j: lengths[j])
+                grouped.extend(chunk)
+            # re-shuffle within same-length bands is unnecessary; batches are contiguous slices
+            class _GroupedDS(torch.utils.data.Dataset):
+                def __init__(self, ds, order):
+                    self.ds = ds
+                    self.order = order
+                def __len__(self):
+                    return len(self.ds)
+                def __getitem__(self, i):
+                    return self.ds[self.order[i]]
+            return DataLoader(
+                _GroupedDS(ds, grouped),
+                batch_size=batch_size,
+                collate_fn=collate_fn,
+                num_workers=num_workers,
+                pin_memory=True,
+                shuffle=False,
+                drop_last=False,
+            )
+
+        world_size = int(os.environ.get("WORLD_SIZE", "1"))
+        _dl = _length_grouped_dataloader(
+            train_data,
+            training_args.per_device_train_batch_size,
+            trainer.data_collator,
+            training_args.dataloader_num_workers,
+            seed,
+            world_size,
+        )
+        if _dl is not None:
+            trainer.get_train_dataloader = lambda: _dl
+            print("Length-grouped train dataloader enabled")
 
     model.config.use_cache = False
 

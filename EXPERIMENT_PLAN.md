@@ -778,6 +778,29 @@ three epochs. One-GPU full-budget replication is therefore not a reasonable
 overnight promise. No larger training allocation is silently implied by the
 completed one-GPU controls.
 
+**Prepared next run (not submitted):** full 469,264-pair, three-epoch
+`decision` + `legacy` ablation, preserving seed42, global batch128/micro2,
+lr1e-4, hist30/abstracts, cutoff4096, hard-neg0.5/neg1.0, bf16/ZeRO-2 and
+no KL. This isolates the objective under the historical recipe rather than
+mixing a shorter training budget or prompt change into the main comparison.
+The proposed allocation is the original one-node/eight-A100 type, Standard
+ranking, with a 72-hour command timeout; this is an escalation from the
+approved bounded one-GPU work and awaits explicit resource approval.
+Afterward, serial one-A100 legacy-prompt evaluations should score both the old
+full-vocabulary checkpoint and the new decision-loss checkpoint under the
+current raw-score-preserving scorer. The old 0.5452 must not be treated as a
+fresh matched rescore.
+
+```powershell
+python pipeline\run_jev_train.py --bundle-source --data-root shares/users/wuc/data/MIND_small --output-root shares/users/wuc/output_dir/jev_decision_campaign_20261020/loss_only_legacy --loss-type decision --prompt-contract legacy --enable-kl 0 --sample -1 --num-epochs 3 --batch-size 128 --micro-batch-size 2 --max-history 30 --cutoff-len 4096 --use-abstract 1 --instance-type Singularity.ND96amrs_A100_v4 --timeout-seconds 259200 --display-name C1-decision-loss-only-full
+```
+
+**Publication:** the research-paper page and live feed were updated with the
+verified paired-control table, intervals, full audit and negative result.
+The full authenticated shared-site snapshot deployment succeeded on
+2026-10-21 (UTC+8); other pages and authentication configuration were preserved.
+Browser rendering was not independently rechecked in this background follow-up.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

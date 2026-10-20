@@ -4,42 +4,30 @@
 
   "commands": [
     {
-      "name": "切换到 home 目录",
-      "command": "cd /home/aiscuser",
-      "working_dir": ".",
-      "is_cd_command": true,
-      "new_working_dir": "/home/aiscuser"
-    },
-    {
-      "name": "删除旧的 MiniOneRec 目录",
-      "command": "rm -rf /home/aiscuser/MiniOneRec",
-      "working_dir": "/home/aiscuser"
-    },
-    {
       "name": "克隆 MiniOneRec 仓库",
-      "command": "git clone https://github.com/overwindows/MiniOneRec.git /home/aiscuser/MiniOneRec",
-      "working_dir": "/home/aiscuser"
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git {code_dir}/MiniOneRec",
+      "working_dir": "{code_dir}"
     },
     {
-      "name": "切换到 dev 分支",
-      "command": "git checkout dev",
-      "working_dir": "/home/aiscuser/MiniOneRec"
+      "name": "Checkout exact source revision",
+      "command": "if [ -f {code_dir}/source.bundle ]; then git fetch {code_dir}/source.bundle HEAD; fi && git checkout --detach {source_revision} && git rev-parse HEAD",
+      "working_dir": "{code_dir}/MiniOneRec"
     },
     {
       "name": "配置多节点环境",
       "command": "bash scripts/setup_multi_node.sh",
-      "working_dir": "/home/aiscuser/MiniOneRec"
+      "working_dir": "{code_dir}/MiniOneRec"
     },
     {
       "name": "启动 OpenJev 评估",
       "description": "使用 OpenJev 作为 noul 决策模型对每个(candidate)评分并计算 AUC",
-      "command": "EVAL_OUTPUT_DIR=$(dirname {model_path})/jev_eval_results && if [ \"{prompt_contract}\" != \"auto\" ]; then EVAL_OUTPUT_DIR=${EVAL_OUTPUT_DIR}_{prompt_contract}; fi && mkdir -p $EVAL_OUTPUT_DIR && echo '=== OpenJev model path:' {model_path} '===' && ls -la {model_path} | head -20 && if [ \"{use_abstract}\" = \"1\" ]; then ABS_FLAG=\"--use_abstract\"; else ABS_FLAG=\"\"; fi && CUDA_VISIBLE_DEVICES=0 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True DATA_ROOT={data_root} /home/aiscuser/.conda/envs/MiniOneRec/bin/python -u src/evaluate_mind_jev.py --model_path {model_path} --behaviors_path {data_root}/{split}/behaviors.tsv --news_path {data_root}/{split}/news.tsv --max_history {max_history} --max_impressions {max_impressions} --prompt_contract {prompt_contract} $ABS_FLAG --output_file $EVAL_OUTPUT_DIR/{split}_jev_predictions.txt && echo '=== Results ===' && head -2 $EVAL_OUTPUT_DIR/{split}_jev_predictions.txt && echo 'Evaluation results saved to' $EVAL_OUTPUT_DIR/",
-      "working_dir": "/home/aiscuser/MiniOneRec"
+      "command": "EVAL_OUTPUT_DIR=$(dirname {model_path})/jev_eval_results && if [ \"{prompt_contract}\" != \"auto\" ]; then EVAL_OUTPUT_DIR=${EVAL_OUTPUT_DIR}_{prompt_contract}; fi && if [ -n \"{output_root}\" ]; then EVAL_OUTPUT_DIR={output_root}; fi && mkdir -p $EVAL_OUTPUT_DIR && if [ \"{use_abstract}\" = \"1\" ]; then ABS_FLAG=\"--use_abstract\"; else ABS_FLAG=\"\"; fi && CUDA_VISIBLE_DEVICES=0 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True DATA_ROOT={data_root} /home/aiscuser/.conda/envs/MiniOneRec/bin/python -u src/evaluate_mind_jev.py --model_path {model_path} --behaviors_path {data_root}/{split}/behaviors.tsv --news_path {data_root}/{split}/news.tsv --max_history {max_history} --max_impressions {max_impressions} --prompt_contract {prompt_contract} --max_prompt_tokens {max_prompt_tokens} $ABS_FLAG --output_file $EVAL_OUTPUT_DIR/{split}_jev_predictions.txt && echo 'Evaluation results saved to' $EVAL_OUTPUT_DIR/",
+      "working_dir": "{code_dir}/MiniOneRec"
     },
     {
       "name": "调试模式-保持容器运行",
       "command": "echo '=== 调试模式: 容器将保持运行 ===' && sleep infinity",
-      "working_dir": "/home/aiscuser/MiniOneRec",
+      "working_dir": "{code_dir}/MiniOneRec",
       "enabled": true
     }
   ],

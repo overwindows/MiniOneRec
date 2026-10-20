@@ -11,20 +11,17 @@ Usage:
     python run_jev_train.py --loss-type decision --prompt-contract native_click --enable-kl 0
 """
 import argparse
-import re
-import shutil
 import sys
 from pathlib import Path
 from azure.ai.ml import MLClient, Input, dsl, load_component
 from azure.ai.ml.entities import CommandJobLimits, JobResourceConfiguration
 from azure.ai.ml.constants import InputOutputModes
-import subprocess
-import tempfile
 
 # Use the repo's reliable `cmd /c az` credential (DefaultAzureCredential's
 # bare-`az` subprocess spawn is flaky on this Windows box — see azure_auth.py).
 sys.path.insert(0, str(Path(__file__).parent))
 from azure_auth import get_credential
+from jev_source import prepare_source_component
 
 ml_client = MLClient(
     get_credential(),
@@ -160,37 +157,13 @@ if __name__ == "__main__":
         parser.error("--timeout-seconds must be positive")
     if args.smoke_test and not (0 < args.sample <= 256 and args.num_epochs == 1):
         parser.error("--smoke-test requires --sample 1..256 and --num-epochs 1")
-    if not args.source_revision:
-        args.source_revision = subprocess.run(
-            ["git", "rev-parse", "HEAD"], check=True, capture_output=True,
-            text=True, cwd=SCRIPT_DIR.parent,
-        ).stdout.strip()
-    if not re.fullmatch(r"[0-9a-f]{40}", args.source_revision):
-        parser.error("--source-revision must be a full commit SHA")
-    source_upload = None
-    if args.bundle_source:
-        head = subprocess.run(
-            ["git", "rev-parse", "HEAD"], check=True, capture_output=True,
-            text=True, cwd=SCRIPT_DIR.parent,
-        ).stdout.strip()
-        if args.source_revision != head:
-            parser.error("--bundle-source requires --source-revision to equal committed local HEAD")
-        base = subprocess.run(
-            ["git", "merge-base", "HEAD", "origin/dev"], check=True, capture_output=True,
-            text=True, cwd=SCRIPT_DIR.parent,
-        ).stdout.strip()
-        if base == head:
-            parser.error("--bundle-source requires a local commit beyond origin/dev")
-        source_upload = tempfile.TemporaryDirectory(prefix="jev-train-source-")
-        upload_dir = Path(source_upload.name)
-        for filename in ("component.yaml", "config_jev_train.json", "pipeline_executor.py"):
-            shutil.copy2(SCRIPT_DIR / "components" / "jev_train" / filename, upload_dir / filename)
-        subprocess.run(
-            ["git", "bundle", "create", str(upload_dir / "source.bundle"), "HEAD", "^" + base],
-            check=True, cwd=SCRIPT_DIR.parent,
+    try:
+        args.source_revision, jev_train_component, source_upload = prepare_source_component(
+            SCRIPT_DIR / "components" / "jev_train" / "component.yaml",
+            args.source_revision, args.bundle_source,
         )
-        jev_train_component = load_component(source=str(upload_dir / "component.yaml"))
-        jev_train_component.version = "4-" + args.source_revision[:12]
+    except ValueError as error:
+        parser.error(str(error))
 
     if not args.code_revision:
         args.code_revision = args.source_revision[:12]

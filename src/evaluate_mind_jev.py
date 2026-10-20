@@ -28,10 +28,13 @@ Usage:
 """
 
 import argparse
+import json
 import math
 import os
 import random
 import sys
+from contextlib import ExitStack
+from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
@@ -77,10 +80,13 @@ class JevScorer:
     """Full-depth Qwen3.5 candidate-token scorer with an explicit prompt mode."""
 
     def __init__(self, model_path: str, device: str = "cuda:0", dtype: str = "bfloat16",
-                 prompt_contract: str = "auto"):
+                 prompt_contract: str = "auto", max_prompt_tokens: int = 0):
         from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
         self.device = device
+        if not 0 <= max_prompt_tokens <= 8192:
+            raise ValueError("Shared JEV prompt budget must be 0..8192")
+        self.max_prompt_tokens = max_prompt_tokens
         torch_dtype = getattr(torch, dtype)
         local_kwargs = {"local_files_only": True}
 
@@ -120,7 +126,8 @@ class JevScorer:
     def _encode(self, state: str):
         return encode_decision_prompt(
             self.tokenizer, render_noul_prompt(state, self.prompt_contract),
-            max_length=8192 if self.prompt_contract == "native_click" else None,
+            max_length=(getattr(self, "max_prompt_tokens", 0)
+                        or (8192 if self.prompt_contract == "native_click" else None)),
         )
 
     def _max_len(self) -> int:
@@ -145,6 +152,8 @@ class JevScorer:
         )
         logits = out.logits[0, -1].float()
         cand_logits = logits[self.cand_tokens]
+        if not torch.isfinite(cand_logits).all():
+            raise FloatingPointError("Nonfinite JEV candidate logits")
         probs = torch.softmax(cand_logits, -1)
         return float(probs[0].item())
 
@@ -169,6 +178,8 @@ class JevScorer:
         )
         logits = out.logits[:, -1, :].float()
         cand_logits = logits[:, self.cand_tokens]
+        if not torch.isfinite(cand_logits).all():
+            raise FloatingPointError("Nonfinite JEV candidate logits")
         probs = torch.softmax(cand_logits, -1)
         return {r: float(probs[j, 0].item()) for j, r in enumerate(idx)}
 
@@ -219,38 +230,25 @@ def parse_behaviors_line(line: str):
     return impression_id, history_ids, impressions
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", required=True)
-    parser.add_argument("--behaviors_path", required=True)
-    parser.add_argument("--news_path", required=True)
-    parser.add_argument("--use_abstract", action="store_true")
-    parser.add_argument("--max_history", type=int, default=30)
-    parser.add_argument("--max_impressions", type=int, default=0)
-    parser.add_argument("--prompt_contract", choices=("auto", *PROMPT_CONTRACTS), default="auto")
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--output_file", default="")
-    parser.add_argument("--device", default="cuda:0")
-    args = parser.parse_args()
-
-    set_seed(args.seed)
-    news = load_news(args.news_path, args.use_abstract)
-    print(f"Loaded {len(news)} news articles")
-
-    scorer = JevScorer(args.model_path, device=args.device, prompt_contract=args.prompt_contract)
-    print("JEV scorer ready")
-
+def evaluate(scorer, news, args, output_file):
     def _avg(xs):
         return float(np.mean(xs)) if xs else 0.0
 
     aucs, mrrs, ndcg5, ndcg10 = [], [], [], []
     predictions = []
     count = 0
+    candidate_count = 0
 
-    with open(args.behaviors_path, "r", encoding="utf-8") as f:
+    with ExitStack() as stack:
+        f = stack.enter_context(open(args.behaviors_path, "r", encoding="utf-8"))
+        score_path = Path(output_file).with_suffix(".scores.jsonl") if output_file else None
+        partial_path = score_path.with_suffix(score_path.suffix + ".partial") if score_path else None
+        raw_file = stack.enter_context(open(partial_path, "w", encoding="utf-8")) if partial_path else None
         for line in tqdm(f, desc="Evaluating impressions"):
             parsed = parse_behaviors_line(line)
             if parsed is None:
+                if args.max_prompt_tokens:
+                    raise ValueError("Malformed behavior row in matched evaluation")
                 continue
             impression_id, history_ids, impressions = parsed
             if args.max_history > 0:
@@ -266,12 +264,18 @@ def main():
             states = []
             for nid, label in impressions:
                 if nid not in news:
+                    if args.max_prompt_tokens:
+                        raise ValueError(f"Missing candidate {nid} in impression {impression_id}")
                     continue
                 candidate_ids.append(nid)
                 labels.append(label)
                 states.append(build_jev_state(history_objs, news[nid]))
             # Batch all candidates of the impression into one padded forward.
             raw = scorer.score_yes_batch(states)
+            if len(raw) != len(candidate_ids) or any(not math.isfinite(s) for s in raw):
+                raise FloatingPointError(f"Invalid JEV scores for impression {impression_id}")
+            if args.max_prompt_tokens and any(not 0 <= s <= 1 for s in raw):
+                raise ValueError(f"Abstention is forbidden in matched impression {impression_id}")
             scores = [0.5 if s < 0 else s for s in raw]  # abstain/too-long -> neutral
 
             if not candidate_ids:
@@ -283,20 +287,43 @@ def main():
                 ndcg5.append(ndcg_score(labels, scores, 5))
                 ndcg10.append(ndcg_score(labels, scores, 10))
 
-            if args.output_file:
+            if output_file:
                 ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
                 ranked_ids = [candidate_ids[i] for i in ranked]
                 predictions.append((impression_id, ranked_ids))
+                raw_file.write(json.dumps({
+                    "impression_id": impression_id, "candidate_ids": candidate_ids,
+                    "labels": labels, "scores": scores,
+                    "prompt_contract": scorer.prompt_contract,
+                }, allow_nan=False) + "\n")
+                raw_file.flush()
 
             count += 1
+            candidate_count += len(candidate_ids)
             if args.max_impressions and count >= args.max_impressions:
                 break
 
-    if args.output_file and predictions:
-        with open(args.output_file, "w", encoding="utf-8") as f:
+    if args.max_prompt_tokens and (not count or (args.max_impressions and count != args.max_impressions)):
+        raise ValueError("Matched evaluation did not cover the requested impressions")
+    if output_file and predictions:
+        with open(output_file, "w", encoding="utf-8") as f:
             for imp_id, ranked in predictions:
                 f.write(f"{imp_id}\t[{' '.join(ranked)}]\n")
-        print(f"Saved predictions to {args.output_file}")
+        partial_path.replace(score_path)
+        print(f"Saved predictions to {output_file}")
+
+    metrics = {
+        "model_path": args.model_path, "prompt_contract": scorer.prompt_contract,
+        "max_history": args.max_history, "use_abstract": args.use_abstract,
+        "max_prompt_tokens": args.max_prompt_tokens, "seed": args.seed,
+        "impressions": count, "candidates": candidate_count, "labeled_impressions": len(aucs),
+        "auc": _avg(aucs), "mrr": _avg(mrrs),
+        "ndcg5": _avg(ndcg5), "ndcg10": _avg(ndcg10),
+    }
+    if output_file:
+        Path(output_file).with_suffix(".metrics.json").write_text(
+            json.dumps(metrics, indent=2, allow_nan=False) + "\n", encoding="utf-8",
+        )
 
     print("\nFinal Results:")
     print(f"Processed {count} impressions")
@@ -307,6 +334,43 @@ def main():
         print(f"nDCG@10: {_avg(ndcg10):.4f}")
     else:
         print("No labeled impressions processed")
+    return metrics
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", required=True)
+    parser.add_argument("--behaviors_path", required=True)
+    parser.add_argument("--news_path", required=True)
+    parser.add_argument("--use_abstract", action="store_true")
+    parser.add_argument("--max_history", type=int, default=30)
+    parser.add_argument("--max_impressions", type=int, default=0)
+    parser.add_argument("--prompt_contract", choices=("auto", "both", *PROMPT_CONTRACTS), default="auto")
+    parser.add_argument("--max_prompt_tokens", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--output_file", default="")
+    parser.add_argument("--device", default="cuda:0")
+    args = parser.parse_args()
+    if not 0 <= args.max_prompt_tokens <= 8192:
+        parser.error("--max_prompt_tokens must be 0..8192")
+    set_seed(args.seed)
+    news = load_news(args.news_path, args.use_abstract)
+    print(f"Loaded {len(news)} news articles")
+    both = args.prompt_contract == "both"
+    scorer = JevScorer(
+        args.model_path, device=args.device,
+        prompt_contract="legacy" if both else args.prompt_contract,
+        max_prompt_tokens=args.max_prompt_tokens,
+    )
+    print("JEV scorer ready")
+    for contract in PROMPT_CONTRACTS if both else (scorer.prompt_contract,):
+        scorer.prompt_contract = contract
+        output_file = args.output_file
+        if both and output_file:
+            path = Path(output_file)
+            output_file = str(path.with_name(path.stem + "_" + contract + path.suffix))
+        print(f"=== Evaluating JEV prompt contract: {contract} ===", flush=True)
+        evaluate(scorer, news, args, output_file)
 
 
 if __name__ == "__main__":

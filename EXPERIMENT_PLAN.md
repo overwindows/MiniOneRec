@@ -692,6 +692,32 @@ loss-only versus native-prompt training/evaluation. No full-budget redesigned
 training or new dev AUC was launched. The last measured full SFT AUC remains
 0.5452; C2/C3/C4 remain gated. No webpage deployment was performed for this smoke.
 
+**Research continuation (2026-10-20):** the smoke is not the research endpoint.
+`src/audit_jev_inputs.py` now audits the entire deterministic training sampler
+and every candidate in the first 5000 dev impressions under both prompt modes.
+It records data/tokenizer hashes, an ordered input fingerprint, lengths and
+over-budget counts without truncation. The full MIND_small sampler contains
+469,264 pairs (236,344 positives, 232,920 negatives); these are not a new subsample.
+The existing negative sampler is unchanged, including its slightly sub-1:1
+realized ratio. Auditing is in progress; no all-data budget pass is claimed yet.
+
+The evaluator supports `--prompt-contract both`, loading the same frozen weights
+once and evaluating legacy/native-click sequentially on the same dev impressions.
+`--max-prompt-tokens` makes the shared budget fail-fast rather than assigning a
+neutral score to an oversized candidate. Every candidate ID, label and unrounded
+score is written to `.scores.jsonl` alongside full-precision `.metrics.json`;
+partial score files retain `.partial` until a successful pass. Explicit
+`--output-root` prevents collisions with historical evaluations. Evaluation now
+uses the same immutable source pin and authorized `--bundle-source` mechanism as
+training, with a job-private clone and optional command timeout.
+
+The next actual GPU job is a paired frozen dev@5000 control on one ranking
+Standard A100, after the shared input audit passes. It is a control evaluation,
+not a training job or a new trained-model AUC. Training ablations must use the
+same admitted examples, history, abstracts and budgets; their runtime/resource
+budget will be based on measured worker throughput, not the smoke's nominal
+example count.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

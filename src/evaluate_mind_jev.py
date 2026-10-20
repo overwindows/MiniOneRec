@@ -28,6 +28,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -316,6 +317,7 @@ def evaluate(scorer, news, args, output_file):
         "model_path": args.model_path, "prompt_contract": scorer.prompt_contract,
         "max_history": args.max_history, "use_abstract": args.use_abstract,
         "max_prompt_tokens": args.max_prompt_tokens, "seed": args.seed,
+        "data_sha256": getattr(args, "data_sha256", None),
         "impressions": count, "candidates": candidate_count, "labeled_impressions": len(aucs),
         "auc": _avg(aucs), "mrr": _avg(mrrs),
         "ndcg5": _avg(ndcg5), "ndcg10": _avg(ndcg10),
@@ -354,6 +356,10 @@ def main():
     if not 0 <= args.max_prompt_tokens <= 8192:
         parser.error("--max_prompt_tokens must be 0..8192")
     set_seed(args.seed)
+    args.data_sha256 = {
+        "behaviors.tsv": hashlib.sha256(Path(args.behaviors_path).read_bytes()).hexdigest(),
+        "news.tsv": hashlib.sha256(Path(args.news_path).read_bytes()).hexdigest(),
+    }
     news = load_news(args.news_path, args.use_abstract)
     print(f"Loaded {len(news)} news articles")
     both = args.prompt_contract == "both"

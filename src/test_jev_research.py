@@ -51,9 +51,14 @@ class ResearchEvaluationTests(unittest.TestCase):
         behaviors = root / "behaviors.tsv"
         behaviors.write_text("1\tU1\ttime\tN0\tN1-1 N2-0 N3-0\n", encoding="utf-8")
         news = {nid: {"text": nid} for nid in ("N0", "N1", "N2", "N3")}
+        news_path = root / "news.tsv"
+        news_path.write_text(
+            "".join(f"{nid}\tcat\tsub\t{nid}\tAbstract\n" for nid in news), encoding="utf-8",
+        )
         args = SimpleNamespace(
             behaviors_path=str(behaviors), max_history=30, max_impressions=1,
             max_prompt_tokens=4095, model_path="fixture-model", use_abstract=True, seed=42,
+            news_path=str(news_path),
         )
         return news, args
 
@@ -95,7 +100,7 @@ class ResearchEvaluationTests(unittest.TestCase):
                 patch("evaluate_mind_jev.load_news", return_value=news),
                 patch.object(sys, "argv", [
                     "evaluate", "--model_path", "fixture-model", "--behaviors_path", args.behaviors_path,
-                    "--news_path", "fixture-news", "--prompt_contract", "both",
+                    "--news_path", args.news_path, "--prompt_contract", "both",
                     "--max_prompt_tokens", "4095", "--max_impressions", "1", "--output_file", output,
                 ]),
             ):

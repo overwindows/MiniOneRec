@@ -13,7 +13,9 @@ authenticates reliably. `get_credential()` returns a DeleteOnExpiry-compatible,
 inert object; the real token is fetched lazily on first get_token().
 """
 import json
+import os
 import shlex
+import shutil
 import subprocess
 
 from azure.core.credentials import AccessToken
@@ -30,12 +32,30 @@ def _pick_scope(scopes):
     return _MANAGEMENT_SCOPE
 
 
+_AZ_CANDIDATES = (
+    r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
+    r"C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
+)
+
+
+def _find_az():
+    """Locate az.cmd. `az` is not on the subprocess PATH on this box, so fall
+    back to the known SDK install path(s); prefer a bare `az` if resolvable."""
+    found = shutil.which("az")
+    if found:
+        return found
+    for cand in _AZ_CANDIDATES:
+        if os.path.exists(cand):
+            return cand
+    raise RuntimeError("az CLI not found on PATH or standard install locations")
+
+
 def _fetch_token(*scopes) -> AccessToken:
-    """Call az account get-access-token via cmd /c and parse the JSON."""
+    """Call az account get-access-token and parse the JSON."""
     scope = _pick_scope(scopes)
-    args = "az account get-access-token --output json --scope " + scope
+    az = _find_az()
     proc = subprocess.run(
-        ["cmd", "/c", args],
+        [az, "account", "get-access-token", "--output", "json", "--scope", scope],
         capture_output=True,
         text=True,
         timeout=60,
@@ -46,14 +66,15 @@ def _fetch_token(*scopes) -> AccessToken:
             " stderr=" + (proc.stderr or "")[:400]
         )
     data = json.loads(proc.stdout)
-    # `expiresOn` may be a unix epoch (int) or an ISO datetime string; normalize.
-    from datetime import datetime, timezone
-    exp = data.get("expiresOn") or data.get("expires_on")
-    if isinstance(exp, (int, float)):
+    # Prefer the timezone-independent epoch; expiresOn is CLI-local wall time.
+    from datetime import datetime
+    exp = data.get("expires_on")
+    if exp is None:
+        exp = data["expiresOn"]
+    if isinstance(exp, (int, float)) or str(exp).isdigit():
         expires_on = int(exp)
     else:
-        expires_on = int(datetime.strptime(str(exp), "%Y-%m-%d %H:%M:%S.%f")
-                         .replace(tzinfo=timezone.utc).timestamp())
+        expires_on = int(datetime.fromisoformat(str(exp)).timestamp())
     return AccessToken(data["accessToken"], expires_on)
 
 

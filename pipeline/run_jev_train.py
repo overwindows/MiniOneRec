@@ -12,12 +12,14 @@ Usage:
 """
 import argparse
 import re
+import shutil
 import sys
 from pathlib import Path
 from azure.ai.ml import MLClient, Input, dsl, load_component
 from azure.ai.ml.entities import CommandJobLimits, JobResourceConfiguration
 from azure.ai.ml.constants import InputOutputModes
 import subprocess
+import tempfile
 
 # Use the repo's reliable `cmd /c az` credential (DefaultAzureCredential's
 # bare-`az` subprocess spawn is flaky on this Windows box — see azure_auth.py).
@@ -139,6 +141,8 @@ if __name__ == "__main__":
     parser.add_argument("--timeout-seconds", type=int, default=None)
     parser.add_argument("--source-revision", default=None,
                         help="Published full commit SHA to check out (default: local HEAD)")
+    parser.add_argument("--bundle-source", action="store_true",
+                        help="Upload committed local HEAD in the AML component instead of requiring a GitHub push")
     parser.add_argument(
         "--code-revision",
         default=None,
@@ -157,6 +161,30 @@ if __name__ == "__main__":
         ).stdout.strip()
     if not re.fullmatch(r"[0-9a-f]{40}", args.source_revision):
         parser.error("--source-revision must be a full commit SHA")
+    source_upload = None
+    if args.bundle_source:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], check=True, capture_output=True,
+            text=True, cwd=SCRIPT_DIR.parent,
+        ).stdout.strip()
+        if args.source_revision != head:
+            parser.error("--bundle-source requires --source-revision to equal committed local HEAD")
+        base = subprocess.run(
+            ["git", "merge-base", "HEAD", "origin/dev"], check=True, capture_output=True,
+            text=True, cwd=SCRIPT_DIR.parent,
+        ).stdout.strip()
+        if base == head:
+            parser.error("--bundle-source requires a local commit beyond origin/dev")
+        source_upload = tempfile.TemporaryDirectory(prefix="jev-train-source-")
+        upload_dir = Path(source_upload.name)
+        for filename in ("component.yaml", "config_jev_train.json", "pipeline_executor.py"):
+            shutil.copy2(SCRIPT_DIR / "components" / "jev_train" / filename, upload_dir / filename)
+        subprocess.run(
+            ["git", "bundle", "create", str(upload_dir / "source.bundle"), "HEAD", "^" + base],
+            check=True, cwd=SCRIPT_DIR.parent,
+        )
+        jev_train_component = load_component(source=str(upload_dir / "component.yaml"))
+        jev_train_component.version = "4-" + args.source_revision[:12]
 
     if not args.code_revision:
         args.code_revision = args.source_revision[:12]
@@ -201,6 +229,8 @@ if __name__ == "__main__":
         job.display_name = args.display_name
 
     created = ml_client.jobs.create_or_update(job)
+    if source_upload is not None:
+        source_upload.cleanup()
 
     print("=" * 60)
     print("JEV-4B SFT Pipeline submitted successfully!")

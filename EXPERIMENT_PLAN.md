@@ -614,6 +614,10 @@ and executing this bounded smoke on 2026-10-20. `--source-revision` now pins the
 worker checkout to a full commit SHA (default: local HEAD); publish that commit
 before submitting. `--code-revision` remains only a cache-buster. Workers clone
 inside the job's private code directory, without deleting a shared repository.
+If GitHub write permission is unavailable, `--bundle-source` uploads committed
+local HEAD as an incremental Git bundle inside the AML component. The worker
+fetches that bundle before checking out the same immutable source SHA; this
+does not require a fork, permission change or an uncommitted source overlay.
 
 ```powershell
 python pipeline\run_jev_train.py --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract legacy --enable-kl 0 --sample 256 --num-epochs 1 --batch-size 16 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-legacy-smoke

@@ -10,7 +10,7 @@
     },
     {
       "name": "Checkout exact source revision",
-      "command": "git checkout --detach {source_revision} && git rev-parse HEAD",
+      "command": "if [ -f {code_dir}/source.bundle ]; then git fetch {code_dir}/source.bundle HEAD; fi && git checkout --detach {source_revision} && git rev-parse HEAD",
       "working_dir": "{code_dir}/MiniOneRec"
     },
     {

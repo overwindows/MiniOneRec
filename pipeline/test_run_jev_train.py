@@ -53,8 +53,9 @@ class JevTrainingSubmissionTests(unittest.TestCase):
         config = Path(__file__).parent / "components" / "jev_train" / "config_jev_train.json"
         commands = json.loads(config.read_text(encoding="utf-8"))["commands"]
         self.assertIn("{code_dir}/MiniOneRec", commands[0]["command"])
-        self.assertEqual(commands[1]["command"],
-                         "git checkout --detach {source_revision} && git rev-parse HEAD")
+        self.assertIn("git fetch {code_dir}/source.bundle HEAD", commands[1]["command"])
+        self.assertIn("git checkout --detach {source_revision} && git rev-parse HEAD",
+                      commands[1]["command"])
         self.assertFalse(any("rm -rf" in command["command"] for command in commands))
 
     def test_decision_mode_rejects_unsupported_kl_before_submission(self):

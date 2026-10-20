@@ -39,6 +39,21 @@ CAMPAIGNS = [
         ],
     },
     {
+        "name": "JEV-4B matched frozen prompt controls",
+        "motivation": "Separate prompt effects from weight adaptation before evaluating the candidate-only loss.",
+        "settings": "Same frozen weights, hist30, abstracts, 4095 prompt-token budget, one ranking Standard A100; "
+                    "immutable source 10b4379407d11e3e3a00c6cae3a75042eeaf731c",
+        "data": "Same first 5000 MIND_small dev impressions / 187009 candidates; data hashes and raw labels checked",
+        "eval": "Legacy AUC 0.63623517; native-click AUC 0.63313036. Paired AUC delta -0.00310481, "
+                "95% impression-bootstrap interval [-0.00711694, +0.00112362] includes zero "
+                "(2048 resamples, seed42; no multiplicity adjustment). No prompt-only gain established. "
+                "All four metrics independently reconstructed from raw scores.",
+        "runs": [
+            ("bright_ear_vnr75xb8tw", "Frozen legacy prompt dev@5000", "0.63623517"),
+            ("bright_ear_vnr75xb8tw", "Frozen native-click prompt dev@5000", "0.63313036"),
+        ],
+    },
+    {
         "name": "JEV-4B Campaign-2: RLCD",
         "motivation": "Distill click preferences without an online reward model: score candidates with the "
                       "Campaign-1 model, build contrastive prefs, fine-tune to raise P(A) on preferred vs "
@@ -125,8 +140,11 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Target: beat MIND SOTA zetik 0.7326 (currently 0.7144, #14). "
-    "JEV Campaign-1 SFT trained on MIND_small (COMPLETED); dev eval running."
+    "Recorded competition target: 0.7326; best submitted ensemble: 0.7144. "
+    "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
+    "paired AUC interval includes zero, so no prompt-only improvement is established. "
+    "Full input audit passed all 469264 training pairs and 187009 dev candidates without truncation. "
+    "Historical full-vocabulary SFT remains 0.5452; decision-loss training is next, not completed."
 )
 
 

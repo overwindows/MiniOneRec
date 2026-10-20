@@ -729,7 +729,7 @@ partial score files retain `.partial` until a successful pass. Explicit
 uses the same immutable source pin and authorized `--bundle-source` mechanism as
 training, with a job-private clone and optional command timeout.
 
-**Paired frozen control submitted and Running:** parent
+**Paired frozen control COMPLETED and independently verified:** parent
 `bright_ear_vnr75xb8tw`, worker `8445c8d2-9f3a-4c0e-b1fd-0158070ebe60`,
 source `10b4379407d11e3e3a00c6cae3a75042eeaf731c`. The real server-side allocation
 was verified as one ranking Standard `Singularity.ND12am_A100_v4` with a
@@ -737,14 +737,46 @@ was verified as one ranking Standard `Singularity.ND12am_A100_v4` with a
 dev@5000 (187,009 candidates), and the admitted 4095-token prompt budget.
 Results are isolated under
 `shares/users/wuc/output_dir/jev_decision_campaign_20261020/frozen`.
-The session controller monitors terminal status, then verifies raw candidate
-coverage, input hashes and reconstructed metrics, and computes paired
-impression-bootstrap intervals. No control AUC is claimed before that readback.
+Both jobs were verified Completed on 2026-10-20 at 16:48 UTC. Independent
+readback checked all 5000 impression IDs, 187,009 candidate IDs/labels/scores,
+exact dev input hashes, and reconstructed all four metrics from raw scores.
+This resolves the raw-score/tie limitation for these controls, not
+retroactively for the historical C1 output.
+
+| Frozen prompt | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Legacy | 0.63623517 | 0.30691291 | 0.33506672 | 0.39611543 |
+| Native-click | 0.63313036 | 0.29945088 | 0.32628386 | 0.38803464 |
+| Native minus legacy | -0.00310481 | -0.00746203 | -0.00878286 | -0.00808079 |
+
+The paired impression-bootstrap AUC 95% interval is
+[-0.00711694, +0.00112362] (2048 resamples, seed42). It includes zero:
+**no prompt-only AUC improvement is established**, and the data do not establish
+a definite AUC decrease either. Secondary unadjusted intervals are
+MRR [-0.01208285, -0.00309624], nDCG@5 [-0.01362144, -0.00404372], and
+nDCG@10 [-0.01257312, -0.00390352]. They favor legacy but are not adjusted for
+multiple comparisons and are not repeated-training-seed estimates.
+Keep the historical frozen reference 0.6432 separately labeled; this run's
+matched frozen legacy reference is **0.63623517**, not a reproduction claim
+for that older measurement. No weight adaptation occurred in these controls.
+
+**Research decision:** prioritize `decision` loss with the **legacy** prompt,
+holding the historical full-data sampler and optimizer recipe fixed, rather
+than assuming the native prompt improves ranking. A native-prompt training
+ablation remains secondary. Source evidence is
+`jev-frozen-prompt-comparison.json` and both raw-score files in the session.
 This is a control evaluation, not a training job or a new trained-model AUC.
 Training ablations must use the
 same admitted examples, history, abstracts and budgets; their runtime/resource
 budget will be based on measured worker throughput, not the smoke's nominal
 example count.
+
+The historical full-budget eight-A100 C1 run's final attempt was recovered from
+`user_logs/retry_005/std_log.txt`, not its initial-attempt log. It reports
+174,900 training seconds (~48.6h), 8.05 samples/s, and all 11,001 steps over
+three epochs. One-GPU full-budget replication is therefore not a reasonable
+overnight promise. No larger training allocation is silently implied by the
+completed one-GPU controls.
 
 ### Phase 2: RL Fine-tuning
 

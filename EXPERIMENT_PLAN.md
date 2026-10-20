@@ -778,18 +778,39 @@ three epochs. One-GPU full-budget replication is therefore not a reasonable
 overnight promise. No larger training allocation is silently implied by the
 completed one-GPU controls.
 
-**Prepared next run (not submitted):** full 469,264-pair, three-epoch
+**Full loss-only run submitted (2026-10-21, UTC+8):** parent
+`mighty_milk_0znks9vwg7`, worker `2c74fe4d-5b03-4df1-b2a3-502003a390eb`,
+immutable source `ec86d37eb4b6c2894e8cd4af67ac71c2efcad986` delivered by AML Git
+bundle. This is the full 469,264-pair, three-epoch
 `decision` + `legacy` ablation, preserving seed42, global batch128/micro2,
 lr1e-4, hist30/abstracts, cutoff4096, hard-neg0.5/neg1.0, bf16/ZeRO-2 and
 no KL. This isolates the objective under the historical recipe rather than
 mixing a shorter training budget or prompt change into the main comparison.
-The proposed allocation is the original one-node/eight-A100 type, Standard
-ranking, with a 72-hour command timeout; this is an escalation from the
-approved bounded one-GPU work and awaits explicit resource approval.
-Afterward, serial one-A100 legacy-prompt evaluations should score both the old
+Following the renewed instruction to continue autonomously after this exact
+resource plan was disclosed, the original one-node/eight-A100 type, Standard
+ranking, was submitted with a 72-hour command timeout. Server readback verified
+the node type, Standard tier, ranking VC and timeout; the worker was initially
+Queued. Submission is not proof of optimizer progress or a completed result.
+Afterward, serial one-A100 legacy-prompt evaluations will score both the old
 full-vocabulary checkpoint and the new decision-loss checkpoint under the
 current raw-score-preserving scorer. The old 0.5452 must not be treated as a
 fresh matched rescore.
+
+The private session controller `run_jev_full_campaign.py` monitors the recorded
+parent rather than submitting another training job. It selects the highest
+`user_logs/retry_NNN/std_log.txt`, verifies exact source/inputs/resources,
+tracks all 11,001 planned optimizer steps, checks finite losses, and requests
+cancellation on nonfinite training or the 72-hour wall-clock safety deadline.
+After verified completion it checks saved checkpoint metadata/tensor extents
+and serializes two 12-hour-timeout, one-A100 dev@5000 evaluations. An isolated
+detached worktree pins their source even if the main research branch advances.
+Each evaluation preserves raw scores and must pass exact input-hash, candidate
+coverage, and four-metric reconstruction checks before paired comparisons are
+written. The controller state is `jev-full-campaign-status.json`; final
+comparisons, when actually available, go to `jev-full-adapted-comparison.json`.
+Fourteen offline checks passed, including retry-log selection, resource/budget
+guards, duplicate-submission recovery, and the full 5000-impression fixture flow.
+Fixture metrics are not research measurements. C2/C3/C4 remain gated.
 
 ```powershell
 python pipeline\run_jev_train.py --bundle-source --data-root shares/users/wuc/data/MIND_small --output-root shares/users/wuc/output_dir/jev_decision_campaign_20261020/loss_only_legacy --loss-type decision --prompt-contract legacy --enable-kl 0 --sample -1 --num-epochs 3 --batch-size 128 --micro-batch-size 2 --max-history 30 --cutoff-len 4096 --use-abstract 1 --instance-type Singularity.ND96amrs_A100_v4 --timeout-seconds 259200 --display-name C1-decision-loss-only-full
@@ -800,6 +821,13 @@ verified paired-control table, intervals, full audit and negative result.
 The full authenticated shared-site snapshot deployment succeeded on
 2026-10-21 (UTC+8); other pages and authentication configuration were preserved.
 Browser rendering was not independently rechecked in this background follow-up.
+The subsequent full-run submission and its live parent/worker rows were also
+published successfully through the complete shared-site snapshot on October21
+(UTC+8), preserving authenticated routing. The new strict score verifier was
+additionally exercised against the actual frozen legacy artifacts: all 5000
+impressions, 187009 candidates, input hashes and four reconstructed metrics
+passed. This validates the comparison machinery, not the still-pending training
+outcome.
 
 ### Phase 2: RL Fine-tuning
 

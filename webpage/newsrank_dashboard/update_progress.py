@@ -54,6 +54,22 @@ CAMPAIGNS = [
         ],
     },
     {
+        "name": "JEV-4B full-data candidate-only loss ablation",
+        "motivation": "Isolate the loss change after frozen controls found no native-prompt AUC gain.",
+        "settings": "decision BCE(z_A-z_B) + legacy prompt; no KL; seed42; lr1e-4; "
+                    "global batch128/micro2; three epochs; bf16/ZeRO-2; one ranking Standard "
+                    "eight-A100 node; 72-hour command timeout; immutable source ec86d37eb4b6",
+        "data": "All 469264 deterministic sampled MIND_small training pairs; hist30, abstracts, "
+                "cutoff4096; full audit passed without truncation",
+        "eval": "After training, serialize old full-vocabulary/new decision checkpoint rescoring "
+                "on one A100 each, same dev@5000/187009 candidates/4095 prompt budget; "
+                "raw-score reconstruction and paired bootstrap required. No new adapted-model AUC yet.",
+        "runs": [
+            ("mighty_milk_0znks9vwg7", "Full decision-loss + legacy-prompt training", ""),
+            ("2c74fe4d-5b03-4df1-b2a3-502003a390eb", "Full decision-loss training worker", ""),
+        ],
+    },
+    {
         "name": "JEV-4B Campaign-2: RLCD",
         "motivation": "Distill click preferences without an online reward model: score candidates with the "
                       "Campaign-1 model, build contrastive prefs, fine-tune to raise P(A) on preferred vs "
@@ -144,7 +160,9 @@ HEADLINE = (
     "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
     "paired AUC interval includes zero, so no prompt-only improvement is established. "
     "Full input audit passed all 469264 training pairs and 187009 dev candidates without truncation. "
-    "Historical full-vocabulary SFT remains 0.5452; decision-loss training is next, not completed."
+    "Full-data decision-loss + legacy-prompt training submitted 2026-10-21 (UTC+8): "
+    "3 epochs on one eight-A100 node, 72-hour timeout; matched rescoring follows serially. "
+    "Historical full-vocabulary SFT remains 0.5452; no new adapted-model AUC yet."
 )
 
 

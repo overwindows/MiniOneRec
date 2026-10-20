@@ -15,7 +15,8 @@ class AzureTokenExpiryTests(unittest.TestCase):
         result = subprocess.CompletedProcess(
             [], 0, stdout=json.dumps({"accessToken": "fixture-token", **expiry}),
         )
-        with patch("azure_auth.subprocess.run", return_value=result):
+        with (patch("azure_auth._find_az", return_value="az"),
+              patch("azure_auth.subprocess.run", return_value=result)):
             return _fetch_token()
 
     def test_epoch_takes_precedence_over_local_wall_time(self):

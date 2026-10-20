@@ -655,8 +655,42 @@ It was superseded during expensive resumable checkpoint writes, not because of
 a loss/gradient failure. No completed final checkpoint or new AUC is claimed.
 The explicit `--smoke-test` mode now requires 1-256 samples and one epoch, disables
 intermediate/resumable saves, and retains the normal final-model save. Production
-checkpointing remains unchanged. The smaller 32-example rerun must complete its
-final-model save and terminal status before the smoke is considered complete.
+checkpointing remains unchanged.
+
+**Corrected GPU smoke: COMPLETED (2026-10-20).** Parent
+`ashy_boniato_r8dlmrx6tt` and worker `ac541480-7639-4ca0-a7d8-c2f97c665af7`
+were both verified Completed at 02:21 UTC. The worker checked out exact source
+`188b9b5b5e3a83bb0ad89ee8246a2aa82ac7448e` from AML component
+`jev_train:4-188b9b5b5e3a`, not the stale GitHub branch. One ranking Standard A100,
+32 examples, one epoch, global batch 8 / micro-batch 1, cutoff 4096, hist30,
+abstracts, native-click prompt, candidate-only loss, KL disabled, and explicit
+smoke mode were verified. All 4 optimizer steps completed; logged average train
+loss was 2.259, with finite gradients. This is a functionality smoke, **not an
+overfitting result, a dev evaluation, or evidence of improved ranking quality**.
+
+The final model save was logged at 02:15 UTC; the training command completed at
+02:16 UTC. Independent datastore readback at
+02:23 UTC checked the saved config/tokenizer/chat template, A/B IDs 32/33, all
+427 safetensor entries' shapes/dtypes/byte extents, and agreement with the reported
+9,682,956,896-byte model file length. The entire weight payload was not downloaded or
+reloaded; inventory/extent consistency is not a full numerical reload check.
+The checkpoint is:
+
+```text
+shares/users/wuc/output_dir/jev_decision_smoke_20261020_finalonly/sft_jev4b_small_bs8_ep1_neg1.0_hist30_kl0.1_abstract_lossdecision_promptnative_click/final_checkpoint
+```
+
+The superseded first worker is confirmed Canceled before replacement allocation;
+no two smoke GPUs were run concurrently. Monitoring also exposed local-time
+`expiresOn` being treated as UTC; the credential helper now prefers the CLI's
+epoch `expires_on`, with local-time fallback and regression coverage. GitHub push
+remains denied to the current account; source delivery through the authorized
+AML Git bundle succeeded, without permission changes or an uncommitted overlay.
+
+**Next research gate:** full real-data length audit, matched frozen controls, and
+loss-only versus native-prompt training/evaluation. No full-budget redesigned
+training or new dev AUC was launched. The last measured full SFT AUC remains
+0.5452; C2/C3/C4 remain gated. No webpage deployment was performed for this smoke.
 
 ### Phase 2: RL Fine-tuning
 

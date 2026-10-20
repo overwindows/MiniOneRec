@@ -17,6 +17,7 @@ class JevTrainingSubmissionTests(unittest.TestCase):
             ("decision", "native_click", [
                 "--loss-type", "decision", "--prompt-contract", "native_click", "--enable-kl", "0",
                 "--instance-type", "Singularity.ND12am_A100_v4", "--timeout-seconds", "3600",
+                "--smoke-test", "--sample", "32", "--num-epochs", "1",
             ]),
         ]:
             with self.subTest(loss=loss, contract=contract):
@@ -39,6 +40,7 @@ class JevTrainingSubmissionTests(unittest.TestCase):
                 self.assertEqual(serialized["inputs"]["loss_type"], loss)
                 self.assertEqual(serialized["inputs"]["prompt_contract"], contract)
                 self.assertEqual(serialized["inputs"]["source_revision"], "a" * 40)
+                self.assertEqual(serialized["inputs"]["smoke_test"], 1 if loss == "decision" else 0)
                 self.assertEqual(job.tags["source_revision"], "a" * 40)
                 self.assertTrue(job.settings.force_rerun)
                 self.assertNotIn("settings", serialized["jobs"]["train_node"])

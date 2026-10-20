@@ -571,7 +571,7 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 
 #### Approved follow-up: candidate-only click decision ablations (2026-10-20)
 
-**Implemented locally; no new AML training job or research result yet.** Historical
+**Implemented; GPU smoke follow-up below, no new research AUC yet.** Historical
 defaults remain `full_vocab` + `legacy`. The new full-depth loss is
 `BCEWithLogits(z_A - z_B, click_label)`, equivalent to two-class CE over A/B,
 not CE over the whole vocabulary. It forwards only the prompt, requests one
@@ -620,8 +620,8 @@ fetches that bundle before checking out the same immutable source SHA; this
 does not require a fork, permission change or an uncommitted source overlay.
 
 ```powershell
-python pipeline\run_jev_train.py --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract legacy --enable-kl 0 --sample 256 --num-epochs 1 --batch-size 16 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-legacy-smoke
-python pipeline\run_jev_train.py --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract native_click --enable-kl 0 --sample 256 --num-epochs 1 --batch-size 16 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-native-smoke
+python pipeline\run_jev_train.py --bundle-source --smoke-test --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract legacy --enable-kl 0 --sample 32 --num-epochs 1 --batch-size 8 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-legacy-smoke
+python pipeline\run_jev_train.py --bundle-source --smoke-test --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract native_click --enable-kl 0 --sample 32 --num-epochs 1 --batch-size 8 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-native-smoke
 ```
 
 Non-default training modes append `_lossdecision_promptlegacy` or
@@ -634,7 +634,7 @@ without metadata retain legacy behavior. Explicit evaluation overrides append
 CPU checks cover candidate-CE equivalence, target exclusion, gradients, boundary
 validation, dataset/scorer parity, metadata restoration, and an actual tiny
 hybrid Qwen3.5 Trainer loop with gradient accumulation. AML submission tests use
-the SDK but mock job creation; no GPU job was submitted. A staged-model GPU
+the SDK but mock job creation; actual GPU execution is recorded below. A staged-model GPU
 smoke and full real-data length audit remain required before a long run.
 The actual staged tokenizer JSON, tokenizer config and chat template now match
 the pinned public revision byte-for-byte. Actual MIND_small smoke preflight
@@ -642,6 +642,21 @@ admitted all 256 sampled examples (125 positive / 131 negative), with 182-2428
 prompt tokens against the 4095-token budget and A/B IDs 32/33. This verifies the
 smoke sample, not all training data or the identity of checkpoint weight shards.
 C2/C3/C4 remain gated; no new webpage publication is implied by these edits.
+
+**GPU smoke follow-up (2026-10-20):** GitHub push was denied to the signed-in
+account, so committed source was uploaded through the authorized AML component
+as a Git bundle. Fresh-public-clone reconstruction verified the bundle before
+submission. First smoke `gray_snake_kpfsw591t3`, worker
+`894b0495-82f4-48ae-9e0a-c8ededc673c3`, checked out
+`bcab5be231218ca666f85ecda9807ed95db4dfed` and used exactly one ranking Standard
+A100. All 256 prompts passed the budget check; 16/16 optimizer steps completed
+at 01:11 UTC, with finite logged losses 1.657 (step 1) and 1.511 (step-10 window).
+It was superseded during expensive resumable checkpoint writes, not because of
+a loss/gradient failure. No completed final checkpoint or new AUC is claimed.
+The explicit `--smoke-test` mode now requires 1-256 samples and one epoch, disables
+intermediate/resumable saves, and retains the normal final-model save. Production
+checkpointing remains unchanged. The smaller 32-example rerun must complete its
+final-model save and terminal status before the smoke is considered complete.
 
 ### Phase 2: RL Fine-tuning
 

@@ -16,7 +16,7 @@ from jev_decision import (
 )
 from evaluate_mind_jev import JevScorer, build_jev_state
 from jev_noul_data import JEVNoulPointwiseDataset
-from sft_mind_jev import JEVWithinModelDistillTrainer
+from sft_mind_jev import JEVWithinModelDistillTrainer, train
 
 
 class CharacterTokenizer:
@@ -102,6 +102,12 @@ class DecisionLossTests(unittest.TestCase):
     def test_unsupported_kl_fails_explicitly(self):
         with self.assertRaisesRegex(ValueError, "enable_kl=False"):
             JEVWithinModelDistillTrainer(loss_type="decision", enable_kl=True)
+
+    def test_smoke_mode_rejects_unbounded_runs_before_loading_weights(self):
+        for sample, epochs in [(-1, 1), (257, 1), (32, 2)]:
+            with self.subTest(sample=sample, epochs=epochs):
+                with self.assertRaisesRegex(ValueError, "Smoke mode requires"):
+                    train(smoke_test=True, sample=sample, num_epochs=epochs, enable_kl=False)
 
 
 class PromptTests(unittest.TestCase):

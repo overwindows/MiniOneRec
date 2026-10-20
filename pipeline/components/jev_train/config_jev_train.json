@@ -20,7 +20,7 @@
     },
     {
       "name": "启动 JEV SFT 训练",
-      "command": "MODEL_PATH={model_path} DATA_ROOT={data_root} OUTPUT_DIR={output_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} HARD_NEG_RATIO={hard_neg_ratio} MAX_HISTORY={max_history} CUTOFF_LEN={cutoff_len} KL_BETA={kl_beta} ENABLE_KL={enable_kl} LOSS_TYPE={loss_type} PROMPT_CONTRACT={prompt_contract} TRAIN_SAMPLE={sample} USE_ABSTRACT={use_abstract} USE_CHAT_TEMPLATE={use_chat_template} bash scripts/sft_jev.sh",
+      "command": "MODEL_PATH={model_path} DATA_ROOT={data_root} OUTPUT_DIR={output_root} BATCH_SIZE={batch_size} MICRO_BATCH_SIZE={micro_batch_size} NUM_EPOCHS={num_epochs} NEG_RATIO={neg_ratio} HARD_NEG_RATIO={hard_neg_ratio} MAX_HISTORY={max_history} CUTOFF_LEN={cutoff_len} KL_BETA={kl_beta} ENABLE_KL={enable_kl} LOSS_TYPE={loss_type} PROMPT_CONTRACT={prompt_contract} SMOKE_TEST={smoke_test} TRAIN_SAMPLE={sample} USE_ABSTRACT={use_abstract} USE_CHAT_TEMPLATE={use_chat_template} bash scripts/sft_jev.sh",
       "working_dir": "{code_dir}/MiniOneRec"
     },
     {

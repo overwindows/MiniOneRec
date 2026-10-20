@@ -225,6 +225,7 @@ def main():
     parser.add_argument("--loss-type", default="full_vocab", choices=["full_vocab", "decision"])
     parser.add_argument("--prompt-contract", default="legacy", choices=["legacy", "native_click"])
     parser.add_argument("--source-revision", default="origin/dev")
+    parser.add_argument("--smoke-test", default="0", choices=["0", "1"])
     parser.add_argument("--code-revision", default="0", help="Cache-buster; ignored functionally")
 
     args = parser.parse_args()
@@ -256,6 +257,7 @@ def main():
         'loss_type': args.loss_type,
         'prompt_contract': args.prompt_contract,
         'source_revision': args.source_revision,
+        'smoke_test': args.smoke_test,
     }
 
     # 合成完整的 data_root 路径

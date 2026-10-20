@@ -69,6 +69,12 @@ inputs:
     type: string
     default: "origin/dev"
     description: Git revision checked out by the worker; submitter supplies an immutable commit SHA
+  smoke_test:
+    type: integer
+    default: 0
+    min: 0
+    max: 1
+    description: Small one-epoch smoke; save only the final model, not intermediate or optimizer state
   output_root:
     type: string
     default: "shares/users/wuc/output_dir"
@@ -105,5 +111,6 @@ command: >-
   --loss-type ${{inputs.loss_type}}
   --prompt-contract ${{inputs.prompt_contract}}
   --source-revision ${{inputs.source_revision}}
+  --smoke-test ${{inputs.smoke_test}}
   --output-root ${{inputs.output_root}}
   --code-revision ${{inputs.code_revision}}

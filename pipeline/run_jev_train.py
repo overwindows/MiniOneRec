@@ -85,6 +85,7 @@ def jev_train_pipeline(
     loss_type: str = "full_vocab",
     prompt_contract: str = "legacy",
     source_revision: str = "origin/dev",
+    smoke_test: int = 0,
 ):
     train_node = jev_train_component(
         msndni=msndni_input,
@@ -107,6 +108,7 @@ def jev_train_pipeline(
         loss_type=loss_type,
         prompt_contract=prompt_contract,
         source_revision=source_revision,
+        smoke_test=smoke_test,
     )
     train_node.compute = VC_ARM_ID
     train_node.resources = res_cfg
@@ -143,6 +145,8 @@ if __name__ == "__main__":
                         help="Published full commit SHA to check out (default: local HEAD)")
     parser.add_argument("--bundle-source", action="store_true",
                         help="Upload committed local HEAD in the AML component instead of requiring a GitHub push")
+    parser.add_argument("--smoke-test", action="store_true",
+                        help="Bound to 1-256 samples/one epoch; save only the final model, not resumable state")
     parser.add_argument(
         "--code-revision",
         default=None,
@@ -154,6 +158,8 @@ if __name__ == "__main__":
         parser.error("--loss-type decision requires --enable-kl 0; cross-depth KL is not implemented")
     if args.timeout_seconds is not None and args.timeout_seconds <= 0:
         parser.error("--timeout-seconds must be positive")
+    if args.smoke_test and not (0 < args.sample <= 256 and args.num_epochs == 1):
+        parser.error("--smoke-test requires --sample 1..256 and --num-epochs 1")
     if not args.source_revision:
         args.source_revision = subprocess.run(
             ["git", "rev-parse", "HEAD"], check=True, capture_output=True,
@@ -216,6 +222,7 @@ if __name__ == "__main__":
         loss_type=args.loss_type,
         prompt_contract=args.prompt_contract,
         source_revision=args.source_revision,
+        smoke_test=int(args.smoke_test),
     )
 
     job.settings.default_compute = VC_ARM_ID

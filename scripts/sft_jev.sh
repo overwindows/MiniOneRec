@@ -79,6 +79,7 @@ KL_BETA=${KL_BETA:-0.1}
 ENABLE_KL=${ENABLE_KL:-1}
 LOSS_TYPE=${LOSS_TYPE:-full_vocab}
 PROMPT_CONTRACT=${PROMPT_CONTRACT:-legacy}
+SMOKE_TEST=${SMOKE_TEST:-0}
 TRAIN_SAMPLE=${TRAIN_SAMPLE:--1}
 USE_ABSTRACT=${USE_ABSTRACT:-1}
 [[ "$USE_ABSTRACT" == "1" || "$USE_ABSTRACT" == "True" || "$USE_ABSTRACT" == "true" ]] && USE_ABSTRACT="True" || USE_ABSTRACT="False"
@@ -136,6 +137,7 @@ deepspeed --hostfile=$HOSTFILE \
         --enable_kl ${ENABLE_KL} \
         --loss_type ${LOSS_TYPE} \
         --prompt_contract ${PROMPT_CONTRACT} \
+        --smoke_test ${SMOKE_TEST} \
         --sample ${TRAIN_SAMPLE} \
         --use_abstract ${USE_ABSTRACT} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \

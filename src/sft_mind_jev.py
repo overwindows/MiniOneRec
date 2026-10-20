@@ -132,12 +132,15 @@ def train(
     enable_kl: bool = True,
     loss_type: str = "full_vocab",
     prompt_contract: str = "legacy",
+    smoke_test: bool = False,
 ):
     """Train a full-depth JEV decision model; historical defaults are preserved."""
     if loss_type not in LOSS_TYPES or prompt_contract not in PROMPT_CONTRACTS:
         raise ValueError("Unsupported JEV loss or prompt contract")
     if loss_type == "decision" and enable_kl:
         raise ValueError("Use enable_kl=False for the candidate-only decision ablation")
+    if smoke_test and not (0 < sample <= 256 and num_epochs == 1):
+        raise ValueError("Smoke mode requires 1-256 samples and exactly one epoch")
     if enable_kl:
         warnings.warn("Legacy enable_kl is ignored: this trainer applies no KL term.")
     set_seed(seed)
@@ -236,7 +239,7 @@ def train(
         # C1fix row). Full-vocab next-token CE over history is legitimately O(50-150);
         # reading that as divergence was a red herring — the NaN eval was the killer.
         "eval_strategy": "no",
-        "save_strategy": "steps",
+        "save_strategy": "no" if smoke_test else "steps",
         "save_steps": 2048,
         "output_dir": output_dir,
         "save_total_limit": 2,

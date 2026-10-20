@@ -154,6 +154,7 @@ def main():
     parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for logit scaling (default=1.0, no effect); mainly useful for ensemble calibration")
     parser.add_argument("--use_recency", action="store_true", help="Mark 5 most recent history items with '(recent)' tag")
     parser.add_argument("--use_profile_summary", action="store_true", help="Prepend top-3 category interest summary to prompt")
+    parser.add_argument("--use_impression_timestamp", action="store_true", help="Add day/time-of-day context from impression timestamp (must match training)")
     parser.add_argument("--cf_scores_file", default="", help="TSV file with CF scores (impression_id, news_id, cf_score) to blend with LLM scores")
     parser.add_argument("--cf_alpha", type=float, default=0.3, help="Blend weight for CF: final = (1-alpha)*LLM + alpha*CF (default 0.3)")
     args = parser.parse_args()
@@ -356,7 +357,7 @@ def main():
                 temperature=args.temperature,
                 use_recency=args.use_recency,
                 use_profile_summary=args.use_profile_summary,
-                impression_timestamp=impression_ts if (args.use_recency or args.use_profile_summary or impression_ts) else None,
+                impression_timestamp=impression_ts if args.use_impression_timestamp else None,
             )
 
             # Blend with CF scores if available

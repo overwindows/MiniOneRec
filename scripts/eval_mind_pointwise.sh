@@ -88,6 +88,7 @@ BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates
 TEMPERATURE="${TEMPERATURE:-1.0}"  # Logit temperature (1.0=off; tune for ensemble calibration)
 USE_RECENCY="${USE_RECENCY:-0}"  # Mark 5 most recent history items with "(recent)"
 USE_PROFILE_SUMMARY="${USE_PROFILE_SUMMARY:-0}"  # Prepend top-3 category interest summary
+USE_IMPRESSION_TIMESTAMP="${USE_IMPRESSION_TIMESTAMP:-0}"  # Add day/time-of-day context (must match training)
 
 # Construct paths
 DATA_DIR="${MIND_ROOT}/${SPLIT}"
@@ -208,6 +209,10 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     if [[ "${USE_PROFILE_SUMMARY}" -eq 1 ]]; then
       cmd="${cmd} --use_profile_summary"
+    fi
+
+    if [[ "${USE_IMPRESSION_TIMESTAMP}" -eq 1 ]]; then
+      cmd="${cmd} --use_impression_timestamp"
     fi
 
     cf_enabled=$(awk -v a="${CF_ALPHA:-0}" 'BEGIN{print (a+0>0)?1:0}')
@@ -342,6 +347,10 @@ else
 
   if [[ "${USE_PROFILE_SUMMARY}" -eq 1 ]]; then
     CMD="${CMD} --use_profile_summary"
+  fi
+
+  if [[ "${USE_IMPRESSION_TIMESTAMP}" -eq 1 ]]; then
+    CMD="${CMD} --use_impression_timestamp"
   fi
 
   cf_enabled=$(awk -v a="${CF_ALPHA:-0}" 'BEGIN{print (a+0>0)?1:0}')

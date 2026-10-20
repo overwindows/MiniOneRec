@@ -30,6 +30,15 @@ RUN_TAG=$1
 MODEL=$2
 shift 2
 
+# Optional env overrides for eval-stage prompt flags (must match training):
+#   TE_MAX_HISTORY (default 30), TE_USE_RECENCY, TE_USE_PROFILE_SUMMARY,
+#   TE_USE_IMPRESSION_TIMESTAMP, TE_USE_SUBCATEGORY (default 0)
+TE_MAX_HISTORY=${TE_MAX_HISTORY:-30}
+TE_USE_RECENCY=${TE_USE_RECENCY:-0}
+TE_USE_PROFILE_SUMMARY=${TE_USE_PROFILE_SUMMARY:-0}
+TE_USE_IMPRESSION_TIMESTAMP=${TE_USE_IMPRESSION_TIMESTAMP:-0}
+TE_USE_SUBCATEGORY=${TE_USE_SUBCATEGORY:-0}
+
 OUT=output_dir/small_runs/${RUN_TAG}
 mkdir -p results
 
@@ -48,7 +57,12 @@ deepspeed --num_gpus=8 --master_port=29500 src/sft_mind_pointwise_ds.py \
 
 echo "=== [${RUN_TAG}] EVAL dev AUC ==="
 MIND_ROOT=/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_small \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 \
+MAX_HISTORY=${TE_MAX_HISTORY} \
+USE_RECENCY=${TE_USE_RECENCY} \
+USE_PROFILE_SUMMARY=${TE_USE_PROFILE_SUMMARY} \
+USE_IMPRESSION_TIMESTAMP=${TE_USE_IMPRESSION_TIMESTAMP} \
+USE_SUBCATEGORY=${TE_USE_SUBCATEGORY} \
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 bash scripts/eval_mind_pointwise.sh ${OUT}/final_checkpoint dev 2>&1 | tee logs/eval_${RUN_TAG}.log
 

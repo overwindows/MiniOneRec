@@ -214,6 +214,7 @@ def main():
     parser.add_argument("--dest-path", help="目标目录（相对于挂载路径）", default="")
     # OpenJev eval
     parser.add_argument("--max-impressions", help="最多评估的impression数 (0=全部)", default="0")
+    parser.add_argument("--prompt-contract", default="auto", choices=["auto", "legacy", "native_click"])
 
     args = parser.parse_args()
 
@@ -229,6 +230,7 @@ def main():
         'repo_id': args.repo_id,
         'dest_path': args.dest_path,
         'max_impressions': args.max_impressions,
+        'prompt_contract': args.prompt_contract,
     }
 
     # 合成完整路径

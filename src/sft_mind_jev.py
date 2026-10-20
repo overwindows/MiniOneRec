@@ -1,21 +1,12 @@
 """
-Train APUS-OpenJev (JEV-4B) on MIND with a within-model distillation term.
+Train APUS-OpenJev on MIND with an explicit full-depth objective and prompt mode.
 
-This is Campaign-1 of the JEV training campaign. We fine-tune JEV-4B as a
-point-wise decision model on MIND using the OpenJev **noul** A/B contract that
-src/evaluate_mind_jev.py scores with, so the trained model's P(A)=P(yes) is
-directly comparable to our dev AUC evals.
-
-Loss is plain point-wise SFT cross-entropy on the single A/B answer token:
-
-    L = CE(P(A/B) against the click/no-click label)
-
-An earlier two-pass R-Drop within-model KL variant collapsed the model to a
-near-constant answer (dev AUC 0.4975 vs stock JEV 0.6432), because the stacked
-linear-attention backbone has no dual-exit to provide a non-degenerate detached
-teacher — the R-Drop KL just drove both stochastic passes to one low-entropy
-constant. Campaign-1 therefore ships the clean SFT CE; distillation is revisited
-only once a valid AUC signal exists.
+Historical defaults retain full-vocabulary answer-token CE and the legacy prompt.
+The decision ablation uses BCEWithLogits(z_A-z_B, click_label), reading only the
+last prompt position. native_click uses canonical Noul true/false criteria.
+This is not native two-exit training: published JEV has trained low/high exits,
+but cross-depth distillation is not implemented here. The earlier R-Drop term
+must not be confused with native deep-to-shallow distillation.
 
 Usage (multi-node, from repo root):
     MODEL_PATH=... DATA_ROOT=... OUTPUT_DIR=... bash scripts/sft_jev.sh
@@ -29,9 +20,9 @@ import os
 import sys
 import random
 import datetime
+import warnings
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.distributed as dist
 import transformers
 from transformers import (
@@ -43,6 +34,7 @@ from transformers import (
 import fire
 
 from jev_noul_data import JEVNoulPointwiseDataset
+from jev_decision import LOSS_TYPES, PROMPT_CONTRACTS, candidate_decision_loss
 
 # Pre-initialize process group with a long timeout for slow datastore writes.
 if "LOCAL_RANK" in os.environ and not dist.is_initialized():
@@ -64,46 +56,27 @@ def set_seed(seed):
 
 
 class JEVWithinModelDistillTrainer(Trainer):
-    """Trainer whose compute_loss does two stochastic forwards and adds a KL
-    distillation term on the A/B answer logits: CE + beta * KL."""
+    """Full-depth legacy CE or candidate-only decision loss; no KL term."""
 
-    def __init__(self, kl_beta=0.1, enable_kl=True, **kwargs):
+    def __init__(self, kl_beta=0.1, enable_kl=True, loss_type="full_vocab",
+                 decision_token_ids=None, **kwargs):
+        if loss_type not in LOSS_TYPES:
+            raise ValueError(f"Unknown JEV loss type: {loss_type}")
+        if loss_type == "decision" and (enable_kl or decision_token_ids is None):
+            raise ValueError("Decision loss requires A/B IDs and enable_kl=False")
         super().__init__(**kwargs)
         self.kl_beta = kl_beta
         self.enable_kl = enable_kl
+        self.loss_type = loss_type
+        self.decision_token_ids = decision_token_ids
+        self.model_accepts_loss_kwargs = False
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
-        # `num_items_in_batch` is passed by transformers 5.x Trainer; accept and ignore.
-        #
-        # Campaign-1 uses a SINGLE forward and plain point-wise SFT CE on the
-        # A/B answer token. The earlier two-pass R-Drop symmetric-KL variant
-        # (0.5*ce1 + 0.5*ce2 + beta*kl) collapsed to a near-constant P(A) ->
-        # dev AUC 0.4975 (worse than untrained stock JEV 0.6432). The stacked
-        # linear-attention backbone exposes no dual-exit, so there is no
-        # non-degenerate single-forward teacher: a self-KL (teacher=detached
-        # same logits) is identically zero, and the R-Drop two-pass KL instead
-        # drove both dropout passes toward one low-entropy constant answer.
-        # A clean SFT base is the robust first signal; distillation is revisited
-        # only once a valid AUC is demonstrated (see plan risk note).
-        #
-        # Loss is the STOCK HF next-token cross-entropy over the single answer
-        # position, exactly as the proven pointwise trainer (sft_mind_pointwise_ds.py)
-        # computes it on this same Qwen3.5 linear-attention backbone (trains to
-        # 0.70 AUC in this env). The dataset labels are -100 on every prompt token
-        # and the answer token id at the single answer position, so the stock loss
-        # is precisely the pointwise A/B CE we want, and HF computes it INTERNALLY
-        # in fp32 (the reason the pointwise trainer never sees the bf16 overflow
-        # that the manual full-logits materialization + manual CE hit here).
-        #
-        # Why this replaced the manual path: the previous compute_loss did a
-        # `labels=None` forward, materialized the FULL (B, L, V) logits, sliced the
-        # answer-token row, and CE'd it manually. That path NaNs on the very first
-        # training_step (every retry: quirky_corn, olive_pin) even after casting the
-        # manual CE to fp32. Materializing + manually indexing full logits through
-        # the gradient-checkpointed hybrid forward is the outlier; the stock HF loss
-        # path is known-good on this backbone.
-        outputs = model(**inputs, return_dict=True)
-        loss = outputs.loss
+        if self.loss_type == "decision":
+            loss, outputs = candidate_decision_loss(model, inputs, self.decision_token_ids)
+        else:
+            outputs = model(**inputs, return_dict=True)
+            loss = outputs.loss
 
         # NaN guard: halt with a clear message instead of silently feeding a NaN
         # loss through optimization (where it poisons the whole run and surfaces
@@ -116,7 +89,7 @@ class JEVWithinModelDistillTrainer(Trainer):
                 "spending GPU on a doomed run."
             )
 
-        return (loss, {"loss": loss}) if return_outputs else loss
+        return (loss, outputs) if return_outputs else loss
 
 
 def resolve_report_to(wandb_project):
@@ -157,8 +130,16 @@ def train(
     use_chat_template: bool = None,
     kl_beta: float = 0.1,
     enable_kl: bool = True,
+    loss_type: str = "full_vocab",
+    prompt_contract: str = "legacy",
 ):
-    """Train JEV-4B on MIND noul pointwise data with within-model distillation."""
+    """Train a full-depth JEV decision model; historical defaults are preserved."""
+    if loss_type not in LOSS_TYPES or prompt_contract not in PROMPT_CONTRACTS:
+        raise ValueError("Unsupported JEV loss or prompt contract")
+    if loss_type == "decision" and enable_kl:
+        raise ValueError("Use enable_kl=False for the candidate-only decision ablation")
+    if enable_kl:
+        warnings.warn("Legacy enable_kl is ignored: this trainer applies no KL term.")
     set_seed(seed)
 
     if use_chat_template is None:
@@ -203,6 +184,8 @@ def train(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
+    model.config.jev_loss_type = loss_type
+    model.config.jev_prompt_contract = prompt_contract
 
     train_data = JEVNoulPointwiseDataset(
         behaviors_path=train_behaviors_path,
@@ -217,6 +200,7 @@ def train(
         use_abstract=use_abstract,
         use_subcategory=use_subcategory,
         use_chat_template=use_chat_template,
+        prompt_contract=prompt_contract,
     )
 
     val_data = None
@@ -230,8 +214,7 @@ def train(
     print(f"  Train samples: {len(train_data)}")
     print(f"  Max history: {'unlimited' if max_history == 0 else max_history}")
     print(f"  Cutoff: {cutoff_len}, micro_batch: {micro_batch_size}")
-    print(f"  Distill: kl_beta={kl_beta}, enable_kl={enable_kl}")
-    print(f"  Format: OpenJev noul A/B; P(A)=P(yes)")
+    print(f"  Loss: {loss_type}; prompt contract: {prompt_contract}; KL: disabled")
 
     training_args_dict = {
         "per_device_train_batch_size": micro_batch_size,
@@ -278,6 +261,8 @@ def train(
         ),
         kl_beta=kl_beta,
         enable_kl=enable_kl,
+        loss_type=loss_type,
+        decision_token_ids=train_data.decision_token_ids,
     )
 
     model.config.use_cache = False

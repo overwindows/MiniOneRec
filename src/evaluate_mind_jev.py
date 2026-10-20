@@ -8,24 +8,16 @@ each (user history, candidate article) is scored by P(yes), and within an
 impression we rank candidates by that P(yes). AUC is then computed exactly as in
 calc_mind_metrics.py.
 
-Important environment notes:
-  * OpenJev's OpenJet.__init__ hard-raises unless transformers==5.16.1
-    (runtime.py). That pin only guards the early-exit wrapper used by
-    effort="low". For effort="high" the runtime calls a plain HF forward
-    (Qwen3_5ForConditionalGeneration with attn_implementation="sdpa"), which the
-    MiniOneRec repo already runs on transformers 5.2.0 / torch 2.6.0 (same path
-    as r7 base training). So we do NOT import `openjet_runtime`; we reproduce the
-    high-effort forward directly, so this runs in the existing AML env with no
-    new 5.16.1 environment required.
-  * The model is a local HF snapshot (pre-staged on the shared datastore), so we
-    load with local_files_only.
+This scorer uses a direct full-depth HF forward in the repository's environment,
+not the released OpenJet executor, which pins a different Transformers version.
+It does not establish exact equivalence to that runtime or exercise its low exit.
+The model is a pre-staged local snapshot, loaded with local_files_only.
 
-Scoring contract (matches render_prompt in openjet_runtime/contracts.py):
-    Shared state:\n{user history summary}\n\n
-    {json task: primitive=noul, instructions, criteria=[{label:yes},{label:no}]}
-    \nReturn only the selected letter: A, B.\nAnswer:
-We keep the candidate label tokens single-token (A/B) as the runtime does, and
-use P(A)=P(yes) as the relevance score.
+Prompt mode auto restores checkpoint metadata, defaulting to legacy for historical
+checkpoints. Legacy preserves the old yes/no descriptions; native_click uses a
+click proposition and canonical Noul true/false criteria. Both use validated
+single-token A/B labels at the actual chat answer boundary and rank by the
+candidate-normalized P(A), not the full-vocabulary probability of A.
 
 Usage:
   python src/evaluate_mind_jev.py \
@@ -36,7 +28,6 @@ Usage:
 """
 
 import argparse
-import json
 import math
 import os
 import random
@@ -48,6 +39,9 @@ import torch
 from tqdm import tqdm
 
 from mind_utils import auc_score, mrr_score, ndcg_score, load_news
+from jev_decision import (
+    PROMPT_CONTRACTS, decision_token_ids, encode_decision_prompt, render_noul_prompt,
+)
 
 
 def set_seed(seed: int) -> None:
@@ -79,36 +73,11 @@ def build_jev_state(history: List[Dict[str, str]], candidate: Dict[str, str]) ->
     return "\n".join(lines)
 
 
-def render_noul_prompt(state: str) -> str:
-    """Render the OpenJev noul decision prompt (contracts.render_prompt).
-
-    Returns (prompt_prefix_without_answer_line, instruction) shaped so we can
-    compare candidate-token logits at the answer boundary, matching runtime
-    compile(). We keep the exact contract text so P(yes) is comparable to the
-    native OpenJet evaluation.
-    """
-    prefix = "Shared state:\n" + state + "\n\n"
-    task = {
-        "primitive": "noul",
-        "instructions": (
-            "Based on the user's reading history, decide whether they would "
-            "read the candidate article. Answer yes if the article matches "
-            "their interests, no otherwise."
-        ),
-        "criteria": [
-            {"label": "A", "description": "yes"},
-            {"label": "B", "description": "no"},
-        ],
-    }
-    suffix = json.dumps(task, ensure_ascii=False, sort_keys=True)
-    suffix += "\nReturn only the selected letter: A, B.\nAnswer:"
-    return prefix + suffix
-
-
 class JevScorer:
-    """Plain HF Qwen3.5 forward reproducing the OpenJev high-effort decision."""
+    """Full-depth Qwen3.5 candidate-token scorer with an explicit prompt mode."""
 
-    def __init__(self, model_path: str, device: str = "cuda:0", dtype: str = "bfloat16"):
+    def __init__(self, model_path: str, device: str = "cuda:0", dtype: str = "bfloat16",
+                 prompt_contract: str = "auto"):
         from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
         self.device = device
@@ -116,6 +85,14 @@ class JevScorer:
         local_kwargs = {"local_files_only": True}
 
         config = AutoConfig.from_pretrained(model_path, **local_kwargs)
+        self.config = config
+        self.prompt_contract = (
+            getattr(config, "jev_prompt_contract", "legacy")
+            if prompt_contract == "auto" else prompt_contract
+        )
+        if self.prompt_contract not in PROMPT_CONTRACTS:
+            raise ValueError(f"Unknown JEV prompt contract: {self.prompt_contract}")
+        print(f"JEV prompt contract: {self.prompt_contract}")
         loader = AutoModelForCausalLM
         if config.model_type == "qwen3_5":
             from transformers import Qwen3_5ForConditionalGeneration
@@ -128,7 +105,6 @@ class JevScorer:
             attn_implementation="sdpa",
         ).to(device).eval()
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
-        self.config = config
 
         # OpenJev ships its chat template in chat_template.jinja (tokenizer_config has
         # no inline chat_template). If the tokenizer has none, load it from the file.
@@ -139,32 +115,13 @@ class JevScorer:
                 with open(jinja, encoding="utf-8") as f:
                     self.tokenizer.chat_template = f.read()
 
-        # Candidate label tokens must be single and unique at the answer boundary
-        prompt = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": "x"}],
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,
-        )
-        self.answer_prefix_ids = self.tokenizer.encode(prompt, add_special_tokens=False)
-        self.cand_tokens = []
-        seen = set()
-        for label in ("A", "B"):
-            t = self.tokenizer.encode(label, add_special_tokens=False)
-            assert len(t) == 1, f"label {label} not single token: {t}"
-            assert t[0] not in seen, f"duplicate token for {label}"
-            seen.add(t[0])
-            self.cand_tokens.append(t[0])
+        self.cand_tokens = list(decision_token_ids(self.tokenizer))
 
     def _encode(self, state: str):
-        prompt = render_noul_prompt(state)
-        full = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,
+        return encode_decision_prompt(
+            self.tokenizer, render_noul_prompt(state, self.prompt_contract),
+            max_length=8192 if self.prompt_contract == "native_click" else None,
         )
-        return self.tokenizer.encode(full, add_special_tokens=False)
 
     def _max_len(self) -> int:
         if sys.platform != "win32":
@@ -270,6 +227,7 @@ def main():
     parser.add_argument("--use_abstract", action="store_true")
     parser.add_argument("--max_history", type=int, default=30)
     parser.add_argument("--max_impressions", type=int, default=0)
+    parser.add_argument("--prompt_contract", choices=("auto", *PROMPT_CONTRACTS), default="auto")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", default="")
     parser.add_argument("--device", default="cuda:0")
@@ -279,7 +237,7 @@ def main():
     news = load_news(args.news_path, args.use_abstract)
     print(f"Loaded {len(news)} news articles")
 
-    scorer = JevScorer(args.model_path, device=args.device)
+    scorer = JevScorer(args.model_path, device=args.device, prompt_contract=args.prompt_contract)
     print("JEV scorer ready")
 
     def _avg(xs):

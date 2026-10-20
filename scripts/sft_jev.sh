@@ -50,7 +50,14 @@ if [ -z "$HOSTFILE" ]; then
     else HOSTFILE="./hostfile"
     fi
 fi
-[ -f "$HOSTFILE" ] || echo "localhost slots=8" > "$HOSTFILE"
+if [ ! -f "$HOSTFILE" ]; then
+    GPU_COUNT=$(python -c "import torch; print(torch.cuda.device_count())") || exit $?
+    if [[ ! "$GPU_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+        echo "JEV training requires at least one visible CUDA device" >&2
+        exit 1
+    fi
+    echo "localhost slots=$GPU_COUNT" > "$HOSTFILE"
+fi
 echo "Using hostfile: $HOSTFILE"; cat "$HOSTFILE"
 
 MODEL_PATH=${MODEL_PATH:-APUS-OpenJev-v1-4B}
@@ -70,6 +77,8 @@ NEG_RATIO=${NEG_RATIO:-1.0}
 HARD_NEG_RATIO=${HARD_NEG_RATIO:-0.5}
 KL_BETA=${KL_BETA:-0.1}
 ENABLE_KL=${ENABLE_KL:-1}
+LOSS_TYPE=${LOSS_TYPE:-full_vocab}
+PROMPT_CONTRACT=${PROMPT_CONTRACT:-legacy}
 TRAIN_SAMPLE=${TRAIN_SAMPLE:--1}
 USE_ABSTRACT=${USE_ABSTRACT:-1}
 [[ "$USE_ABSTRACT" == "1" || "$USE_ABSTRACT" == "True" || "$USE_ABSTRACT" == "true" ]] && USE_ABSTRACT="True" || USE_ABSTRACT="False"
@@ -87,6 +96,9 @@ WANDB_RUN_NAME=${WANDB_RUN_NAME:-}
 OUTPUT_BASENAME="sft_jev4b_${MIND_SIZE}_bs${BATCH_SIZE}_ep${NUM_EPOCHS}_neg${NEG_RATIO}_hist${MAX_HISTORY}_kl${KL_BETA}"
 if [[ "${USE_ABSTRACT}" == "True" ]]; then OUTPUT_BASENAME="${OUTPUT_BASENAME}_abstract"; fi
 if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then OUTPUT_BASENAME="${OUTPUT_BASENAME}_chat"; fi
+if [[ "${LOSS_TYPE}" != "full_vocab" || "${PROMPT_CONTRACT}" != "legacy" ]]; then
+    OUTPUT_BASENAME="${OUTPUT_BASENAME}_loss${LOSS_TYPE}_prompt${PROMPT_CONTRACT}"
+fi
 if [[ -n "${OUTPUT_DIR}" ]]; then
     OUTPUT_DIR="${OUTPUT_DIR}/${OUTPUT_BASENAME}"
 else
@@ -96,6 +108,7 @@ WANDB_RUN_NAME="${WANDB_RUN_NAME:-${OUTPUT_BASENAME}}"
 
 echo "DATA_ROOT: ${DATA_ROOT}  MIND: ${MIND_SIZE}"
 echo "KL_BETA: ${KL_BETA}  ENABLE_KL: ${ENABLE_KL}"
+echo "LOSS_TYPE: ${LOSS_TYPE}  PROMPT_CONTRACT: ${PROMPT_CONTRACT}"
 echo "MODEL_PATH: ${MODEL_PATH}"
 
 export PDSH_RCMD_TYPE=ssh
@@ -121,6 +134,8 @@ deepspeed --hostfile=$HOSTFILE \
         --hard_neg_ratio ${HARD_NEG_RATIO} \
         --kl_beta ${KL_BETA} \
         --enable_kl ${ENABLE_KL} \
+        --loss_type ${LOSS_TYPE} \
+        --prompt_contract ${PROMPT_CONTRACT} \
         --sample ${TRAIN_SAMPLE} \
         --use_abstract ${USE_ABSTRACT} \
         $(if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then echo "--use_chat_template True"; fi) \

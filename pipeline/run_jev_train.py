@@ -1,19 +1,21 @@
 """
-JEV-4B SFT Training Pipeline (with within-model distillation) - Azure ML SDK v2
+JEV-4B Full-Depth Training Pipeline - Azure ML SDK v2
 
-Submits Campaign-1 of the JEV training campaign: fine-tune APUS-OpenJev-v1-4B
-on MIND noul pointwise data with a within-model KL distillation term.
+Preserves legacy full-vocabulary CE and supports the explicit candidate-only
+decision ablation. Native cross-depth distillation is not implemented.
 
 Usage:
     python run_jev_train.py
     python run_jev_train.py --kl-beta 0.1 --num-epochs 3
     python run_jev_train.py --micro-batch-size 2 --neg-ratio 1.0
+    python run_jev_train.py --loss-type decision --prompt-contract native_click --enable-kl 0
 """
 import argparse
+import re
 import sys
 from pathlib import Path
 from azure.ai.ml import MLClient, Input, dsl, load_component
-from azure.ai.ml.entities import JobResourceConfiguration
+from azure.ai.ml.entities import CommandJobLimits, JobResourceConfiguration
 from azure.ai.ml.constants import InputOutputModes
 import subprocess
 
@@ -59,7 +61,7 @@ jev_train_component = load_component(
 )
 
 
-@dsl.pipeline(description="JEV-4B SFT Training Pipeline (within-model distillation)")
+@dsl.pipeline(description="JEV-4B full-depth legacy or candidate-only decision training")
 def jev_train_pipeline(
     msndni_input: Input,
     model_path: str = "shares/users/wuc/models/APUS-OpenJev-v1-4B",
@@ -78,6 +80,9 @@ def jev_train_pipeline(
     kl_beta: str = "0.1",
     enable_kl: str = "1",
     code_revision: str = "0",
+    loss_type: str = "full_vocab",
+    prompt_contract: str = "legacy",
+    source_revision: str = "origin/dev",
 ):
     train_node = jev_train_component(
         msndni=msndni_input,
@@ -97,17 +102,15 @@ def jev_train_pipeline(
         kl_beta=kl_beta,
         enable_kl=enable_kl,
         code_revision=code_revision,
+        loss_type=loss_type,
+        prompt_contract=prompt_contract,
+        source_revision=source_revision,
     )
     train_node.compute = VC_ARM_ID
     train_node.resources = res_cfg
     train_node.environment_variables = {
         "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
     }
-    # Disable AML component-level job reuse so a failed/stopped run is never
-    # silently resurrected; forces a genuinely fresh train each submission
-    # (mirror run_pipeline.py). Without this a stale stopped component can be
-    # latched as a zombie "Running" that AML refuses to cancel.
-    train_node.settings.force_rerun = True
 
 
 if __name__ == "__main__":
@@ -129,7 +132,13 @@ if __name__ == "__main__":
     parser.add_argument("--use-abstract", type=int, default=1, choices=[0, 1])
     parser.add_argument("--kl-beta", default="0.1")
     parser.add_argument("--enable-kl", default="1", choices=["0", "1"])
+    parser.add_argument("--loss-type", default="full_vocab", choices=["full_vocab", "decision"])
+    parser.add_argument("--prompt-contract", default="legacy", choices=["legacy", "native_click"])
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun")
+    parser.add_argument("--instance-type", default="Singularity.ND96amrs_A100_v4")
+    parser.add_argument("--timeout-seconds", type=int, default=None)
+    parser.add_argument("--source-revision", default=None,
+                        help="Published full commit SHA to check out (default: local HEAD)")
     parser.add_argument(
         "--code-revision",
         default=None,
@@ -137,16 +146,22 @@ if __name__ == "__main__":
         "genuine rerun even if component inputs are identical.",
     )
     args = parser.parse_args()
+    if args.loss_type == "decision" and args.enable_kl != "0":
+        parser.error("--loss-type decision requires --enable-kl 0; cross-depth KL is not implemented")
+    if args.timeout_seconds is not None and args.timeout_seconds <= 0:
+        parser.error("--timeout-seconds must be positive")
+    if not args.source_revision:
+        args.source_revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], check=True, capture_output=True,
+            text=True, cwd=SCRIPT_DIR.parent,
+        ).stdout.strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", args.source_revision):
+        parser.error("--source-revision must be a full commit SHA")
 
     if not args.code_revision:
-        try:
-            args.code_revision = subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"],
-                capture_output=True, text=True, cwd=Path(__file__).parent.parent,
-            ).stdout.strip()
-        except Exception:
-            args.code_revision = "unknown"
+        args.code_revision = args.source_revision[:12]
     print(f"[code_revision cache-buster] {args.code_revision}")
+    res_cfg.instance_type = args.instance_type
 
     job = jev_train_pipeline(
         msndni_input=Input(
@@ -170,9 +185,17 @@ if __name__ == "__main__":
         kl_beta=args.kl_beta,
         enable_kl=args.enable_kl,
         code_revision=args.code_revision,
+        loss_type=args.loss_type,
+        prompt_contract=args.prompt_contract,
+        source_revision=args.source_revision,
     )
 
     job.settings.default_compute = VC_ARM_ID
+    job.settings.force_rerun = True
+    if args.timeout_seconds is not None:
+        job.jobs["train_node"].limits = CommandJobLimits(timeout=args.timeout_seconds)
+    job.tags = {"source_revision": args.source_revision, "jev_loss": args.loss_type,
+                "jev_prompt": args.prompt_contract}
     job.experiment_name = args.experiment_name
     if args.display_name:
         job.display_name = args.display_name
@@ -190,6 +213,10 @@ if __name__ == "__main__":
     print(f"Data Root:         {args.data_root}")
     print(f"KL Beta:           {args.kl_beta}")
     print(f"Enable KL:         {args.enable_kl}")
+    print(f"Loss Type:         {args.loss_type}")
+    print(f"Prompt Contract:   {args.prompt_contract}")
+    print(f"Source Revision:   {args.source_revision}")
+    print(f"Instance Type:     {args.instance_type}")
     print(f"Batch Size:        {args.batch_size}")
     print(f"Micro Batch Size:  {args.micro_batch_size}")
     print(f"Num Epochs:        {args.num_epochs}")

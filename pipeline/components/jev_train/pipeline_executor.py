@@ -219,9 +219,12 @@ def main():
     parser.add_argument("--resume-from-checkpoint", help="从指定checkpoint继续训练 (checkpoint路径或true=自动使用最新)")
     parser.add_argument("--early-stopping-patience", type=int, default=3, help="早停patience (eval steps, 默认3)")
     parser.add_argument("--sample", default="-1", help="抽样子集上限 (-1=全量)")
-    # JEV-specific: within-model distillation term
-    parser.add_argument("--kl-beta", default="0.1", help="KL distillation coefficient (default: 0.1)")
-    parser.add_argument("--enable-kl", default="1", help="Enable KL distillation (1/0, default: 1)")
+    # Historical compatibility flags; candidate-only training requires KL disabled.
+    parser.add_argument("--kl-beta", default="0.1", help="Historical KL coefficient; no KL term is implemented")
+    parser.add_argument("--enable-kl", default="1", help="Historical flag; decision loss requires 0")
+    parser.add_argument("--loss-type", default="full_vocab", choices=["full_vocab", "decision"])
+    parser.add_argument("--prompt-contract", default="legacy", choices=["legacy", "native_click"])
+    parser.add_argument("--source-revision", default="origin/dev")
     parser.add_argument("--code-revision", default="0", help="Cache-buster; ignored functionally")
 
     args = parser.parse_args()
@@ -250,6 +253,9 @@ def main():
         'sample': args.sample,
         'kl_beta': args.kl_beta,
         'enable_kl': args.enable_kl,
+        'loss_type': args.loss_type,
+        'prompt_contract': args.prompt_contract,
+        'source_revision': args.source_revision,
     }
 
     # 合成完整的 data_root 路径

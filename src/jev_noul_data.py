@@ -1,28 +1,15 @@
 """
 JEV noul pointwise dataset for training APUS-OpenJev on MIND.
 
-Subclasses the repo's MINDPointwiseSFTDataset (data.py) so it reuses the exact
-news loading, history truncation, positive/negative expansion and hard-negative
-sampling. It only overrides prompt construction to emit the **OpenJev noul
-contract** that src/evaluate_mind_jev.py scores with:
+Reuses MINDPointwiseSFTDataset's news loading, history limit and negative sampler.
+Both prompt modes share no-thinking chat formatting with evaluate_mind_jev.py:
+legacy preserves the historical yes/no descriptions and truncation; native_click
+uses a click proposition and canonical Noul true/false descriptions, and checks
+all sampled prompts before training rather than silently truncating them.
 
-    Shared state:
-    A user read these news articles:
-    1. [cat] title abstract
-    ...
-    (No reading history)
-
-    Candidate article:
-    [cat] title abstract
-
-    {"primitive": "noul", "instructions": "...", "criteria":
-     [{"label": "A", "description": "yes"}, {"label": "B", "description": "no"}]}
-    Return only the selected letter: A, B.
-    Answer:<A/B>
-
-Target token is single-token: "A" for a click, "B" for no-click -> P(A)=P(yes),
-which is exactly the score evaluate_mind_jev.py ranks candidates by. Using the
-same contract for training and eval keeps the metrics comparable.
+The appended target is one token: A for click or B for no-click. Full-vocabulary
+CE supervises that token; candidate-only loss removes it before the forward pass
+and compares final-prompt A/B logits. These are different objectives.
 """
 
 import sys
@@ -34,11 +21,27 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 
 from data import MINDPointwiseSFTDataset
-from evaluate_mind_jev import build_jev_state, render_noul_prompt
+from evaluate_mind_jev import build_jev_state
+from jev_decision import (
+    PROMPT_CONTRACTS, decision_token_ids, encode_decision_prompt, render_noul_prompt,
+)
 
 
 class JEVNoulPointwiseDataset(MINDPointwiseSFTDataset):
     """MINDPointwiseSFTDataset with the OpenJev noul prompt/target contract."""
+
+    def __init__(self, *args, prompt_contract="legacy", **kwargs):
+        if prompt_contract not in PROMPT_CONTRACTS:
+            raise ValueError(f"Unknown JEV prompt contract: {prompt_contract}")
+        self.prompt_contract = prompt_contract
+        super().__init__(*args, **kwargs)
+        if self.max_len < 2:
+            raise ValueError("JEV cutoff must reserve a prompt token and an answer token")
+        self.decision_token_ids = decision_token_ids(self.tokenizer)
+        if self.prompt_contract == "native_click":
+            for index in range(len(self.samples)):
+                self[index]
+            print(f"Validated {len(self.samples)} native click prompts before training")
 
     def _build_noul_pair(self, sample):
         """Return (prompt_prefix, answer_token) for a pointwise sample.
@@ -47,7 +50,7 @@ class JEVNoulPointwiseDataset(MINDPointwiseSFTDataset):
         score used by evaluate_mind_jev.py.
         """
         state = build_jev_state(sample['history'], sample['candidate'])
-        prompt = render_noul_prompt(state)
+        prompt = render_noul_prompt(state, self.prompt_contract)
         answer = "A" if sample['label'] == 1 else "B"
         return prompt, answer
 
@@ -55,22 +58,10 @@ class JEVNoulPointwiseDataset(MINDPointwiseSFTDataset):
         sample = self.samples[idx]
         prompt, answer = self._build_noul_pair(sample)
 
-        # ALWAYS wrap the noul prompt in the JEV chat template as a user message,
-        # matching evaluate_mind_jev.JevScorer._encode exactly (which does
-        # apply_chat_template(..., add_generation_prompt=True,
-        # enable_thinking=False)). If train and eval tokenize the prompt
-        # differently, the model's P(A) is not comparable to the dev AUC.
-        formatted_prompt = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,
-        )
-        prompt_ids = self.tokenizer.encode(
-            formatted_prompt,
-            max_length=self.max_len - 1,
-            truncation=True,
-            add_special_tokens=False,
+        prompt_ids = encode_decision_prompt(
+            self.tokenizer, prompt,
+            max_length=min(self.max_len - 1, 8192) if self.prompt_contract == "native_click" else self.max_len - 1,
+            truncate=self.prompt_contract == "legacy",
         )
 
         target_ids = self.tokenizer.encode(answer, add_special_tokens=False)

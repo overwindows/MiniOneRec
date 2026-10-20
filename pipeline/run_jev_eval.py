@@ -3,6 +3,7 @@
 Usage:
     python run_jev_eval.py --model-path shares/users/wuc/models/APUS-OpenJev-v1-4B
     python run_jev_eval.py --model-path .../APUS-OpenJev-v1-4B --split dev --max-impressions 200
+    python run_jev_eval.py --model-path .../final_checkpoint --virtual-cluster ranking --instance-type Singularity.ND12am_A100_v4 --sla-tier Standard --max-impressions 5000
 """
 import argparse
 from pathlib import Path
@@ -29,11 +30,11 @@ VC_ARM_ID = (
     "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
 )
 
-def make_res_cfg(sla_tier="Premium"):
-    # Single A100 (1 GPU is enough for inference; keeps job small + avoid hogging 8x)
+def make_res_cfg(sla_tier="Premium", instance_type="Singularity.ND96amrs_A100_v4"):
+    # instance_count counts nodes; ND96 reserves eight GPUs even though scoring uses GPU 0.
     return JobResourceConfiguration(
         instance_count=1,
-        instance_type="Singularity.ND96amrs_A100_v4",
+        instance_type=instance_type,
         properties={
             "singularity": {
                 "slaTier": sla_tier,
@@ -67,6 +68,7 @@ def mind_jev_pipeline(
     max_history: int = 30,
     max_impressions: int = 0,
     debug_mode: str = "false",
+    prompt_contract: str = "auto",
 ):
     node = jev_component(
         msndni=msndni_input,
@@ -77,6 +79,7 @@ def mind_jev_pipeline(
         max_history=max_history,
         max_impressions=max_impressions,
         debug_mode=debug_mode,
+        prompt_contract=prompt_contract,
     )
     node.compute = VC_ARM_ID
     node.resources = make_res_cfg("Premium")
@@ -84,7 +87,6 @@ def mind_jev_pipeline(
     node.environment_variables = {
         "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
     }
-    node.settings.force_rerun = True
 
 
 if __name__ == "__main__":
@@ -97,8 +99,12 @@ if __name__ == "__main__":
     parser.add_argument("--use-abstract", type=int, default=0, choices=[0, 1])
     parser.add_argument("--max-history", type=int, default=30)
     parser.add_argument("--max-impressions", type=int, default=0)
+    parser.add_argument("--prompt-contract", default="auto", choices=["auto", "legacy", "native_click"])
     parser.add_argument("--datastore", default="adls_msn_dni_09_rankfun")
     parser.add_argument("--sla-tier", default="Premium", choices=["Basic", "Standard", "Premium"])
+    parser.add_argument("--virtual-cluster", default="recall", choices=["recall", "ranking"])
+    parser.add_argument("--instance-type", default="Singularity.ND96amrs_A100_v4",
+                        help="ND96 reserves 8 GPUs; use Singularity.ND12am_A100_v4 for a single A100.")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
@@ -115,12 +121,19 @@ if __name__ == "__main__":
         max_history=args.max_history,
         max_impressions=args.max_impressions,
         debug_mode="true" if args.debug else "false",
+        prompt_contract=args.prompt_contract,
     )
-    # Override the eval node's SLA tier (Premium is node-starved on recall; Basic/Standard have free A100s)
+    compute = (
+        "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+        f"/resourceGroups/rg-cs-{args.virtual_cluster}-ml-singularity"
+        f"/providers/Microsoft.MachineLearningServices/virtualClusters/{args.virtual_cluster}"
+    )
     for n in job.jobs.values():
         if hasattr(n, "resources") and n.name == "node":
-            n.resources = make_res_cfg(args.sla_tier)
-    job.settings.default_compute = VC_ARM_ID
+            n.compute = compute
+            n.resources = make_res_cfg(args.sla_tier, args.instance_type)
+    job.settings.default_compute = compute
+    job.settings.force_rerun = True
     job.experiment_name = args.experiment_name
     if args.display_name:
         job.display_name = args.display_name
@@ -134,3 +147,4 @@ if __name__ == "__main__":
     print(f"Model:      {args.model_path}")
     print(f"Split:      {args.split}")
     print(f"MaxImp:     {args.max_impressions}")
+    print(f"Compute:    {args.virtual_cluster} / {args.instance_type} / {args.sla_tier}")

@@ -1,9 +1,9 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: jev_train
-display_name: JEV-4B SFT Training (within-model distillation)
-version: "2"
+display_name: JEV-4B Full-Depth Decision Training
+version: "4"
 type: command
-description: Train APUS-OpenJev-4B on MIND noul pointwise data with within-model KL distillation
+description: Train JEV on MIND with legacy full-vocabulary CE or candidate-only A/B loss
 
 inputs:
   msndni:
@@ -52,11 +52,23 @@ inputs:
   kl_beta:
     type: string
     default: "0.1"
-    description: KL 蒸馏系数
+    description: Historical compatibility flag; no KL term is implemented
   enable_kl:
     type: string
     default: "1"
-    description: 是否启用 KL 蒸馏 (1/0)
+    description: Historical compatibility flag; decision loss requires 0
+  loss_type:
+    type: string
+    default: "full_vocab"
+    enum: ["full_vocab", "decision"]
+  prompt_contract:
+    type: string
+    default: "legacy"
+    enum: ["legacy", "native_click"]
+  source_revision:
+    type: string
+    default: "origin/dev"
+    description: Git revision checked out by the worker; submitter supplies an immutable commit SHA
   output_root:
     type: string
     default: "shares/users/wuc/output_dir"
@@ -90,5 +102,8 @@ command: >-
   --use-abstract ${{inputs.use_abstract}}
   --kl-beta ${{inputs.kl_beta}}
   --enable-kl ${{inputs.enable_kl}}
+  --loss-type ${{inputs.loss_type}}
+  --prompt-contract ${{inputs.prompt_contract}}
+  --source-revision ${{inputs.source_revision}}
   --output-root ${{inputs.output_root}}
   --code-revision ${{inputs.code_revision}}

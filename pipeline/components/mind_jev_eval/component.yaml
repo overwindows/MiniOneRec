@@ -1,7 +1,7 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: mind_jev_eval
 display_name: MIND OpenJev Decision-Model Evaluation
-version: "1"
+version: "2"
 type: command
 description: Evaluate MIND using APUS-OpenJev as a noul decision scorer
 
@@ -33,6 +33,10 @@ inputs:
     type: integer
     default: 0
     description: 最多评估的impression数 (0=全部)
+  prompt_contract:
+    type: string
+    default: "auto"
+    enum: ["auto", "legacy", "native_click"]
   debug_mode:
     type: string
     default: "false"
@@ -51,4 +55,5 @@ command: >-
   --use-abstract ${{inputs.use_abstract}}
   --max-history ${{inputs.max_history}}
   --max-impressions ${{inputs.max_impressions}}
+  --prompt-contract ${{inputs.prompt_contract}}
   --debug-mode ${{inputs.debug_mode}}

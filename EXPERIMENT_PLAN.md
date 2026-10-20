@@ -472,9 +472,11 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 ### Secondary Track: JEV-4B training campaign (2026-09-30)
 
 > Train APUS-OpenJev-v1-4B on MIND across 4 paradigms (in dependency order) to make
-> a news-specialized decision model. All train/eval use the **noul A/B prompt**
-> contract (`src/evaluate_mind_jev.py:82` `render_noul_prompt`); P(A)=P(yes) is the
-> rank score, so dev AUC is directly comparable to the stock JEV reference (0.6432).
+> a news-specialized decision model. Historical train/eval use the **legacy noul
+> A/B prompt** (`src/jev_decision.py:render_noul_prompt`); candidate-normalized
+> P(A)=P(yes) is the rank score. The recorded stock JEV reference is 0.6432;
+> matched prompt, preprocessing and impression subsets must be verified before
+> attributing differences to training.
 > Baseline config: MINDlarge abstract, hist30, neg1.0, cutoff4096, DS ZeRO-2 (mini env),
 > sdpa, micro-batch 2, lr 1e-4 (JEV-published). Eval via `run_jev_eval.py` (noul scorer).
 
@@ -485,7 +487,65 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | C1c | SFT (plain CE, no KL) | `lemon_ship_f2nfshcfh9` | FAILED | enable_kl=0 | - | fresh run (force_rerun); still diverges → see C1fix NB |
 | C1fix | SFT plain CE, no distill | `sincere_garlic_7t99m7nxw6` | ⚠️ **0.4959** | enable_kl=0 EP2 small | **0.4959** | **Confirmed: model NEVER learned.** The `dev_jev_predictions.txt` (5000 MIND_small dev impressions, recovered from datalake + rescored offline) gives **AUC 0.4959 ≈ chance** — because the NaN in-band eval triggered EarlyStopping at 0.14ep. Train loss 12-150 is normal full-vocab CE (NOT divergence); the NaN eval was the only real fault. |
 | C1clean | SFT plain CE (no KL, no in-band eval) | `gentle_receipt_fhmt5lttvj` (and retries `quirky_corn_yl0crrlz4b`, `olive_pin_sbgmwq2gqx`) | ⚠️ NaN@step0 | enable_kl=0 EP2 small | - | **Second killer found: the manual CE path.** `compute_loss` did `labels=None` forward → materialized FULL (B,L,V) logits → sliced answer row → manual CE. That NaNs on the very FIRST `training_step` (all 8 ranks `FloatingPointError`, before any backward) on every retry — even with the CE cast to fp32 (so it's the forward logits traveling NaN, not the CE). |
-| C1clean2 | SFT plain CE via STOCK HF loss | `lemon_frog_d217q5r20p` | 🔄 running | enable_kl=0 MIND_small EP3 | **pending** | **Fix (commit 6c6bbd6): use `outputs.loss` (stock HF next-token CE) instead of the manual full-logits path.** The dataset labels are -100 on prompt / answer-id on the single A/B token, so the stock loss computes precisely the pointwise CE, internally in fp32 — the exact recipe the proven pointwise trainer (`sft_mind_pointwise_ds.py`) uses to train this same Qwen3.5 backbone to 0.70 AUC. It got past step 0 on the first try and is training stably (~5h). External noul eval → dev AUC when done. |
+| C1clean2 | SFT plain CE via STOCK HF loss | `lemon_frog_d217q5r20p` | Training and evaluation worker COMPLETED | enable_kl=0 MIND_small EP3 | **0.5452** | **Fix (commit 6c6bbd6): use `outputs.loss` (stock HF next-token CE) instead of the manual full-logits path.** Training completed (11001 steps); final checkpoint saved. Recovery eval `calm_stem_v4mpzf0hs8`, child `c3918e4d-2c9f-4503-a50d-14d3612d7d48`, scored 5,000 MIND_small dev impressions on ranking Standard / one A100 at 2026-10-19 08:48 UTC. Saved-rank AUC independently recomputed as 0.54524778; all 5,000 impression IDs and candidate sets match the input sequence. Below recorded frozen JEV 0.6432 by 0.0980; preprocessing alignment must still be confirmed before causal attribution. Original full-dev eval canceled. |
+
+> **C1clean2 completed scoring (2026-10-19 08:48 UTC):** evaluator-reported
+> AUC **0.5452**, MRR **0.2328**, nDCG@5 **0.2427**, nDCG@10 **0.3122**.
+> Independent reconstruction from saved ranked news IDs gives AUC **0.54524778**
+> (agrees to four decimals), MRR **0.23427276**, nDCG@5 **0.24434410**, and
+> nDCG@10 **0.31373802**. Do not silently substitute reconstructed MRR/nDCG for
+> the scorer's metrics: raw scores and ties were not saved, and Python's stable
+> prediction ordering differs from NumPy's metric tie ordering. This is a
+> reproducibility limitation, not a separately evaluated model improvement.
+> Prediction SHA256: `53c9ee052c6eacc61bc665dfa8d05869ee280af984955c5c759907f4f40e9ca9`.
+> A clean full-budget run now has a real result, but has not beaten the recorded
+> frozen reference. C2/C3/C4 remain gated; diagnose scoring/training alignment
+> and capture raw scores in future evaluations before promoting this checkpoint.
+
+> **Earlier C1clean2 triage (2026-10-19, before recovery):** Training is **COMPLETED**.
+> The eval parent is **RUNNING**, but its child is **Queued** on recall / Standard /
+> `Singularity.ND96amrs_A100_v4`. It did start: the application log reached 150
+> impressions before SIGTERM at 03:02 UTC. The scheduler subsequently recorded
+> eviction by a higher SLA tier (03:06 UTC), insufficient Standard quota for the
+> eight-unit allocation, a rejected quota reservation, and another deployment/requeue.
+> This is an infrastructure interruption, not evidence of a model/evaluator failure.
+> Predictions are written only after the scoring loop completes, so the existing
+> output directory is still empty. The actual path is
+> `shares/users/wuc/output_dir/sft_jev4b_small_bs128_ep3_neg1.0_hist30_kl0.1_abstract/jev_eval_results/dev_jev_predictions.txt`
+> (**beside** `final_checkpoint`, not inside it).
+> The submitted eval uses `max_impressions=0` (full MIND_small dev); recompute the
+> first-5000-impression metric separately before comparing with stock JEV's 0.6432.
+> Initial triage left the original job queued; the recovery below supersedes it.
+> C2/C3/C4 remain gated on a completed evaluation.
+
+> **C1clean2 recovery (2026-10-19):** Live VC quota inspection using ARM API
+> `2021-03-01-preview` showed recall Standard at 32/33 A100 units versus ranking
+> Standard at 9/908. The old submitter's `instance_count=1` meant one **eight-GPU
+> ND96 node**, not one GPU, although the scorer uses only GPU 0.
+> Added `--virtual-cluster` and `--instance-type` while preserving existing defaults.
+> Submitted `calm_stem_v4mpzf0hs8` with `Singularity.ND12am_A100_v4` on ranking /
+> Standard and `max_impressions=5000`; verified the actual child allocation.
+> The superseded `happy_ice_17qv9vphsr` and its worker are confirmed **Canceled**.
+> Fresh execution is set on the pipeline (`job.settings.force_rerun=True`):
+> the previous `node.settings.force_rerun` field was ignored by AML.
+> The recovery changes only submission resources and the impression limit, not
+> checkpoint weights, prompt, history, abstracts, or scorer.
+> Worker **Running** confirmed at 04:28 UTC; the runtime log shows environment
+> setup (torch installation), not completed scoring. Follow-up is scheduled every
+> 15 minutes in the active CLI session to inspect logs and publish verified status/results.
+> Setup subsequently logged the pre-existing optional `requirements.txt` / `pyarrow<19`
+> resolution conflict and a failed optional causal-conv1d build, but continued through
+> the separate critical-dependency installs to flash-attn installation. Do not confuse
+> these warnings with a terminal eval failure; actual scoring still needs verification.
+> At 04:34 UTC, setup completed, 42,416 news articles and all checkpoint weights
+> loaded, and the scorer entered the evaluation loop. At 04:35 UTC the counter
+> reached **1 completed impression**, verifying actual inference on the single A100.
+> Missing causal-conv1d selects the correct but slower reference implementation.
+> **Webpage correction (2026-10-19):** the actual live NewsRank page is on the
+> AAD-protected `chrona-showcase-internal` Static Web App, not the deprecated Blob
+> host. Earlier Blob feed uploads did not update that page. The progress publisher
+> now stages JSON into the canonical shared-site master and deploys a complete
+> snapshot, preserving other pages, navigation, and authentication configuration.
 
 > **C1 autopsy (2026-10-16)**: BOTH C1 "collapses" share ONE root cause — the **in-band HF eval loop**.
 > 1. **Train loss on full-vocab CE is legitimately O(50-150)** (JEV vocab ~150k, CE over next-token of
@@ -508,6 +568,76 @@ Or via AML eval pipeline with extra args passed through `--debug` + manual run.
 | C2 | RLCD | pending | DPO-style | contrastive | pending | `sft_mind_jev_rlcd.py` + `jev_noul_pair_data.py`: ground-truth (clicked>unclicked) pairs, self-distill P(A) margin; smoke-first |
 | C3 | RL (GRPO) | pending | verl | pointwise_binary | pending | on C1 ckpt via `rl_mind_verl.py` |
 | C4 | Teacher OPD | pending | KL-to-strong-teacher | frozen L1.3 1.7B | pending | `sft_mind_jev_opd.py` |
+
+#### Approved follow-up: candidate-only click decision ablations (2026-10-20)
+
+**Implemented locally; no new AML training job or research result yet.** Historical
+defaults remain `full_vocab` + `legacy`. The new full-depth loss is
+`BCEWithLogits(z_A - z_B, click_label)`, equivalent to two-class CE over A/B,
+not CE over the whole vocabulary. It forwards only the prompt, requests one
+logit position, and computes the loss in FP32. A/B remain output coordinates;
+literal Yes/No tokens are not substituted.
+
+`native_click` asks whether the user would click the displayed candidate and uses
+the canonical Noul true/false candidate descriptions. Its rendered prompt was
+compared byte-for-byte with the released upstream contract at model revision
+`f0b880feb751a789b4c6a062d03fbbc23d384991`. That revision's actual tokenizer
+returned A=32 and B=33 and passed joint prompt-plus-answer boundary checks for
+both modes. This verifies the published contract, **not** byte identity with the
+staged AML snapshot. The repository still uses Transformers 5.2.0 rather than
+the released OpenJet executor's 5.16.1 pin.
+
+Published JEV trains low/high exits with candidate-space losses plus detached
+deep-to-shallow KL. This implementation is a **full-depth ablation**, not that
+two-exit reproduction. Earlier two-pass R-Drop must not be described as native
+distillation. Decision mode rejects `--enable-kl 1`; no KL term is implemented.
+Neither the old prompt nor the loss has been established as the cause of 0.5452.
+
+| Control | Loss | Prompt | Purpose |
+|---|---|---|---|
+| C1clean2 | `full_vocab` | `legacy` | Completed historical baseline, AUC 0.5452 |
+| C1 decision-only | `decision` | `legacy` | Isolate candidate normalization |
+| C1 native-click | `decision` | `native_click` | Compare prompt semantics under the same loss |
+| Matched frozen controls | None | Both modes | Separate prompting from weight updates |
+
+Keep split, seed, sampled examples, history, abstracts, cutoff and dev@5000
+identical. Native mode rejects overlong prompts instead of silently cropping:
+training validates every sampled prompt before its first optimization step,
+with prompt budget `min(cutoff_len - 1, 8192)`; evaluation admits at most 8192.
+Legacy retains historical training truncation. Before causal comparison, audit
+real-data lengths and select a shared budget/history policy that admits all
+compared examples without truncation. Do not silently drop failed examples.
+
+The default allocation remains one eight-A100 node; the smoke examples explicitly
+request one A100 and a 3600-second command timeout. The user approved publishing
+and executing this bounded smoke on 2026-10-20. `--source-revision` now pins the
+worker checkout to a full commit SHA (default: local HEAD); publish that commit
+before submitting. `--code-revision` remains only a cache-buster. Workers clone
+inside the job's private code directory, without deleting a shared repository.
+
+```powershell
+python pipeline\run_jev_train.py --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract legacy --enable-kl 0 --sample 256 --num-epochs 1 --batch-size 16 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-legacy-smoke
+python pipeline\run_jev_train.py --data-root shares/users/wuc/data/MIND_small --loss-type decision --prompt-contract native_click --enable-kl 0 --sample 256 --num-epochs 1 --batch-size 16 --micro-batch-size 1 --instance-type Singularity.ND12am_A100_v4 --timeout-seconds 3600 --display-name C1-decision-native-smoke
+```
+
+Non-default training modes append `_lossdecision_promptlegacy` or
+`_lossdecision_promptnative_click` to the historical output basename, preserving
+C1clean2. Checkpoints save `jev_loss_type` and `jev_prompt_contract` in config.
+Evaluate with `--prompt-contract auto` to restore the saved prompt; old configs
+without metadata retain legacy behavior. Explicit evaluation overrides append
+`_legacy` or `_native_click` to `jev_eval_results`, isolating prompt controls.
+
+CPU checks cover candidate-CE equivalence, target exclusion, gradients, boundary
+validation, dataset/scorer parity, metadata restoration, and an actual tiny
+hybrid Qwen3.5 Trainer loop with gradient accumulation. AML submission tests use
+the SDK but mock job creation; no GPU job was submitted. A staged-model GPU
+smoke and full real-data length audit remain required before a long run.
+The actual staged tokenizer JSON, tokenizer config and chat template now match
+the pinned public revision byte-for-byte. Actual MIND_small smoke preflight
+admitted all 256 sampled examples (125 positive / 131 negative), with 182-2428
+prompt tokens against the 4095-token budget and A/B IDs 32/33. This verifies the
+smoke sample, not all training data or the identity of checkpoint weight shards.
+C2/C3/C4 remain gated; no new webpage publication is implied by these edits.
 
 ### Phase 2: RL Fine-tuning
 

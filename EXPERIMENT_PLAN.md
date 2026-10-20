@@ -699,7 +699,25 @@ It records data/tokenizer hashes, an ordered input fingerprint, lengths and
 over-budget counts without truncation. The full MIND_small sampler contains
 469,264 pairs (236,344 positives, 232,920 negatives); these are not a new subsample.
 The existing negative sampler is unchanged, including its slightly sub-1:1
-realized ratio. Auditing is in progress; no all-data budget pass is claimed yet.
+realized ratio. **The full input-length audit passed:** every training pair
+and every dev@5000 candidate fits the shared 4095-token prompt budget under
+both contracts, preserving cutoff4096, hist30 and abstracts without truncation.
+
+| Split | Candidate pairs | Legacy max tokens | Native-click max tokens | Over-budget pairs (either mode) |
+|---|---:|---:|---:|---:|
+| Full sampled train | 469,264 | 2960 | 2981 | 0 |
+| Dev@5000 | 187,009 | 2875 | 2896 | 0 |
+
+Median training lengths are 1412/1433 tokens (legacy/native); p99 is 2271/2292.
+`jev-full-input-audit.json` records complete data/tokenizer hashes and ordered
+input fingerprints; `jev-shared-input-admission.json` records the control's
+chosen budget. This establishes a matched nontruncating protocol; it does not
+establish why the historical SFT lost AUC.
+An independent raw-input scan checked all 156,965 training impressions /
+5,843,444 candidates and the 5000 dev impressions / 187,009 candidates. Both
+splits have zero missing candidate news IDs and zero missing retained-history
+news IDs. The sampler's 236,344 positive pairs account for every raw training
+positive; negative subsampling remains deliberate, not a missing-news artifact.
 
 The evaluator supports `--prompt-contract both`, loading the same frozen weights
 once and evaluating legacy/native-click sequentially on the same dev impressions.
@@ -711,9 +729,19 @@ partial score files retain `.partial` until a successful pass. Explicit
 uses the same immutable source pin and authorized `--bundle-source` mechanism as
 training, with a job-private clone and optional command timeout.
 
-The next actual GPU job is a paired frozen dev@5000 control on one ranking
-Standard A100, after the shared input audit passes. It is a control evaluation,
-not a training job or a new trained-model AUC. Training ablations must use the
+**Paired frozen control submitted and Running:** parent
+`bright_ear_vnr75xb8tw`, worker `8445c8d2-9f3a-4c0e-b1fd-0158070ebe60`,
+source `10b4379407d11e3e3a00c6cae3a75042eeaf731c`. The real server-side allocation
+was verified as one ranking Standard `Singularity.ND12am_A100_v4` with a
+43,200-second command timeout. Both contracts use hist30, abstracts,
+dev@5000 (187,009 candidates), and the admitted 4095-token prompt budget.
+Results are isolated under
+`shares/users/wuc/output_dir/jev_decision_campaign_20261020/frozen`.
+The session controller monitors terminal status, then verifies raw candidate
+coverage, input hashes and reconstructed metrics, and computes paired
+impression-bootstrap intervals. No control AUC is claimed before that readback.
+This is a control evaluation, not a training job or a new trained-model AUC.
+Training ablations must use the
 same admitted examples, history, abstracts and budgets; their runtime/resource
 budget will be based on measured worker throughput, not the smoke's nominal
 example count.

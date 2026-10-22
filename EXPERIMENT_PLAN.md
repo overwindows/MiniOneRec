@@ -812,6 +812,18 @@ Fourteen offline checks passed, including retry-log selection, resource/budget
 guards, duplicate-submission recovery, and the full 5000-impression fixture flow.
 Fixture metrics are not research measurements. C2/C3/C4 remain gated.
 
+**Progress snapshot (2026-10-22 13:51 UTC+8):** the recorded parent/worker
+remain Running, at 8,991/11,001 optimizer steps (81.7%), epoch2.452/3.
+Recent logged losses are 0.6649, 0.6574 and 0.6743, below the earlier
+approximately 0.693 plateau; no nonfinite values were detected. This is
+improved training fit, not evidence of a ranking gain. Automatic supervision
+is active. The historical full-vocabulary checkpoint was rechecked at 13:55:
+config, tokenizer and chat-template files are present; the listed safetensors
+file is 9,682,956,896 bytes; the prompt metadata/default is legacy.
+`jev-old-checkpoint-readiness.json` records this bounded metadata/extent
+readiness check, not a numerical reload or new AUC. No additional GPU was
+allocated; matched old/new scoring still follows full training serially.
+
 ```powershell
 python pipeline\run_jev_train.py --bundle-source --data-root shares/users/wuc/data/MIND_small --output-root shares/users/wuc/output_dir/jev_decision_campaign_20261020/loss_only_legacy --loss-type decision --prompt-contract legacy --enable-kl 0 --sample -1 --num-epochs 3 --batch-size 128 --micro-batch-size 2 --max-history 30 --cutoff-len 4096 --use-abstract 1 --instance-type Singularity.ND96amrs_A100_v4 --timeout-seconds 259200 --display-name C1-decision-loss-only-full
 ```

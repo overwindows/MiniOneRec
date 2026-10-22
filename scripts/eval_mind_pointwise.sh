@@ -84,11 +84,16 @@ OUTPUT_FILE="${OUTPUT_FILE:-}"
 OUTPUT_SCORES_FILE="${OUTPUT_SCORES_FILE:-}"
 FLASH_ATTN="${FLASH_ATTN:-1}"  # Use Flash Attention 2 by default
 USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Use chat template for instruct models
-BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates
+BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates (only used with PREFIX_CACHE=0)
+PREFIX_CACHE="${PREFIX_CACHE:-1}"  # Run the shared history prefix once per impression (same scores, much faster)
+PACK_TOKENS="${PACK_TOKENS:-8192}"  # Max candidate-suffix tokens per forward with PREFIX_CACHE=1
+LEGACY_BF16_SCORES="${LEGACY_BF16_SCORES:-0}"  # 1 = old bf16 scoring (tied scores), only to compare with pre-fix AUCs
 TEMPERATURE="${TEMPERATURE:-1.0}"  # Logit temperature (1.0=off; tune for ensemble calibration)
 USE_RECENCY="${USE_RECENCY:-0}"  # Mark 5 most recent history items with "(recent)"
 USE_PROFILE_SUMMARY="${USE_PROFILE_SUMMARY:-0}"  # Prepend top-3 category interest summary
 USE_IMPRESSION_TIMESTAMP="${USE_IMPRESSION_TIMESTAMP:-0}"  # Add day/time-of-day context (must match training)
+USE_ENTITY="${USE_ENTITY:-0}"  # Append Wikidata entity labels to article text (must match training)
+HISTORY_SELECTION="${HISTORY_SELECTION:-recent}"  # recent = last N; relevant = dynamic category-matched (must match training)
 
 # Construct paths
 DATA_DIR="${MIND_ROOT}/${SPLIT}"
@@ -116,7 +121,7 @@ echo "  Use abstract: ${USE_ABSTRACT}"
 echo "  Max history: ${MAX_HISTORY:-unlimited}"
 echo "  Max impressions: ${MAX_IMPRESSIONS:-all}"
 echo "  Flash Attention: ${FLASH_ATTN}"
-echo "  Batch size: ${BATCH_SIZE}"
+echo "  Prefix cache: ${PREFIX_CACHE} (pack ${PACK_TOKENS} tokens; batch size ${BATCH_SIZE} when off)"
 echo "========================================="
 echo ""
 
@@ -170,7 +175,9 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       --behaviors_path \"${TEMP_DIR}/${gpu_id}.tsv\" \
       --news_path \"${NEWS_PATH}\" \
       --max_history ${MAX_HISTORY} \
+      --history_selection ${HISTORY_SELECTION} \
       --batch_size ${BATCH_SIZE} \
+      --pack_tokens ${PACK_TOKENS} \
       --output_file \"${TEMP_DIR}/${gpu_id}.txt\""
 
     if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
@@ -187,6 +194,14 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     if [[ "${USE_CHAT_TEMPLATE}" -eq 1 ]]; then
       cmd="${cmd} --use_chat_template"
+    fi
+
+    if [[ "${PREFIX_CACHE}" -eq 0 ]]; then
+      cmd="${cmd} --no_prefix_cache"
+    fi
+
+    if [[ "${LEGACY_BF16_SCORES}" -eq 1 ]]; then
+      cmd="${cmd} --legacy_bf16_scores"
     fi
 
     if [[ -n "${MAX_IMPRESSIONS}" ]] && [[ "${MAX_IMPRESSIONS}" -gt 0 ]]; then
@@ -213,6 +228,10 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     if [[ "${USE_IMPRESSION_TIMESTAMP}" -eq 1 ]]; then
       cmd="${cmd} --use_impression_timestamp"
+    fi
+
+    if [[ "${USE_ENTITY}" -eq 1 ]]; then
+      cmd="${cmd} --use_entity"
     fi
 
     cf_enabled=$(awk -v a="${CF_ALPHA:-0}" 'BEGIN{print (a+0>0)?1:0}')
@@ -307,7 +326,9 @@ else
     --behaviors_path ${BEHAVIORS_PATH} \
     --news_path ${NEWS_PATH} \
     --max_history ${MAX_HISTORY} \
-    --batch_size ${BATCH_SIZE}"
+    --history_selection ${HISTORY_SELECTION} \
+    --batch_size ${BATCH_SIZE} \
+    --pack_tokens ${PACK_TOKENS}"
 
   if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
     CMD="${CMD} --use_abstract"
@@ -337,6 +358,14 @@ else
     CMD="${CMD} --use_chat_template"
   fi
 
+  if [[ "${PREFIX_CACHE}" -eq 0 ]]; then
+    CMD="${CMD} --no_prefix_cache"
+  fi
+
+  if [[ "${LEGACY_BF16_SCORES}" -eq 1 ]]; then
+    CMD="${CMD} --legacy_bf16_scores"
+  fi
+
   if [[ "${TEMPERATURE}" != "1.0" ]]; then
     CMD="${CMD} --temperature ${TEMPERATURE}"
   fi
@@ -351,6 +380,10 @@ else
 
   if [[ "${USE_IMPRESSION_TIMESTAMP}" -eq 1 ]]; then
     CMD="${CMD} --use_impression_timestamp"
+  fi
+
+  if [[ "${USE_ENTITY}" -eq 1 ]]; then
+    CMD="${CMD} --use_entity"
   fi
 
   cf_enabled=$(awk -v a="${CF_ALPHA:-0}" 'BEGIN{print (a+0>0)?1:0}')

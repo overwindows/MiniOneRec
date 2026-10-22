@@ -51,6 +51,22 @@ if "LOCAL_RANK" in os.environ and not dist.is_initialized():
         timeout=datetime.timedelta(hours=2),
     )
 
+# Secondary process groups (e.g. DeepSpeed ZeRO's parameter-parallel groups)
+# are created via dist.new_group() WITHOUT a timeout argument, so they inherit
+# torch's 10-minute NCCL default — NOT the 2h timeout set above. A transient
+# rank stall (NFS hiccup, slow dataloader worker) longer than 10 min then trips
+# the watchdog on that group and kills the whole job (exit 122; seen on histfull
+# @ step 3958: PG 1 ALLREDUCE Timeout(ms)=600000 while PG 0 was healthy).
+# Wrap new_group so every group gets the same 2h default.
+if "LOCAL_RANK" in os.environ:
+    _orig_new_group = dist.new_group
+
+    def _new_group_default_timeout(*args, **kwargs):
+        kwargs.setdefault("timeout", datetime.timedelta(hours=2))
+        return _orig_new_group(*args, **kwargs)
+
+    dist.new_group = _new_group_default_timeout
+
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -122,6 +138,13 @@ def train(
     use_recency: bool = False,  # Mark 5 most recent history items with "(recent)"
     use_profile_summary: bool = False,  # Prepend top-3 category interest summary
     use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
+    use_entity: bool = False,  # Append Wikidata entity labels ("Topics: ...") to article text
+    history_selection: str = "recent",  # "recent" (last N) | "relevant" (dynamic category-matched, quota N)
+    use_lora: bool = False,  # LoRA fine-tuning (for backbones too large for full FT)
+    lora_r: int = 16,
+    lora_alpha: int = 32,
+    lora_dropout: float = 0.05,
+    lora_target_modules: str = "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj",
 ):
     """Train with point-wise SFT format (Yes/No classification) using DeepSpeed"""
 
@@ -192,6 +215,28 @@ def train(
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
 
+    # LoRA: wrap the loaded model with PEFT adapters. The base weights stay
+    # frozen; only adapters train. trainer.save_model() on a PeftModel writes
+    # adapter weights only (small); for eval the adapter must be merged or the
+    # eval script must load base + adapter — we MERGE at save time so the
+    # final_checkpoint is a plain CausalLM dir the existing eval pipeline can
+    # consume unchanged.
+    if use_lora:
+        from peft import LoraConfig, get_peft_model
+        lora_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=[m.strip() for m in lora_target_modules.split(",") if m.strip()],
+        )
+        model = get_peft_model(model, lora_config)
+        # Gradient checkpointing + frozen base: inputs to checkpointed blocks
+        # no longer require grad, which silently zeroes the adapter gradients.
+        model.enable_input_require_grads()
+        model.print_trainable_parameters()
+
     # Load point-wise datasets
     train_data = MINDPointwiseSFTDataset(
         behaviors_path=train_behaviors_path,
@@ -209,6 +254,8 @@ def train(
         use_recency=use_recency,
         use_profile_summary=use_profile_summary,
         use_impression_timestamp=use_impression_timestamp,
+        use_entity=use_entity,
+        history_selection=history_selection,
     )
 
     val_data = MINDPointwiseSFTDataset(
@@ -227,6 +274,8 @@ def train(
         use_recency=use_recency,
         use_profile_summary=use_profile_summary,
         use_impression_timestamp=use_impression_timestamp,
+        use_entity=use_entity,
+        history_selection=history_selection,
     )
 
     print(f"\nTraining with Point-wise SFT:")
@@ -410,8 +459,29 @@ def train(
 
     # Save final model (use trainer.save_model for proper DeepSpeed ZeRO handling)
     final_checkpoint_path = os.path.join(output_dir, "final_checkpoint")
-    trainer.save_model(final_checkpoint_path)
-    tokenizer.save_pretrained(final_checkpoint_path)
+    if use_lora:
+        # Merge adapters into the base weights so final_checkpoint is a plain
+        # CausalLM directory loadable by the standard eval pipeline. Only rank 0
+        # writes (all ranks writing the same dir on NFS corrupts shards). ZeRO-3
+        # partitions params, so gather them before merging on that path.
+        zero3 = trainer.is_deepspeed_enabled and \
+            trainer.accelerator.state.deepspeed_plugin.zero_stage == 3
+        if zero3:
+            import deepspeed
+            gather = deepspeed.zero.GatheredParameters(list(model.parameters()), modifier_rank=0)
+        else:
+            import contextlib
+            gather = contextlib.nullcontext()
+        with gather:
+            if trainer.is_world_process_zero():
+                merged = model.merge_and_unload()
+                merged.save_pretrained(final_checkpoint_path)
+                tokenizer.save_pretrained(final_checkpoint_path)
+        trainer.accelerator.wait_for_everyone()
+    else:
+        trainer.save_model(final_checkpoint_path)
+        if trainer.is_world_process_zero():
+            tokenizer.save_pretrained(final_checkpoint_path)
 
     print(f"\n✓ Point-wise SFT training completed!")
     print(f"  Model saved to: {final_checkpoint_path}")

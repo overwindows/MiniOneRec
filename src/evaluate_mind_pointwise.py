@@ -53,6 +53,107 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+def _common_prefix_len(seqs: List[List[int]]) -> int:
+    first = seqs[0]
+    n = min(len(s) for s in seqs)
+    for s in seqs[1:]:
+        i = 0
+        while i < n and s[i] == first[i]:
+            i += 1
+        n = i
+    return n
+
+
+def _yes_no_scores(model, last_hidden, yes_token_id, no_token_id, temperature, legacy_bf16):
+    """Score = logP(" Yes") - logP(" No") at the answer position, shape (B,).
+
+    The softmax normaliser cancels, so this is (logit_yes - logit_no) / T and
+    only two lm_head rows are needed. They are applied in fp32: bf16 logits
+    near |20| have a 0.125 step, which puts ~57% of candidates into within-
+    impression ties (AUC gives ties half credit, discarding ranking signal).
+    legacy_bf16 reproduces the old full-vocab bf16 computation for comparison
+    with earlier results.
+    """
+    lm_head = model.get_output_embeddings()
+    if legacy_bf16:
+        logits = lm_head(last_hidden)
+        if temperature != 1.0:
+            logits = logits / temperature
+        log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+        return log_probs[:, yes_token_id] - log_probs[:, no_token_id]
+    w = lm_head.weight[[yes_token_id, no_token_id]].float()  # (2, H)
+    logits = last_hidden.float() @ w.T
+    if getattr(lm_head, "bias", None) is not None:
+        logits = logits + lm_head.bias[[yes_token_id, no_token_id]].float()
+    return (logits[:, 0] - logits[:, 1]) / temperature
+
+
+def _score_with_prefix_cache(model, all_prompt_ids, device, yes_token_id, no_token_id,
+                             pack_tokens, temperature, legacy_bf16):
+    """Shared-prefix scoring: identical tokens/positions to the plain path.
+
+    The prefix is the longest common token prefix of all prompts (computed on
+    the already-tokenized prompts, so no tokenizer boundary effects), capped so
+    every prompt keeps >= 1 suffix token. It is run once (batch 1); the
+    candidate suffixes are then packed back to back into one batch-1 sequence
+    behind it, with a block mask so each suffix attends to the prefix and
+    causally to itself only, and position ids restarting at len(prefix) for
+    each suffix. Packing keeps the prefix KV at batch 1 (expanding it per
+    candidate made the KV concat ~40% of GPU time). Suffixes are packed in
+    chunks of <= pack_tokens tokens; the cache is cropped back to the prefix
+    after each chunk.
+    """
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    p = min(_common_prefix_len(all_prompt_ids), min(len(s) for s in all_prompt_ids) - 1)
+    decoder = model.get_decoder()
+    suffixes = [ids[p:] for ids in all_prompt_ids]
+
+    chunks, cur, cur_len = [], [], 0
+    for sfx in suffixes:
+        if cur and cur_len + len(sfx) > pack_tokens:
+            chunks.append(cur)
+            cur, cur_len = [], 0
+        cur.append(sfx)
+        cur_len += len(sfx)
+    chunks.append(cur)
+
+    # cuDNN SDPA rebuilds an execution plan for every new shape (~1 ms CPU per
+    # call here, since shapes change every impression); flash/mem-efficient don't.
+    with torch.no_grad(), sdpa_kernel(
+        [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH]
+    ):
+        cache = None
+        if p > 0:
+            prefix = torch.tensor([all_prompt_ids[0][:p]], dtype=torch.long, device=device)
+            cache = decoder(input_ids=prefix, use_cache=True).past_key_values
+
+        scores = []
+        for chunk in chunks:
+            lens = torch.tensor([len(sfx) for sfx in chunk], device=device)
+            n = int(lens.sum())
+            seg = torch.repeat_interleave(torch.arange(len(chunk), device=device), lens)
+            starts = torch.cumsum(lens, 0) - lens
+            offset = torch.arange(n, device=device) - starts[seg]
+            idx = torch.arange(n, device=device)
+            own = (seg[:, None] == seg[None, :]) & (idx[None, :] <= idx[:, None])
+            mask = torch.cat([own.new_ones(n, p), own], dim=1)[None, None]  # (1,1,n,p+n), True = attend
+            input_ids = torch.tensor([[t for sfx in chunk for t in sfx]], dtype=torch.long, device=device)
+            hidden = decoder(
+                input_ids=input_ids,
+                position_ids=(offset + p)[None],
+                attention_mask=mask,
+                past_key_values=cache,
+                use_cache=cache is not None,
+            ).last_hidden_state[0]
+            if cache is not None:
+                cache.crop(p)
+            last = hidden[starts + lens - 1]  # (len(chunk), H)
+            scores.extend(_yes_no_scores(
+                model, last, yes_token_id, no_token_id, temperature, legacy_bf16).cpu().tolist())
+    return scores
+
+
 def batch_score_candidates_pointwise(
     model,
     tokenizer,
@@ -68,9 +169,16 @@ def batch_score_candidates_pointwise(
     use_recency: bool = False,
     use_profile_summary: bool = False,
     impression_timestamp: str = None,
+    prefix_cache: bool = False,
+    pack_tokens: int = 8192,
+    legacy_bf16_scores: bool = False,
 ) -> List[float]:
     """
     Score multiple candidates in batches for efficiency.
+
+    With prefix_cache, the token prefix shared by every candidate's prompt
+    (system + history, ~all of the prompt) is run once and its KV cache is
+    reused for the packed per-candidate suffixes.
 
     Returns:
         List of scores for each candidate
@@ -91,12 +199,15 @@ def batch_score_candidates_pointwise(
             for cand in candidates
         ]
 
-    # Tokenize all prompts
+    # Tokenize all prompts (batched call -> parallel Rust fast tokenizer)
     # For chat templates, add_special_tokens is already handled
-    all_prompt_ids = [
-        tokenizer.encode(p, add_special_tokens=(not use_chat_template))
-        for p in prompts
-    ]
+    all_prompt_ids = tokenizer(prompts, add_special_tokens=(not use_chat_template))["input_ids"]
+
+    if prefix_cache:
+        return _score_with_prefix_cache(
+            model, all_prompt_ids, device, yes_token_id, no_token_id,
+            pack_tokens, temperature, legacy_bf16_scores,
+        )
 
     scores = []
 
@@ -119,18 +230,14 @@ def batch_score_candidates_pointwise(
         attention_mask = torch.tensor(attention_masks, dtype=torch.long, device=device)
 
         with torch.no_grad():
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-            # Get logits at last position (after "Answer:")
-            logits = outputs.logits[:, -1, :]
-            if temperature != 1.0:
-                logits = logits / temperature
-            log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
-
-            yes_log_probs = log_probs[:, yes_token_id]
-            no_log_probs = log_probs[:, no_token_id]
-
-            batch_scores = (yes_log_probs - no_log_probs).cpu().tolist()
-            scores.extend(batch_scores)
+            # Left-padded, so the answer position (after "Answer:") is the last
+            # column; lm_head is applied there only (see _yes_no_scores).
+            hidden = model.get_decoder()(
+                input_ids=input_ids, attention_mask=attention_mask
+            ).last_hidden_state[:, -1, :]
+            batch_scores = _yes_no_scores(
+                model, hidden, yes_token_id, no_token_id, temperature, legacy_bf16_scores)
+            scores.extend(batch_scores.cpu().tolist())
 
     return scores
 
@@ -143,8 +250,16 @@ def main():
     parser.add_argument("--use_abstract", action="store_true")
     parser.add_argument("--use_subcategory", action="store_true", help="Use [category/subcategory] format in prompts")
     parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
+    parser.add_argument("--history_selection", choices=["recent", "relevant"], default="recent",
+                        help="recent = last N items; relevant = dynamic category-matched selection, quota N (must match training)")
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for scoring candidates")
+    parser.add_argument("--no_prefix_cache", action="store_true",
+                        help="Disable shared-prefix KV caching (score every full prompt independently)")
+    parser.add_argument("--legacy_bf16_scores", action="store_true",
+                        help="Old bf16 full-vocab scoring (many tied scores, lower AUC); only for comparing with earlier results")
+    parser.add_argument("--pack_tokens", type=int, default=8192,
+                        help="Max candidate-suffix tokens packed into one forward when prefix caching is on")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
     parser.add_argument("--output_scores_file", help="Output raw scores file for ensemble (impression_id score1 score2 ...)")
@@ -155,6 +270,7 @@ def main():
     parser.add_argument("--use_recency", action="store_true", help="Mark 5 most recent history items with '(recent)' tag")
     parser.add_argument("--use_profile_summary", action="store_true", help="Prepend top-3 category interest summary to prompt")
     parser.add_argument("--use_impression_timestamp", action="store_true", help="Add day/time-of-day context from impression timestamp (must match training)")
+    parser.add_argument("--use_entity", action="store_true", help="Append Wikidata entity labels ('Topics: ...') to article text (must match training)")
     parser.add_argument("--cf_scores_file", default="", help="TSV file with CF scores (impression_id, news_id, cf_score) to blend with LLM scores")
     parser.add_argument("--cf_alpha", type=float, default=0.3, help="Blend weight for CF: final = (1-alpha)*LLM + alpha*CF (default 0.3)")
     args = parser.parse_args()
@@ -179,7 +295,7 @@ def main():
         print(f"Loaded {len(cf_scores):,} CF scores (alpha={args.cf_alpha})")
 
     print(f"Loading news from: {args.news_path}")
-    news = load_news(args.news_path, args.use_abstract)
+    news = load_news(args.news_path, args.use_abstract, use_entity=args.use_entity)
     print(f"Loaded {len(news)} news articles")
 
     print(f"Loading model from: {args.model_path}")
@@ -196,9 +312,11 @@ def main():
     # the Qwen3-8B large, 4 shards) are not mis-flagged as a cold-mount race.
     for _attempt in range(60):
         mp = _Path(args.model_path)
+        # LoRA Trainer checkpoints carry only adapter_model.safetensors.
         if mp.is_dir() and (
             (mp / "model.safetensors").is_file()
             or (mp / "model.safetensors.index.json").is_file()
+            or (mp / "adapter_model.safetensors").is_file()
         ):
             break
         print(f"  mount warm-up: {mp} not visible yet (attempt {_attempt+1}/60)...",
@@ -250,7 +368,21 @@ def main():
     # the pure-text Qwen3_5ForCausalLM loads and scores correctly (vision tower
     # is auto-ignored — MIND needs no multimodality).
     import transformers as _tf
-    _cfg = _tf.AutoConfig.from_pretrained(model_path_arg)
+    # PEFT adapter checkpoints (LoRA) carry no config.json; the base model is
+    # named in adapter_config.json. AutoModelForCausalLM resolves the base and
+    # applies the adapter automatically when given the adapter dir — keep
+    # model_path_arg as-is for the load, and only point the config sniff at
+    # the base model.
+    _cfg_path = model_path_arg
+    if not (_Path(model_path_arg) / "config.json").is_file():
+        _ac = _Path(model_path_arg) / "adapter_config.json"
+        if _ac.is_file():
+            import json as _json
+            _base = _json.load(open(_ac)).get("base_model_name_or_path")
+            if _base:
+                print(f"PEFT adapter checkpoint; base model: {_base}")
+                _cfg_path = _Path(_base) if _os.path.isabs(_base) else _base
+    _cfg = _tf.AutoConfig.from_pretrained(_cfg_path)
     _arch = " ".join(_cfg.architectures or [])
     # Match the trainer's detection (sft_mind_pointwise_ds.py): the hybrid Qwen3.5
     # GatedDeltaNet backbone declares multimodal architectures / ForConditionalGeneration
@@ -270,6 +402,13 @@ def main():
     model.eval()
     device = next(model.parameters()).device
     print(f"Model loaded on device: {device}")
+
+    # Prefix caching assumes plain full-attention KV layers. Hybrid backbones
+    # (Qwen3.5 GatedDeltaNet) and sliding-window layers keep other state.
+    _layer_types = set(getattr(model.config.get_text_config(), "layer_types", None) or ["full_attention"])
+    prefix_cache = not args.no_prefix_cache and not _is_qwen35 and _layer_types == {"full_attention"}
+    print(f"Prefix KV cache: {prefix_cache}"
+          + (f" (pack {args.pack_tokens} tokens)" if prefix_cache else ""))
 
     # Get Yes/No token IDs
     yes_tokens = tokenizer.encode(" Yes", add_special_tokens=False)
@@ -327,7 +466,29 @@ def main():
             impression_id, _, impression_ts, history_ids, imp_list = parsed
 
             if args.max_history > 0:
-                history_ids = history_ids[-args.max_history:]
+                if args.history_selection == "relevant":
+                    # Dynamic selection mirroring data.py: keep the max_history
+                    # items whose category matches the impression's candidates
+                    # (recency as tiebreak), re-rendered chronologically.
+                    cand_cats = set()
+                    for nid, _lbl in imp_list:
+                        n = news.get(nid)
+                        if n:
+                            cand_cats.add(n.get('category', ''))
+                    if cand_cats:
+                        scored = []
+                        for rank, nid in enumerate(reversed(history_ids)):
+                            n = news.get(nid)
+                            if n is None:
+                                continue
+                            scored.append((1 if n.get('category', '') in cand_cats else 0, rank, nid))
+                        scored.sort(key=lambda t: (-t[0], t[1]))
+                        sel = {t[2] for t in scored[:args.max_history]}
+                        history_ids = [nid for nid in history_ids if nid in sel]
+                    else:
+                        history_ids = history_ids[-args.max_history:]
+                else:
+                    history_ids = history_ids[-args.max_history:]
 
             labels = []
             candidate_objs = []
@@ -358,6 +519,9 @@ def main():
                 use_recency=args.use_recency,
                 use_profile_summary=args.use_profile_summary,
                 impression_timestamp=impression_ts if args.use_impression_timestamp else None,
+                prefix_cache=prefix_cache,
+                pack_tokens=args.pack_tokens,
+                legacy_bf16_scores=args.legacy_bf16_scores,
             )
 
             # Blend with CF scores if available

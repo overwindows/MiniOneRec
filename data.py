@@ -189,11 +189,14 @@ class MINDPointwiseSFTDataset:
         use_recency: bool = False,  # Mark 5 most recent history items with "(recent)"
         use_profile_summary: bool = False,  # Prepend top-3 category interest summary
         use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
+        use_entity: bool = False,  # Append Wikidata entity labels ("Topics: ...") to article text
+        history_selection: str = "recent",  # "recent" (last N) | "relevant" (category-matched to the impression's candidates, quota N)
         return_meta: bool = False,  # Also return impression_id/label/answer_len (for pairwise loss)
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.max_history = max_history if max_history > 0 else None
+        self.history_selection = history_selection
         self.neg_ratio = neg_ratio
         self.hard_neg_ratio = hard_neg_ratio
         self.use_abstract = use_abstract
@@ -202,6 +205,7 @@ class MINDPointwiseSFTDataset:
         self.use_recency = use_recency
         self.use_profile_summary = use_profile_summary
         self.use_impression_timestamp = use_impression_timestamp
+        self.use_entity = use_entity
         self.return_meta = return_meta
         self.seed = seed
 
@@ -245,11 +249,24 @@ class MINDPointwiseSFTDataset:
                 category = parts[1] if len(parts) > 1 else ""
                 title = parts[3]
                 abstract = parts[4] if len(parts) > 4 else ""
+                entity_json = parts[6] if len(parts) > 6 else ""
 
                 if self.use_abstract and abstract:
                     text = f"{title} {abstract}"
                 else:
                     text = title
+
+                # Optional: append Wikidata entity labels ("Topics: A, B, C")
+                if self.use_entity and entity_json and entity_json != "[]":
+                    try:
+                        entities = [
+                            e.get("Label", "") for e in json.loads(entity_json)
+                            if e.get("Label")
+                        ]
+                        if entities:
+                            text += " [Topics: " + ", ".join(entities[:5]) + "]"
+                    except (ValueError, AttributeError):
+                        pass
 
                 news[news_id] = {
                     'text': text,
@@ -276,7 +293,36 @@ class MINDPointwiseSFTDataset:
 
                 # Limit history
                 if self.max_history is not None:
-                    history_ids = history_ids[-self.max_history:]
+                    if self.history_selection == "relevant":
+                        # Dynamic selection: keep the max_history items most
+                        # relevant to this impression — category match with the
+                        # impression's candidates first, recency as tiebreak.
+                        # Selected items are re-rendered in chronological order.
+                        cand_cats = set()
+                        for imp in impressions:
+                            if '-' in imp:
+                                nid, _ = imp.rsplit('-', 1)
+                                n = self.news.get(nid)
+                                if n:
+                                    cand_cats.add(n.get('category', ''))
+                        if cand_cats:
+                            # rank 0 = most recent (last in file)
+                            scored = []
+                            for rank, nid in enumerate(reversed(history_ids)):
+                                n = self.news.get(nid)
+                                if n is None:
+                                    continue
+                                cat = n.get('category', '')
+                                scored.append((1 if cat in cand_cats else 0, rank, nid))
+                            scored.sort(key=lambda t: (-t[0], t[1]))
+                            sel = {t[2] for t in scored[:self.max_history]}
+                            # restore chronological order for prompt rendering
+                            history_ids = [nid for nid in parts[3].split() if nid in sel]
+                        else:
+                            # same fallback as evaluate_mind_pointwise.py
+                            history_ids = history_ids[-self.max_history:]
+                    else:
+                        history_ids = history_ids[-self.max_history:]
 
                 # Build history objects
                 history = [self.news[nid] for nid in history_ids if nid in self.news]

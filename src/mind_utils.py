@@ -14,6 +14,7 @@ Functions:
     ndcg_score() - Compute nDCG metric
 """
 
+import json
 import math
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
@@ -54,13 +55,14 @@ def _build_profile_summary(history: List[Dict[str, str]]) -> str:
     return "User interests: " + ", ".join(f"{c} ({n})" for c, n in top)
 
 
-def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str, str]]:
+def load_news(news_path: str, use_abstract: bool = False, use_entity: bool = False) -> Dict[str, Dict[str, str]]:
     """
     Load news articles from MIND news.tsv file.
 
     Args:
         news_path: Path to news.tsv
         use_abstract: Whether to append abstract to title text
+        use_entity: Whether to append Wikidata entity labels ("Topics: ...") to text
 
     Returns:
         Dict mapping news_id -> {'text': str, 'category': str, 'title': str}
@@ -75,11 +77,24 @@ def load_news(news_path: str, use_abstract: bool = False) -> Dict[str, Dict[str,
             category = parts[1] if len(parts) > 1 else ""
             title = parts[3]
             abstract = parts[4] if len(parts) > 4 else ""
+            entity_json = parts[6] if len(parts) > 6 else ""
 
             if use_abstract and abstract:
                 text = f"{title} {abstract}"
             else:
                 text = title
+
+            # Optional: append Wikidata entity labels ("Topics: A, B, C")
+            if use_entity and entity_json and entity_json != "[]":
+                try:
+                    entities = [
+                        e.get("Label", "") for e in json.loads(entity_json)
+                        if e.get("Label")
+                    ]
+                    if entities:
+                        text += " [Topics: " + ", ".join(entities[:5]) + "]"
+                except (ValueError, AttributeError):
+                    pass
 
             news[news_id] = {
                 "text": text,

@@ -19,3 +19,6 @@ rl_error.log
 verl_direct.log
 ~/.venv/
 wandb_analysis/plots/
+slurm-*.out
+logs/
+models/

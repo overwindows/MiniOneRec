@@ -28,11 +28,21 @@ ml_client = MLClient(
 # ============================================================================
 # 2) Virtual Cluster Full ARM ID
 # ============================================================================
-VC_ARM_ID = (
-    "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
-    "/resourceGroups/rg-cs-recall-ml-singularity"
-    "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
-)
+VC_ARM_ID_MAP = {
+    # ranking
+    "ranking": (
+        "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+        "/resourceGroups/rg-cs-ranking-ml-singularity"
+        "/providers/Microsoft.MachineLearningServices/virtualClusters/ranking"
+    ),
+    # recall (fallback when ranking compute is busy)
+    "recall": (
+        "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+        "/resourceGroups/rg-cs-recall-ml-singularity"
+        "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
+    ),
+}
+VC_ARM_ID = VC_ARM_ID_MAP["recall"]
 
 # ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
@@ -146,6 +156,8 @@ if __name__ == "__main__":
                         help="结果子目录名称 (default: ensemble_results)")
     parser.add_argument("--split", default="dev", choices=["dev", "test"],
                         help="评估集 (default: dev)")
+    parser.add_argument("--vm-cluster", default="recall", choices=list(VC_ARM_ID_MAP.keys()),
+                        help="虚拟集群 ranking|recall (default: recall)")
     parser.add_argument("--mind-size", default="large", choices=["small", "large"],
                         help="MIND 数据集大小 (default: large)")
     parser.add_argument("--max-history", type=int, default=30,
@@ -183,7 +195,7 @@ if __name__ == "__main__":
     )
 
     # Pipeline-level settings
-    job.settings.default_compute = VC_ARM_ID
+    job.settings.default_compute = VC_ARM_ID_MAP[args.vm_cluster]
     job.experiment_name = args.experiment_name
     if args.display_name:
         job.display_name = args.display_name

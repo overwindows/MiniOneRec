@@ -824,6 +824,38 @@ file is 9,682,956,896 bytes; the prompt metadata/default is legacy.
 readiness check, not a numerical reload or new AUC. No additional GPU was
 allocated; matched old/new scoring still follows full training serially.
 
+**Full training COMPLETED; matched scoring update (2026-10-23 10:44 UTC+8):**
+both recorded training parent/worker are Completed. Exact-source, full-sample,
+decision/legacy/no-KL, all 11,001 steps and epoch3 evidence passed.
+Training runtime was 160,100 seconds (~44.47h); mean training loss 0.6914,
+with no nonfinite values detected. The saved final checkpoint readback on
+October 22 at 22:16 (UTC+8) verified config/tokenizer, A/B IDs 32/33,
+427 tensor entries and a consistent 9,682,956,896-byte safetensors extent.
+This is not a claim that every numerical weight was independently checked.
+
+The controller then serialized the planned one-A100 evaluations. Fresh old
+full-vocabulary rescore parent `purple_flag_yjyhnhtpyn`, worker
+`b2dc2137-5884-4b2c-8d15-cbf02c3512a7`, is Completed. Every one of the 5000
+impressions/187009 candidates, exact dev input hashes, and all four raw-score
+metrics passed independent reconstruction:
+
+| Matched legacy-prompt checkpoint | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Old full-vocabulary SFT | 0.54519484 | 0.23280850 | 0.24266650 | 0.31220688 |
+| New decision-loss SFT | Pending | Pending | Pending | Pending |
+
+The new scorer parent `helpful_lizard_77ghb5kb5b`, worker
+`8fb1b287-45c4-4e80-9176-38b6e78aeddc`, is Running, one ranking Standard
+A100, immutable source `ec86d37`, same strict legacy dev@5000 protocol.
+Its first attempt reached 1347 impressions; retry001 is at 644/5000 at the
+snapshot time. These attempts are not combined and partial metrics are not
+reported as final. The retry cause has not been diagnosed in this update.
+No fresh training allocation, new decision-model AUC, improvement claim, or
+downstream promotion is implied. `jev-full-campaign-status.json` tracks the
+active pass; `jev-full-old_full_vocab.metrics.json` and `.scores.jsonl`
+are the verified old-checkpoint evidence. The final paired comparison file
+remains gated on complete new-model scoring.
+
 ```powershell
 python pipeline\run_jev_train.py --bundle-source --data-root shares/users/wuc/data/MIND_small --output-root shares/users/wuc/output_dir/jev_decision_campaign_20261020/loss_only_legacy --loss-type decision --prompt-contract legacy --enable-kl 0 --sample -1 --num-epochs 3 --batch-size 128 --micro-batch-size 2 --max-history 30 --cutoff-len 4096 --use-abstract 1 --instance-type Singularity.ND96amrs_A100_v4 --timeout-seconds 259200 --display-name C1-decision-loss-only-full
 ```
@@ -840,6 +872,11 @@ additionally exercised against the actual frozen legacy artifacts: all 5000
 impressions, 187009 candidates, input hashes and four reconstructed metrics
 passed. This validates the comparison machinery, not the still-pending training
 outcome.
+
+The October 23 interim report/feed publication also succeeded: completed
+training, the verified fresh full-vocabulary rescore and both matched-evaluator
+job IDs are now recorded on the authenticated shared site. The entire shared
+snapshot was deployed; no partial decision-model metric was published.
 
 ### Phase 2: RL Fine-tuning
 

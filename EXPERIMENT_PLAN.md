@@ -1005,7 +1005,7 @@ train-holdout256 and fresh dev1000 windows were independently scanned locally:
 every impression has positive and negative labels, so no degenerate group
 needs to be silently skipped.
 
-#### Frozen-readout pilot completed; fixed-head confirmation planned (2026-10-23)
+#### Frozen-readout pilot completed; fixed-head confirmation submitted (2026-10-23)
 
 Both pilot parent `ivory_star_h4z4j4tn84` and its worker are Completed.
 The final controller state is `readout_comparison_verified`: all 1000 new
@@ -1045,6 +1045,33 @@ feature matrix, and preserves raw margins plus 128 deterministic feature
 spot checks for independent head-math readback. Allocation remains one
 Standard ranking A100 with a six-hour cap; no full-model or downstream
 training is launched.
+
+Actual confirmation parent `great_oven_88h8j3jgjl`, worker
+`ae73f51f-9d3c-496e-a402-8ffb37f0c5ed`, immutable bundled source
+`a88c920ebc4c232a51df266bbb4dfc44ec477ab5`.
+Output: `shares/users/wuc/output_dir/jev_readout_recovery_20261023/confirm_fresh5000_01`.
+At 20:14 UTC+8 the parent is Running and the worker Queued; server-side
+Ranking VC, one Standard ND12am_A100_v4, 21600-second timeout, source,
+head path/checksum and output were verified. This is execution evidence,
+not a confirmation quality result.
+Attached controller `jev-readout-confirmation-controller`, PID65456,
+uses `monitor_jev_readout_probe.py --confirmation` with these explicit
+parent/source/output arguments. It enforces the six-hour submission
+deadline and independently checks fresh5000 coverage, eight metrics,
+2048 paired impression resamples and 128 residual-head feature spot checks.
+Pilot and confirmation files have separate prefixes; do not launch duplicate
+controllers or jobs. Three independent-verifier fixture tests pass, including
+the complete 5000-impression fixed-head reconstruction.
+
+The positive pilot table, uncertainty, clearly separated windows and submitted
+confirmation are published in the research paper and fresh AML-backed feed.
+Full authenticated shared-site deployment succeeded on October23; real log:
+`jev-readout-positive-publication-20261023.log` (`Status: Succeeded`,
+`Deployment Complete`). `jev-readout-publication-verification.json` binds
+the deployed HTML/feed snapshot to the independently verified pilot artifacts
+while retaining the previous full-model comparison. Browser rendering has not
+been independently rechecked. GitHub push remains unavailable; the worker
+received committed source through the verified AML bundle.
 
 ### Phase 2: RL Fine-tuning
 

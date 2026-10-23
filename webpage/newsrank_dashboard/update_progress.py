@@ -28,19 +28,26 @@ CAMPAIGNS = [
         "motivation": "Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "Source bceaab345e8e116810dc6292b7d8a189d7d1c452. First check conditional/causal/"
-                    "collated-loss parity on four real prompts; then freeze the backbone. "
-                    "At most 16384 sampled pairs, 256 disjoint train-holdout impressions. "
-                    "Binary/pairwise residual objectives; L2 100,10,1,0.1,0.01 plus unchanged frozen. "
+        "settings": "Pilot source bceaab345e8e116810dc6292b7d8a189d7d1c452. Exact conditional/causal/"
+                    "collated-loss parity on four real prompts. Frozen backbone; 16383 training pairs; "
+                    "binary_l2_0.01 selected solely on 256 excluded training impressions. "
+                    "Confirmation source a88c920ebc4c232a51df266bbb4dfc44ec477ab5; "
+                    "same checksum-pinned head, no fitting or reselection. "
                     "One Standard ranking A100; six-hour timeout; no new full-model training.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
-                "Selection uses train-only holdout. The new dev window is rows5001-6000, "
-                "not the locked first5000 comparison.",
-        "eval": "Evaluate selected residual readout and frozen JEV on identical new dev candidates. "
-                "No quality result yet; automatic raw-score/hash/metric verification and paired "
-                "bootstrap follow completion. Initial wrong-VC queued submission was canceled.",
+                "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
+                "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
+                "Neither is the locked first5000 comparison; do not pool the two intervals.",
+        "eval": "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
+                "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
+                "MRR/nDCG point values improve but their intervals include zero. "
+                "All raw coverage/hashes/eight metrics/paired intervals independently rebuilt. "
+                "Promising pilot, not a robust or SOTA claim. Confirmation submitted; no result yet. "
+                "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("ivory_star_h4z4j4tn84", "Frozen-backbone readout pilot parent", ""),
+            ("great_oven_88h8j3jgjl", "Fixed-head fresh5000 confirmation parent", ""),
+            ("ae73f51f-9d3c-496e-a402-8ffb37f0c5ed", "Fixed-head confirmation worker", ""),
+            ("ivory_star_h4z4j4tn84", "Frozen-backbone readout pilot dev5001-6000", "0.63367586"),
             ("240ffc68-83e6-4289-985b-48ab9b966045", "One-A100 readout pilot worker", ""),
             ("teal_hamster_1nnbmw8xy9", "Canceled initial wrong-VC parent", ""),
             ("4778df36-1bc5-42b6-b61f-418d51d448c3", "Initial wrong-VC worker; cancellation requested", ""),
@@ -186,8 +193,10 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Recovery follow-up submitted: preserve frozen JEV and fit a train-selected residual readout; "
-    "one ranking A100, six-hour cap, new dev window5001-6000. No new quality result yet. "
+    "Positive frozen-readout pilot on new dev5001-6000: AUC 0.61530684 -> 0.63367586, "
+    "+0.01836902 (95% paired CI [+0.00029635,+0.03614217]); narrow pilot evidence, not SOTA. "
+    "Unchanged-head confirmation submitted on fresh dev6001-11000: no retraining/retuning, "
+    "one ranking A100, six-hour cap; no confirmation result yet. "
     "Recorded competition target: 0.7326; best submitted ensemble: 0.7144. "
     "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
     "paired AUC interval includes zero, so no prompt-only improvement is established. "

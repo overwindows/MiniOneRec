@@ -1205,6 +1205,21 @@ authenticated shared-site deployment succeeded; real log
 independently rechecked. This is an active experiment, not completed research
 or a new quality result.
 
+**Monitor interruption and recovery (October24,04:09 UTC+8):**
+The original local controller exited1 without a Python traceback after its
+04:03 heartbeat. Its PID55044 is no longer alive; no matching local
+application-crash event was found, so the cause is not established.
+Independent AML health readback at04:07 confirms both parent and worker
+Running with no reported worker error. No GPU job was resubmitted/restarted.
+The same source/output/job is now monitored by attached shell
+`jev-readout-scale-controller-resume-01`, PID36444. Its fresh04:09 heartbeat
+revalidates exact allocation/source/head and shows9488/114688 new features
+processed. The original six-hour submission deadline remains09:31 UTC+8,
+not six hours from the monitor restart. Private evidence:
+`jev-readout-scale-monitor-interruption.json`; log
+`jev-readout-scale-controller-resume-01.log`. Await this resumed shell's
+completion notification, then read that known shell; do not duplicate it.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

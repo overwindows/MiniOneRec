@@ -1,0 +1,35 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: jev_fixed_readout_confirmation
+display_name: Fixed JEV Readout Fresh5000 Confirmation
+version: "1"
+type: command
+description: No fitting; evaluate checksum-pinned readout and frozen JEV on fresh dev6001-11000
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+  model_path:
+    type: string
+  data_root:
+    type: string
+  output_root:
+    type: string
+  source_revision:
+    type: string
+  readout_head:
+    type: string
+  readout_head_sha256:
+    type: string
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+command: >-
+  python pipeline_executor.py
+  --config config_jev_readout_confirmation.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --output-root ${{inputs.output_root}}
+  --source-revision ${{inputs.source_revision}}
+  --readout-head ${{inputs.readout_head}}
+  --readout-head-sha256 ${{inputs.readout_head_sha256}}
+  --debug-mode false

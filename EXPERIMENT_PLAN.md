@@ -1005,6 +1005,47 @@ train-holdout256 and fresh dev1000 windows were independently scanned locally:
 every impression has positive and negative labels, so no degenerate group
 needs to be silently skipped.
 
+#### Frozen-readout pilot completed; fixed-head confirmation planned (2026-10-23)
+
+Both pilot parent `ivory_star_h4z4j4tn84` and its worker are Completed.
+The final controller state is `readout_comparison_verified`: all 1000 new
+dev impressions / 36802 candidates, input hashes, eight ranking metrics and
+2048-resample paired intervals were independently reconstructed.
+The conditional loader, causal loader and collated candidate-loss path gave
+identical margins on the four real diagnostic prompts; A/B head rows matched.
+This rules out a discrepancy in those four checks, not every possible
+training failure.
+
+The selected readout is `binary_l2_0.01`, chosen solely on the 256-impression
+training holdout after fitting 16383 pairs from 3474 disjoint impressions.
+Its train-holdout AUC is 0.69200943 versus frozen 0.59377260; these are
+selection metrics, not dev performance.
+
+| Matched new dev5001-6000 | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.61530684 | 0.29505517 | 0.32031180 | 0.38048552 |
+| Frozen backbone + selected residual readout | 0.63367586 | 0.30265107 | 0.32476785 | 0.38781622 |
+
+Paired AUC delta is +0.01836902, 95% impression-bootstrap interval
+[+0.00029635,+0.03614217]. Secondary point metrics improve, but each of their
+intervals includes zero. The AUC lower bound only narrowly exceeds zero;
+this is a promising small pilot, not a confirmed robust adaptation or SOTA.
+Do not compare its 0.6337 to frozen 0.6362 from the different first5000 window.
+Evidence: `jev-readout-independent-verification.json`,
+`jev-readout-result.json`, `jev-readout-train-selection.json`.
+
+**Next confirmation, fixed before new scoring:** reuse exactly this readout,
+without fitting, hyperparameter selection or dev-based changes, on fresh
+dev rows6001-11000 (5000 impressions / 187881 candidates). Compare against
+frozen JEV on the same candidates; do not pool the pilot into the confirmatory
+interval. The head SHA256 is
+`d7796a02baeed17a72acc42b23ae70f494654560dd3c2f39528cc54febe48f38`.
+The confirmation streams representations instead of saving a multi-GB
+feature matrix, and preserves raw margins plus 128 deterministic feature
+spot checks for independent head-math readback. Allocation remains one
+Standard ranking A100 with a six-hour cap; no full-model or downstream
+training is launched.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

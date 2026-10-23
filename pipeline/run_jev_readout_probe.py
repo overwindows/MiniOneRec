@@ -16,17 +16,22 @@ def main():
     parser.add_argument("--bundle-source", action="store_true")
     parser.add_argument("--source-revision", default=None)
     parser.add_argument("--output-root", required=True)
+    parser.add_argument("--fixed-head", default=None)
+    parser.add_argument("--fixed-head-sha256", default=None)
     args = parser.parse_args()
+    if bool(args.fixed_head) != bool(args.fixed_head_sha256):
+        parser.error("--fixed-head and --fixed-head-sha256 must be supplied together")
     if not VC_ARM_ID.lower().endswith("/virtualclusters/ranking"):
         raise RuntimeError("The bounded recovery probe must use the ranking virtual cluster")
-    component_path = Path(__file__).parent / "components" / "mind_jev_eval" / "readout_probe.yaml"
+    component_file = "readout_confirmation.yaml" if args.fixed_head else "readout_probe.yaml"
+    component_path = Path(__file__).parent / "components" / "mind_jev_eval" / component_file
     revision, component, upload = prepare_source_component(
         component_path, args.source_revision, args.bundle_source,
     )
 
     @dsl.pipeline(description="Preserve frozen JEV; select residual readout on train-only holdout")
     def pipeline():
-        node = component(
+        inputs = dict(
             msndni=Input(
                 type="uri_folder",
                 path="azureml://datastores/adls_msn_dni_09_rankfun/paths/",
@@ -37,6 +42,9 @@ def main():
             output_root=args.output_root,
             source_revision=revision,
         )
+        if args.fixed_head:
+            inputs.update(readout_head=args.fixed_head, readout_head_sha256=args.fixed_head_sha256)
+        node = component(**inputs)
         node.compute = VC_ARM_ID
         node.resources = JobResourceConfiguration(
             instance_count=1, instance_type="Singularity.ND12am_A100_v4",
@@ -51,11 +59,16 @@ def main():
     job.settings.default_compute = VC_ARM_ID
     job.settings.force_rerun = True
     job.experiment_name = "jev_readout_recovery"
-    job.display_name = "JEV frozen-backbone residual readout pilot"
+    job.display_name = (
+        "JEV fixed-readout fresh5000 confirmation" if args.fixed_head
+        else "JEV frozen-backbone residual readout pilot"
+    )
     job.tags = {
         "source_revision": revision, "jev_experiment": "frozen_residual_readout",
         "budget": "one_A100_six_hours", "dev_selection": "none",
     }
+    if args.fixed_head:
+        job.tags.update(jev_experiment="fixed_readout_confirmation", head_sha256=args.fixed_head_sha256)
     try:
         created = ml_client.jobs.create_or_update(job)
     finally:

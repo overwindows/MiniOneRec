@@ -218,6 +218,8 @@ def main():
     parser.add_argument("--source-revision", default="origin/dev")
     parser.add_argument("--max-prompt-tokens", default="0")
     parser.add_argument("--output-root", default="")
+    parser.add_argument("--readout-head", default="")
+    parser.add_argument("--readout-head-sha256", default="")
 
     args = parser.parse_args()
 
@@ -237,6 +239,8 @@ def main():
         'source_revision': args.source_revision,
         'max_prompt_tokens': args.max_prompt_tokens,
         'output_root': f"{args.mount_dir}/{args.output_root}" if args.mount_dir and args.output_root else args.output_root,
+        'readout_head': f"{args.mount_dir}/{args.readout_head}" if args.mount_dir and args.readout_head else args.readout_head,
+        'readout_head_sha256': args.readout_head_sha256,
     }
 
     # 合成完整路径

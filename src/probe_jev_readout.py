@@ -110,7 +110,7 @@ def metrics(labels, scores, groups):
     return dict(zip(("auc", "mrr", "ndcg5", "ndcg10"), np.mean(values, axis=0).tolist()))
 
 
-def extract(scorer, rows, output, name, chunk_size=16):
+def extract(scorer, rows, output, name, chunk_size=16, report_progress=True):
     features, margins = [], []
 
     def capture(_module, inputs, logits):
@@ -127,7 +127,7 @@ def extract(scorer, rows, output, name, chunk_size=16):
             probabilities = scorer.score_yes_batch([r["state"] for r in chunk], chunk_size)
             if any(not 0 <= probability <= 1 for probability in probabilities):
                 raise RuntimeError("Feature extraction must not abstain on any candidate")
-            if start % 256 == 0:
+            if report_progress and start % 256 == 0:
                 print(json.dumps({"stage": name, "processed": start + len(chunk), "total": len(rows)}), flush=True)
     finally:
         handle.remove()

@@ -1,0 +1,34 @@
+{
+  "pipeline_name": "Fixed JEV readout confirmation",
+  "commands": [
+    {
+      "name": "Clone source",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git {code_dir}/MiniOneRec",
+      "working_dir": "{code_dir}"
+    },
+    {
+      "name": "Checkout exact source revision",
+      "command": "git fetch {code_dir}/source.bundle HEAD && git checkout --detach {source_revision} && git rev-parse HEAD",
+      "working_dir": "{code_dir}/MiniOneRec"
+    },
+    {
+      "name": "Prepare environment",
+      "command": "bash scripts/setup_multi_node.sh",
+      "working_dir": "{code_dir}/MiniOneRec"
+    },
+    {
+      "name": "Confirm fixed readout on fresh5000",
+      "command": "CUDA_VISIBLE_DEVICES=0 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True /home/aiscuser/.conda/envs/MiniOneRec/bin/python -u src/evaluate_jev_readout.py --model-path {model_path} --data-root {data_root} --head-path {readout_head} --head-sha256 {readout_head_sha256} --output {output_root} --source-revision {source_revision} --dev-start 6000 --dev-impressions 5000",
+      "working_dir": "{code_dir}/MiniOneRec"
+    }
+  ],
+  "error_handling": {
+    "stop_on_error": true,
+    "retry_failed_commands": false,
+    "max_retries": 1
+  },
+  "logging": {
+    "log_level": "INFO",
+    "save_command_outputs": true
+  }
+}

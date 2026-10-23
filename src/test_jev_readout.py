@@ -1,4 +1,5 @@
 import tempfile
+import hashlib
 from pathlib import Path
 import unittest
 
@@ -6,6 +7,7 @@ import numpy as np
 import torch
 
 from probe_jev_readout import behavior_rows, extract, fit_head, metrics, pair_indices, predict
+from evaluate_jev_readout import load_head
 
 
 class ReadoutTests(unittest.TestCase):
@@ -104,6 +106,24 @@ class ReadoutTests(unittest.TestCase):
             self.assertEqual([row["candidate_id"] for row in records[0][1]], ["N", "P"])
             with self.assertRaises(ValueError):
                 behavior_rows(path, news, start=1, count=2)
+
+    def test_confirmation_head_is_checksum_pinned_and_shape_checked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "head.npz"
+            head, _ = fit_head(
+                self.features, self.base, self.labels, self.groups, 0.1, "binary",
+            )
+            np.savez(path, **head)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            restored, _ = load_head(path, digest)
+            np.testing.assert_array_equal(restored["weight"], head["weight"])
+            with self.assertRaisesRegex(ValueError, "checksum"):
+                load_head(path, "0" * 64)
+            head["scale"][0] = 0
+            np.savez(path, **head)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            with self.assertRaisesRegex(ValueError, "dimensions or numeric"):
+                load_head(path, digest)
 
 
 if __name__ == "__main__":

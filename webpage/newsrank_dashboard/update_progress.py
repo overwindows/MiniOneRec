@@ -42,10 +42,16 @@ CAMPAIGNS = [
                 "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
                 "MRR/nDCG point values improve but their intervals include zero. "
                 "All raw coverage/hashes/eight metrics/paired intervals independently rebuilt. "
-                "Promising pilot, not a robust or SOTA claim. Confirmation submitted; no result yet. "
+                "Unchanged-head fresh5000 confirmation Completed: AUC 0.64790555 versus matched "
+                "frozen 0.62637000, delta +0.02153556; 95% paired CI [+0.01380902,+0.02905105]. "
+                "MRR 0.29807593->0.30990735; nDCG5 0.32653138->0.33898353; "
+                "nDCG10 0.38676991->0.40229435. All four confirmation intervals exceed zero "
+                "(2048 impression resamples,seed42,unadjusted); coverage,head checksum and128 "
+                "feature/head spot checks independently verified. One training subset/seed, "
+                "not full-dev/test or SOTA; keep pilot and confirmation intervals separate. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("great_oven_88h8j3jgjl", "Fixed-head fresh5000 confirmation parent", ""),
+            ("great_oven_88h8j3jgjl", "Fixed-head fresh5000 confirmation parent", "0.64790555"),
             ("ae73f51f-9d3c-496e-a402-8ffb37f0c5ed", "Fixed-head confirmation worker", ""),
             ("ivory_star_h4z4j4tn84", "Frozen-backbone readout pilot dev5001-6000", "0.63367586"),
             ("240ffc68-83e6-4289-985b-48ab9b966045", "One-A100 readout pilot worker", ""),
@@ -193,10 +199,12 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Positive frozen-readout pilot on new dev5001-6000: AUC 0.61530684 -> 0.63367586, "
-    "+0.01836902 (95% paired CI [+0.00029635,+0.03614217]); narrow pilot evidence, not SOTA. "
-    "Unchanged-head confirmation submitted on fresh dev6001-11000: no retraining/retuning, "
-    "one ranking A100, six-hour cap; no confirmation result yet. "
+    "Frozen-readout gain confirmed on fresh dev6001-11000: matched AUC 0.62637000 -> 0.64790555, "
+    "+0.02153556 (95% paired CI [+0.01380902,+0.02905105]); MRR/nDCG also improve with "
+    "positive unadjusted intervals. Exact unchanged head, no retraining/retuning; all5000 "
+    "impressions/187881 candidates and128 feature/head spot checks independently verified. "
+    "Earlier dev5001-6000 pilot AUC 0.61530684 -> 0.63367586 remains a separate comparison. "
+    "Both jobs Completed; one training subset/seed, not full-dev/test validation or SOTA. "
     "Recorded competition target: 0.7326; best submitted ensemble: 0.7144. "
     "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
     "paired AUC interval includes zero, so no prompt-only improvement is established. "

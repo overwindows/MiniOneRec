@@ -1073,6 +1073,62 @@ while retaining the previous full-model comparison. Browser rendering has not
 been independently rechecked. GitHub push remains unavailable; the worker
 received committed source through the verified AML bundle.
 
+#### Fixed-head fresh5000 confirmation completed and verified (2026-10-23 UTC)
+
+Parent `great_oven_88h8j3jgjl` and worker
+`ae73f51f-9d3c-496e-a402-8ffb37f0c5ed` are Completed. At17:34 UTC
+(October24,01:34 UTC+8), the controller exited successfully with stage
+`fixed_readout_confirmation_verified`; no GPU job remains active in this
+bounded readout experiment. Do not restart either completed controller or
+resubmit these jobs.
+
+The unchanged `binary_l2_0.01` head has the preregistered SHA256
+`d7796a02baeed17a72acc42b23ae70f494654560dd3c2f39528cc54febe48f38`.
+There was no fitting, hyperparameter reselection or retuning after the pilot.
+All5000 fresh impressions /187881 candidates in dev rows6001-11000 were
+checked against exact IDs/order/labels and audited input hashes. The verifier
+independently reconstructed all eight metrics and2048-resample paired
+intervals, and replayed128 deterministic feature/head mathematical spot checks.
+
+| Matched fresh dev6001-11000 | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.62637000 | 0.29807593 | 0.32653138 | 0.38676991 |
+| Frozen JEV + unchanged selected readout | 0.64790555 | 0.30990735 | 0.33898353 | 0.40229435 |
+
+| Confirmation contrast | Mean difference | Paired95% impression-bootstrap CI |
+|---|---:|---:|
+| AUC | +0.02153556 | [+0.01380902, +0.02905105] |
+| MRR | +0.01183142 | [+0.00431085, +0.01943781] |
+| nDCG@5 | +0.01245215 | [+0.00359743, +0.02147156] |
+| nDCG@10 | +0.01552445 | [+0.00792976, +0.02339710] |
+
+All four unadjusted intervals exceed zero (2048 resamples,seed42).
+This confirms a frozen-to-adapted improvement on the held-out confirmation
+window, unlike the failed full-model recipe. It does not establish repeated
+training-seed robustness, full-dev/test performance, MINDlarge transfer or
+competition SOTA. Do not compare these absolute values directly with the
+first5000 or pilot windows, and do not pool their intervals.
+
+Evidence: `jev-readout-confirmation-independent-verification.json`,
+`jev-readout-confirmation-result.json`,
+`jev-readout-confirmation-dev.scores.jsonl` and
+`jev-readout-confirmation-status.json`.
+Result SHA256: `a3ad5872b4a41b572fd1eff3d97c932e94f9d9b0c96c2885ae2e54680486163e`.
+Raw-score SHA256: `d5fc23355d899c2feaaeb68cbf50c2a9bae0d4601dbfcdb910050a92a39dcb95`.
+
+**Next scientific gate:** preserve this exact head as the new adapted
+reference; evaluate broader coverage and independent training seeds before
+escalating to MINDlarge or downstream campaigns. No additional GPU allocation
+or training is automatically launched by this completion.
+
+The completed confirmation tables and all four intervals were published in
+the research paper and fresh AML-backed feed. Full authenticated shared-site
+deployment succeeded; real log `jev-readout-confirmed-publication-20261023.log`
+records `Status: Succeeded` / `Deployment Complete`. Numeric/source bindings
+are in `jev-readout-confirmation-publication-verification.json`; the earlier
+pilot publication evidence and full-model comparison remain separate.
+Browser rendering was not independently rechecked.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

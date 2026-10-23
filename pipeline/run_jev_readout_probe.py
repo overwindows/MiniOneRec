@@ -8,7 +8,7 @@ from azure.ai.ml.constants import InputOutputModes
 from azure.ai.ml.entities import CommandJobLimits, JobResourceConfiguration
 
 from jev_source import prepare_source_component
-from run_jev_eval import ml_client, VC_ARM_ID, UAI_RESOURCE_ID
+from run_jev_train import ml_client, VC_ARM_ID, UAI_RESOURCE_ID
 
 
 def main():
@@ -17,6 +17,8 @@ def main():
     parser.add_argument("--source-revision", default=None)
     parser.add_argument("--output-root", required=True)
     args = parser.parse_args()
+    if not VC_ARM_ID.lower().endswith("/virtualclusters/ranking"):
+        raise RuntimeError("The bounded recovery probe must use the ranking virtual cluster")
     component_path = Path(__file__).parent / "components" / "mind_jev_eval" / "readout_probe.yaml"
     revision, component, upload = prepare_source_component(
         component_path, args.source_revision, args.bundle_source,

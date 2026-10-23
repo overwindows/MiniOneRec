@@ -1,0 +1,29 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: jev_frozen_readout_probe
+display_name: Frozen JEV Residual Readout Probe
+version: "1"
+type: command
+description: Loader parity and train-selected residual readout; no backbone updates or dev tuning
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+  model_path:
+    type: string
+  data_root:
+    type: string
+  output_root:
+    type: string
+  source_revision:
+    type: string
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
+command: >-
+  python pipeline_executor.py
+  --config config_jev_readout_probe.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --output-root ${{inputs.output_root}}
+  --source-revision ${{inputs.source_revision}}
+  --debug-mode false

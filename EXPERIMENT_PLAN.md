@@ -936,6 +936,47 @@ rechecked.
 
 ### Phase 2: RL Fine-tuning
 
+#### JEV recovery follow-up: frozen residual readout pilot (2026-10-23)
+
+The user requested continued improvement after the negative full-model result.
+The actual score audit finds within-impression score correlation with frozen
+JEV of 0.02179754 for decision SFT and 0.05134758 for full-vocabulary SFT.
+Decision SFT's cross-class tie fraction is 0.01289701, below frozen's
+0.01782339: extra ties alone do not explain its deficit. Its score mean moves
+from frozen 0.10803005 to 0.49487821 after balanced-label training. These are
+descriptive observations, not proof of catastrophic forgetting or of a bug.
+Private evidence: `jev-recovery-v2-offline-diagnosis.json`.
+
+The next bounded experiment preserves the frozen backbone and fits only a
+small residual readout on its final normalized decision representation:
+`margin = frozen_A_minus_B + standardized_hidden @ residual_weight + bias`.
+This is an explicit new readout adapter, not successful full-model SFT or a
+reproduction of native two-exit JEV training.
+
+Predefined protocol:
+- First compare the original conditional loader, training causal loader and
+  actual collated candidate-loss path on four real training prompts. Record
+  A/B head-row equality and logit margins; halt if rows differ or any margin
+  discrepancy exceeds 0.25. This is a bounded parity diagnostic, not exhaustive
+  proof that every training/scoring computation is equivalent.
+- Exclude the final 256 training impressions entirely from fitting and use
+  all their candidates for readout selection. Fit at most 16,384 deterministic
+  sampled training pairs in complete mixed-label impression groups, using
+  the existing seed42/history30/abstracts/legacy prompt contract.
+- Fit binary and impression-local pairwise residual objectives on CPU with
+  L2 strengths 100,10,1,0.1,0.01. Include unchanged frozen JEV as a candidate.
+  Select by train-holdout AUC; frozen wins exact ties. Standardization is
+  fitted exclusively on training features.
+- After selection is saved, evaluate the selected readout and frozen JEV on
+  dev rows 5001-6000, not the locked first5000 comparison. Preserve per-candidate
+  margins, IDs, labels, feature arrays, readout parameters and input hashes.
+- Allocate one Standard ranking A100 with a six-hour worker timeout. No new
+  full-model training or downstream C2/C3/C4 is automatically authorized.
+
+The probe is implemented in `src\probe_jev_readout.py` and submitted through
+`pipeline\run_jev_readout_probe.py` with immutable bundled source.
+No quality improvement is claimed before actual matched scoring completes.
+
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|------------|--------|-----|-----|--------|---------|-------|
 | **R2.1** | ⬜ Pending | Best P1.x | REWARD_TYPE=asymmetric | - | - | - | - | Asymmetric reward |

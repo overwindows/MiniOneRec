@@ -1129,6 +1129,54 @@ are in `jev-readout-confirmation-publication-verification.json`; the earlier
 pilot publication evidence and full-model comparison remain separate.
 Browser rendering was not independently rechecked.
 
+#### Continuing toward stronger adaptation: training-data scale control (2026-10-24 UTC+8)
+
+The confirmed readout is a reference, not completion of the broader competitive
+ranking objective. Test whether its small16383-pair fit is a capacity/data
+bottleneck before changing the backbone or launching downstream training.
+This experiment changes only training data quantity: at most131072 sampled
+pairs in complete mixed-label impression groups, with the same sampling seed42,
+legacy prompt,hist30,abstracts,4095 prompt budget,binary objective and L2 0.01.
+The original256 training-holdout impressions remain excluded from all fitting.
+
+Preserve the confirmed head with SHA256
+`d7796a02baeed17a72acc42b23ae70f494654560dd3c2f39528cc54febe48f38`.
+Validate the original feature-cache row identities against the exact
+deterministic larger sample prefix, input hashes and original pilot-result
+checksum. Replay the first16 original training and16 holdout candidates in
+identical batches against the frozen model; require exact feature/margin
+equality before reusing cached arrays. Reproduce the original head's
+training-holdout metrics before extracting any additional training features.
+Save all larger-sample features/row metadata and their hashes for subsequent
+CPU-only analysis rather than repeatedly paying for backbone extraction.
+
+This stage reads only training inputs, fits one new head and records raw
+training-holdout scores for frozen,confirmed-reference and scaled conditions.
+It does not score dev, change hyperparameters based on dev, or reinterpret
+training selection as independent quality evidence. The scaled head passes
+the next gate only if its train-holdout AUC strictly exceeds the confirmed
+reference; reference wins exact ties. A fresh dev comparison would be
+registered separately before scoring, using new rows11001-16000 and retaining
+both the confirmed readout and frozen backbone as controls.
+
+Implementation: `src\scale_jev_readout.py`, shared deterministic group sampler
+in `src\probe_jev_readout.py`, and `readout_scale.yaml` through
+`run_jev_readout_probe.py --scale-training` with the checksum-pinned reference.
+Allocation cap: one Standard Ranking A100,21600-second worker timeout and
+six-hour submission wall-clock monitor. No additional GPU job or full-model
+training is automatically submitted. Run IDs and actual worker state follow
+only after real submission; no new quality result is claimed.
+
+Actual preflight selects131071 pairs from30944 training impressions:
+16383 original cached pairs plus114688 newly extracted pairs. All256
+holdout IDs are excluded and the original cached metadata is an exact
+prefix match (SHA256
+`73d42dcebaeed02a5ccb5a56bb1f9710b311cafdbdc425260c3f6b17c55be4d7`).
+All28 source JEV tests and5 independent-monitor fixture tests pass,
+including altered head/metric/gate/row rejection. Component schema and
+the training-only command are validated. Private preflight evidence:
+`jev-readout-scale-preflight.json`.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

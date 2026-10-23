@@ -1,13 +1,18 @@
 import tempfile
 import hashlib
+import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import torch
 
-from probe_jev_readout import behavior_rows, extract, fit_head, metrics, pair_indices, predict
+from probe_jev_readout import (
+    behavior_rows, extract, fit_head, metrics, pair_indices, predict, sample_training_rows,
+)
 from evaluate_jev_readout import load_head
+from scale_jev_readout import check_cached_model, load_cached_features, write_holdout_scores
 
 
 class ReadoutTests(unittest.TestCase):
@@ -124,6 +129,69 @@ class ReadoutTests(unittest.TestCase):
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             with self.assertRaisesRegex(ValueError, "dimensions or numeric"):
                 load_head(path, digest)
+
+    def test_data_scaling_preserves_grouped_prefix_and_excludes_holdout(self):
+        article = {"text": "title", "category": "cat"}
+        samples = [
+            {"impression_id": group, "candidate_id": f"N{index}", "label": label,
+             "history": [article], "candidate": article}
+            for index, (group, label) in enumerate([
+                ("a", 0), ("heldout", 1), ("b", 0), ("a", 1),
+                ("b", 1), ("b", 0), ("heldout", 0), ("single", 1),
+            ])
+        ]
+        small = sample_training_rows(samples, {"heldout"}, 4)
+        large = sample_training_rows(samples, {"heldout"}, 5)
+        self.assertEqual(len(small), 2)
+        self.assertEqual(len(large), 5)
+        self.assertEqual(large[:len(small)], small)
+        self.assertEqual([r["impression_id"] for r in large], ["a", "a", "b", "b", "b"])
+        with self.assertRaises(ValueError):
+            sample_training_rows(samples, {"heldout"}, 1)
+        with self.assertRaises(ValueError):
+            sample_training_rows(samples, {"heldout"}, 0)
+
+    def test_feature_cache_requires_exact_row_identity_order_and_finite_shape(self):
+        rows = [
+            {"impression_id": "a", "candidate_id": f"N{i}", "label": i}
+            for i in range(2)
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            metadata = root / "train.rows.json"
+            metadata.write_text(json.dumps(rows), encoding="utf-8")
+            np.savez(root / "train.features.npz", features=self.features[:2], margins=self.base[:2])
+            actual, margins = load_cached_features(root, "train", rows, 2)
+            np.testing.assert_array_equal(actual, self.features[:2])
+            np.testing.assert_array_equal(margins, self.base[:2])
+            with self.assertRaisesRegex(ValueError, "deterministic training sample"):
+                load_cached_features(root, "train", rows[::-1], 2)
+            with self.assertRaisesRegex(ValueError, "dimensions"):
+                load_cached_features(root, "train", rows, 3)
+            np.savez(root / "train.features.npz", features=np.full((2, 2), np.nan), margins=self.base[:2])
+            with self.assertRaisesRegex(ValueError, "numeric"):
+                load_cached_features(root, "train", rows, 2)
+
+    def test_feature_cache_is_replayed_against_the_actual_frozen_model(self):
+        with patch("scale_jev_readout.extract", return_value=(self.features, self.base)):
+            check_cached_model(None, [{}] * 4, self.features, self.base, "unit")
+        with patch("scale_jev_readout.extract", return_value=(self.features + 1, self.base)):
+            with self.assertRaisesRegex(ValueError, "frozen-model replay"):
+                check_cached_model(None, [{}] * 4, self.features, self.base, "unit")
+
+    def test_training_holdout_artifact_preserves_all_three_conditions(self):
+        records = [("a", [
+            {"candidate_id": "N0", "label": 0}, {"candidate_id": "N1", "label": 1},
+        ])]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_holdout_scores(root, records, self.base[:2], self.base[:2] + 1, self.base[:2] + 2)
+            row = json.loads((root / "train-holdout.scores.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["candidate_ids"], ["N0", "N1"])
+            self.assertEqual(row["labels"], [0, 1])
+            self.assertEqual(row["frozen_margins"], [0, 0])
+            self.assertEqual(row["reference_margins"], [1, 1])
+            self.assertEqual(row["scaled_margins"], [2, 2])
 
 
 if __name__ == "__main__":

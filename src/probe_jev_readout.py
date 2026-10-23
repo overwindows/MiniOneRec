@@ -167,6 +167,29 @@ def behavior_rows(path, news, start=0, count=None):
     return records
 
 
+def sample_training_rows(samples, validation_ids, pair_limit):
+    if pair_limit < 1:
+        raise ValueError("Training pair limit must be positive")
+    grouped = defaultdict(list)
+    for sample in samples:
+        if sample["impression_id"] not in validation_ids:
+            grouped[sample["impression_id"]].append(sample)
+    rows = []
+    for group in grouped.values():
+        if {sample["label"] for sample in group} != {0, 1}:
+            continue
+        if len(rows) + len(group) > pair_limit:
+            break
+        rows.extend({
+            "impression_id": sample["impression_id"], "candidate_id": sample["candidate_id"],
+            "label": sample["label"],
+            "state": build_jev_state(sample["history"], sample["candidate"]),
+        } for sample in group)
+    if not rows:
+        raise ValueError("No complete mixed-label training groups fit the sample budget")
+    return rows
+
+
 def loader_parity(scorer, rows, output, model_path):
     from transformers import AutoModelForCausalLM, DataCollatorForSeq2Seq
 
@@ -257,26 +280,11 @@ def main():
         max_len=4096, sample=-1, seed=42, max_history=30, neg_ratio=1.0,
         hard_neg_ratio=0.5, use_abstract=True, use_chat_template=False,
     )
-    grouped = defaultdict(list)
-    for sample in dataset.samples:
-        if sample["impression_id"] not in validation_ids:
-            grouped[sample["impression_id"]].append(sample)
-    training_rows = []
-    for samples in grouped.values():
-        if {sample["label"] for sample in samples} != {0, 1}:
-            continue
-        if len(training_rows) + len(samples) > args.train_pairs:
-            break
-        training_rows.extend({
-            "impression_id": s["impression_id"], "candidate_id": s["candidate_id"],
-            "label": s["label"], "state": build_jev_state(s["history"], s["candidate"]),
-        } for s in samples)
-    if not training_rows:
-        raise ValueError("No complete mixed-label training groups fit the sample budget")
+    training_rows = sample_training_rows(dataset.samples, validation_ids, args.train_pairs)
     train_ids = {row["impression_id"] for row in training_rows}
     if train_ids & validation_ids:
         raise RuntimeError("Training/selection impression leakage")
-    del dataset, grouped
+    del dataset
     parity = loader_parity(scorer, training_rows, output, args.model_path)
     train_x, train_base = extract(scorer, training_rows, output, "train")
     validation_rows = [row for _, rows in validation_records for row in rows]

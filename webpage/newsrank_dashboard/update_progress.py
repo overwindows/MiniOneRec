@@ -64,12 +64,16 @@ CAMPAIGNS = [
         "eval": "Training Completed: all 11001 steps/3 epochs, 44.47 training hours; final checkpoint "
                 "metadata/tokenizer/427-tensor extent verified. Fresh matched old full-vocabulary "
                 "AUC 0.54519484 independently reconstructed with full raw-score coverage and input hashes. "
-                "New decision checkpoint scoring is running on one A100; final AUC and paired comparison pending.",
+                "New decision AUC 0.56365540: +0.01846056 versus old SFT "
+                "(95% paired CI [+0.00735828,+0.02897442]), but -0.07257978 versus matched frozen "
+                "(CI [-0.08375560,-0.06140528]). All 5000/187009 coverage, hashes, four metrics "
+                "and paired intervals independently verified; one training seed, no multiplicity adjustment. "
+                "Partial recovery, not successful adaptation or SOTA; downstream campaigns remain gated.",
         "runs": [
             ("mighty_milk_0znks9vwg7", "Full decision-loss + legacy-prompt training", ""),
             ("2c74fe4d-5b03-4df1-b2a3-502003a390eb", "Full decision-loss training worker", ""),
             ("purple_flag_yjyhnhtpyn", "Old full-vocabulary matched legacy dev@5000", "0.54519484"),
-            ("helpful_lizard_77ghb5kb5b", "New decision-loss matched legacy dev@5000", ""),
+            ("helpful_lizard_77ghb5kb5b", "New decision-loss matched legacy dev@5000", "0.56365540"),
         ],
     },
     {
@@ -163,9 +167,11 @@ HEADLINE = (
     "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
     "paired AUC interval includes zero, so no prompt-only improvement is established. "
     "Full input audit passed all 469264 training pairs and 187009 dev candidates without truncation. "
-    "Full-data decision-loss + legacy-prompt training Completed: all 11001 steps/3 epochs, "
-    "44.47 training hours, checkpoint verified. Matched old full-vocabulary rescore AUC 0.54519484 "
-    "verified; new decision-model evaluation running on one A100. No final decision-model AUC yet."
+    "Full-data decision-loss + legacy-prompt experiment Completed and independently verified: "
+    "decision AUC 0.56365540 versus old SFT 0.54519484 and matched frozen 0.63623517. "
+    "Decision-minus-old +0.01846056 (95% paired CI [+0.00735828,+0.02897442]); "
+    "still below frozen by 0.07257978. Partial recovery, not successful adaptation or SOTA. "
+    "One training seed; impression-bootstrap intervals unadjusted; downstream campaigns remain gated."
 )
 
 

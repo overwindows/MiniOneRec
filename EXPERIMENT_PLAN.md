@@ -842,7 +842,7 @@ metrics passed independent reconstruction:
 | Matched legacy-prompt checkpoint | AUC | MRR | nDCG@5 | nDCG@10 |
 |---|---:|---:|---:|---:|
 | Old full-vocabulary SFT | 0.54519484 | 0.23280850 | 0.24266650 | 0.31220688 |
-| New decision-loss SFT | Pending | Pending | Pending | Pending |
+| New decision-loss SFT (final verified October23) | 0.56365540 | 0.25667268 | 0.27457157 | 0.33463531 |
 
 The new scorer parent `helpful_lizard_77ghb5kb5b`, worker
 `8fb1b287-45c4-4e80-9176-38b6e78aeddc`, is Running, one ranking Standard
@@ -855,6 +855,51 @@ downstream promotion is implied. `jev-full-campaign-status.json` tracks the
 active pass; `jev-full-old_full_vocab.metrics.json` and `.scores.jsonl`
 are the verified old-checkpoint evidence. The final paired comparison file
 remains gated on complete new-model scoring.
+
+**FINAL controlled loss-only outcome (2026-10-23):** training and both
+matched evaluators are Completed; the controller finished successfully.
+The earlier 10:44 progress snapshot is historical, not the current state.
+
+| Same legacy prompt/dev@5000 protocol | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV-4B | 0.63623517 | 0.30691291 | 0.33506672 | 0.39611543 |
+| Old full-vocabulary SFT | 0.54519484 | 0.23280850 | 0.24266650 | 0.31220688 |
+| Candidate-only decision SFT | 0.56365540 | 0.25667268 | 0.27457157 | 0.33463531 |
+
+| Paired AUC contrast | Mean difference | 95% impression-bootstrap interval |
+|---|---:|---:|
+| Decision minus full-vocabulary SFT | +0.01846056 | [+0.00735828, +0.02897442] |
+| Decision minus frozen | -0.07257978 | [-0.08375560, -0.06140528] |
+| Full-vocabulary SFT minus frozen | -0.09104033 | [-0.10272431, -0.07919353] |
+
+All four ranking metrics improve relative to old SFT, but remain
+below frozen. Full-precision values and all secondary intervals are preserved
+in `jev-full-adapted-comparison.json`. Intervals use 2048 paired impression
+resamples, seed42, without multiplicity adjustment. They quantify uncertainty
+over this evaluated subset, not variability across training seeds. One
+training seed and dev@5000 do not establish full-dev/test or SOTA performance.
+
+**Interpretation:** candidate-only normalization helps relative to the old
+full-vocabulary adaptation under this full-depth recipe, but does not restore
+the matched frozen model's ranking quality. Neither the prompt change alone
+nor this loss-only run establishes successful JEV adaptation. The experiment
+does not identify the cause of the remaining quality loss and is not a
+reproduction of native JEV low/high-exit CE plus cross-depth KL.
+Do not promote this checkpoint to C2/C3/C4; no further GPU run is automatically
+launched. The broader project SOTA objective remains unmet by this experiment.
+
+**Independent final verification:** all three conditions' 5000 impression
+IDs, 187009 candidate IDs/order/labels, unrounded scores and exact dev input
+hashes passed. A separate verifier, importing no repository metric functions,
+recomputed AUC as positive-negative pairwise win probability with half credit
+for ties, implemented MIND MRR/DCG directly, and reproduced all twelve metric
+values plus all three sets of bootstrap intervals within 1e-12.
+`jev-final-independent-verification.json` records score/metric hashes and the
+comparison SHA256:
+`008f797cd1af96c93857a359546c8217b29ff1d890354472f89406de57cef470`.
+`jev-full-campaign-status.json` is terminal
+`full_adapted_comparison_verified`; all parent/worker statuses are Completed.
+No GPU allocation from this experiment remains active.
 
 ```powershell
 python pipeline\run_jev_train.py --bundle-source --data-root shares/users/wuc/data/MIND_small --output-root shares/users/wuc/output_dir/jev_decision_campaign_20261020/loss_only_legacy --loss-type decision --prompt-contract legacy --enable-kl 0 --sample -1 --num-epochs 3 --batch-size 128 --micro-batch-size 2 --max-history 30 --cutoff-len 4096 --use-abstract 1 --instance-type Singularity.ND96amrs_A100_v4 --timeout-seconds 259200 --display-name C1-decision-loss-only-full
@@ -877,6 +922,17 @@ The October 23 interim report/feed publication also succeeded: completed
 training, the verified fresh full-vocabulary rescore and both matched-evaluator
 job IDs are now recorded on the authenticated shared site. The entire shared
 snapshot was deployed; no partial decision-model metric was published.
+
+**Final-results publication (2026-10-23):** the completed three-model table,
+paired AUC intervals, negative frozen-to-adapted finding and downstream gate
+were published with a freshly queried feed confirming all three parent jobs
+Completed. Full authenticated shared-site deployment returned
+`Status: Succeeded` and `Deployment Complete`.
+`jev-final-results-publication-20261023.log` records the real deployment;
+`jev-final-publication-verification.json` records report/feed hashes and
+validated metric/interval bindings. Other shared pages and authenticated
+routing were preserved. Signed-in browser rendering was not independently
+rechecked.
 
 ### Phase 2: RL Fine-tuning
 

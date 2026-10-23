@@ -24,6 +24,29 @@ WEB = "$web"
 # motivation/settings/data/eval are static prose shown on the live page.
 CAMPAIGNS = [
     {
+        "name": "JEV-4B frozen-backbone readout recovery",
+        "motivation": "Full-model decision SFT remains below frozen JEV. Test a small residual readout "
+                      "without changing pretrained representations; prior ranking drift is observed, "
+                      "but its cause is not established.",
+        "settings": "Source bceaab345e8e116810dc6292b7d8a189d7d1c452. First check conditional/causal/"
+                    "collated-loss parity on four real prompts; then freeze the backbone. "
+                    "At most 16384 sampled pairs, 256 disjoint train-holdout impressions. "
+                    "Binary/pairwise residual objectives; L2 100,10,1,0.1,0.01 plus unchanged frozen. "
+                    "One Standard ranking A100; six-hour timeout; no new full-model training.",
+        "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
+                "Selection uses train-only holdout. The new dev window is rows5001-6000, "
+                "not the locked first5000 comparison.",
+        "eval": "Evaluate selected residual readout and frozen JEV on identical new dev candidates. "
+                "No quality result yet; automatic raw-score/hash/metric verification and paired "
+                "bootstrap follow completion. Initial wrong-VC queued submission was canceled.",
+        "runs": [
+            ("ivory_star_h4z4j4tn84", "Frozen-backbone readout pilot parent", ""),
+            ("240ffc68-83e6-4289-985b-48ab9b966045", "One-A100 readout pilot worker", ""),
+            ("teal_hamster_1nnbmw8xy9", "Canceled initial wrong-VC parent", ""),
+            ("4778df36-1bc5-42b6-b61f-418d51d448c3", "Initial wrong-VC worker; cancellation requested", ""),
+        ],
+    },
+    {
         "name": "JEV-4B Campaign-1: SFT (MIND small → large)",
         "motivation": "Stock OpenJev is a frozen 'no-UL' ranking model (0.6432 AUC) that never saw MIND news. "
                       "Fine-tune it to P(yes) on MIND pointwise samples to build a news-specialized ranking "
@@ -163,6 +186,8 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Recovery follow-up submitted: preserve frozen JEV and fit a train-selected residual readout; "
+    "one ranking A100, six-hour cap, new dev window5001-6000. No new quality result yet. "
     "Recorded competition target: 0.7326; best submitted ensemble: 0.7144. "
     "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
     "paired AUC interval includes zero, so no prompt-only improvement is established. "

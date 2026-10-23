@@ -934,8 +934,6 @@ validated metric/interval bindings. Other shared pages and authenticated
 routing were preserved. Signed-in browser rendering was not independently
 rechecked.
 
-### Phase 2: RL Fine-tuning
-
 #### JEV recovery follow-up: frozen residual readout pilot (2026-10-23)
 
 The user requested continued improvement after the negative full-model result.
@@ -976,6 +974,38 @@ Predefined protocol:
 The probe is implemented in `src\probe_jev_readout.py` and submitted through
 `pipeline\run_jev_readout_probe.py` with immutable bundled source.
 No quality improvement is claimed before actual matched scoring completes.
+
+**Submitted:** parent `ivory_star_h4z4j4tn84`, worker
+`240ffc68-83e6-4289-985b-48ab9b966045`, source
+`bceaab345e8e116810dc6292b7d8a189d7d1c452`, output
+`shares/users/wuc/output_dir/jev_readout_recovery_20261023/run_02`.
+Server-side readback verifies the ranking VC, one Standard ND12am_A100_v4,
+21600-second timeout, exact source and output. At 17:57 UTC+8, the parent is
+Running and the worker Queued; this is not a model-quality result.
+The initial submission `teal_hamster_1nnbmw8xy9` inherited Recall VC from
+the generic evaluation launcher. It was canceled after being observed Queued
+and before replacement; the launcher now imports the verified ranking target
+and rejects non-ranking targets before submission. The failed allocation
+attempt remains in the job register rather than silently omitted.
+
+`monitor_jev_readout_probe.py` monitors only the fixed replacement, enforces
+the six-hour submission wall-clock deadline, saves retry-aware logs and checks
+the actual server allocation. On completion it independently reconstructs
+all eight matched metrics, full candidate coverage/labels/input hashes and
+2048-resample paired intervals without submitting additional experiments.
+Private status: `jev-readout-probe-status.json`; final verification target:
+`jev-readout-independent-verification.json`.
+
+By the 18:04 UTC+8 feed refresh, both corrected parent and worker are Running.
+The research paper and fresh register were published with a successful full
+authenticated shared-site deployment; real log:
+`jev-readout-probe-publication-20261023.log`.
+This confirms execution/publication, not a ranking improvement. Both the
+train-holdout256 and fresh dev1000 windows were independently scanned locally:
+every impression has positive and negative labels, so no degenerate group
+needs to be silently skipped.
+
+### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |
 |--------|--------|------------|--------|-----|-----|--------|---------|-------|

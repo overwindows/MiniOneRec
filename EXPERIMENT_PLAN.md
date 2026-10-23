@@ -1132,8 +1132,8 @@ Browser rendering was not independently rechecked.
 #### Continuing toward stronger adaptation: training-data scale control (2026-10-24 UTC+8)
 
 The confirmed readout is a reference, not completion of the broader competitive
-ranking objective. Test whether its small16383-pair fit is a capacity/data
-bottleneck before changing the backbone or launching downstream training.
+ranking objective. Test whether its small16383-pair fit is data-limited
+before changing the backbone or launching downstream training.
 This experiment changes only training data quantity: at most131072 sampled
 pairs in complete mixed-label impression groups, with the same sampling seed42,
 legacy prompt,hist30,abstracts,4095 prompt budget,binary objective and L2 0.01.
@@ -1176,6 +1176,34 @@ All28 source JEV tests and5 independent-monitor fixture tests pass,
 including altered head/metric/gate/row rejection. Component schema and
 the training-only command are validated. Private preflight evidence:
 `jev-readout-scale-preflight.json`.
+
+Actual submitted parent `patient_nest_sjxf5vj85m`, source
+`25b9a083d93a5b3f57c0ce2781fcab3bf9ba0d13`, output
+`shares/users/wuc/output_dir/jev_readout_recovery_20261024/train_scale_01`.
+Attached monitor `jev-readout-scale-controller` uses
+`monitor_jev_readout_probe.py --scaling` with explicit parent/revision/output;
+state and verification use the separate `jev-readout-scale-` prefix.
+The monitor independently checks actual training metadata against the
+preregistered sample, holdout exclusion, all12 raw holdout metrics, the
+two head checksums,128 feature/head mathematical spot checks and the
+strict train-only gate. The larger training feature-file digest is recorded
+by the worker; the monitor does not independently download the entire file.
+No new dev quality result is claimed.
+
+At03:32 UTC+8, parent Running/worker
+`6d032cc6-03de-4307-8eb3-378920c63172` Queued. The live controller
+PID55044 verified actual Ranking VC,one Standard ND12am_A100_v4,
+21600-second timeout,exact source/output and reference head path/checksum.
+Keep these execution states distinct from a ranking-quality result.
+
+The continuing protocol and actual AML states are published in the research
+paper/feed while preserving both completed matched comparisons. Full
+authenticated shared-site deployment succeeded; real log
+`jev-readout-scale-publication-20261024.log` records `Status: Succeeded` /
+`Deployment Complete`. Numeric/status binding evidence:
+`jev-readout-scale-publication-verification.json`. Browser rendering was not
+independently rechecked. This is an active experiment, not completed research
+or a new quality result.
 
 ### Phase 2: RL Fine-tuning
 

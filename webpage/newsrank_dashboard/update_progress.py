@@ -33,6 +33,9 @@ CAMPAIGNS = [
                     "binary_l2_0.01 selected solely on 256 excluded training impressions. "
                     "Confirmation source a88c920ebc4c232a51df266bbb4dfc44ec477ab5; "
                     "same checksum-pinned head, no fitting or reselection. "
+                    "Next train-only scale source25b9a083d93a5b3f57c0ce2781fcab3bf9ba0d13: "
+                    "binary L2 0.01 fixed;131071 pairs/30944 training impressions, "
+                    "same256 excluded train holdout. Exact-cache replay before reuse. "
                     "One Standard ranking A100; six-hour timeout; no new full-model training.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
@@ -49,8 +52,12 @@ CAMPAIGNS = [
                 "(2048 impression resamples,seed42,unadjusted); coverage,head checksum and128 "
                 "feature/head spot checks independently verified. One training subset/seed, "
                 "not full-dev/test or SOTA; keep pilot and confirmation intervals separate. "
+                "Training-only larger-data test submitted; no new dev result or automatic follow-up "
+                "allocation. Reference head wins train-holdout AUC ties. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("patient_nest_sjxf5vj85m", "Training-only readout data-scale parent", ""),
+            ("6d032cc6-03de-4307-8eb3-378920c63172", "Training-only data-scale worker", ""),
             ("great_oven_88h8j3jgjl", "Fixed-head fresh5000 confirmation parent", "0.64790555"),
             ("ae73f51f-9d3c-496e-a402-8ffb37f0c5ed", "Fixed-head confirmation worker", ""),
             ("ivory_star_h4z4j4tn84", "Frozen-backbone readout pilot dev5001-6000", "0.63367586"),
@@ -199,6 +206,9 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Continuing toward stronger adaptation: training-only data-scale test submitted, "
+    "131071 pairs instead of16383; fixed objective/regularization and no dev tuning. "
+    "One Standard ranking A100,six-hour cap; no new dev result from this stage. "
     "Frozen-readout gain confirmed on fresh dev6001-11000: matched AUC 0.62637000 -> 0.64790555, "
     "+0.02153556 (95% paired CI [+0.01380902,+0.02905105]); MRR/nDCG also improve with "
     "positive unadjusted intervals. Exact unchanged head, no retraining/retuning; all5000 "

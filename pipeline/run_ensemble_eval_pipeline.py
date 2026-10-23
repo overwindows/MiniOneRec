@@ -55,18 +55,18 @@ UAI_RESOURCE_ID = (
     "/resourceGroups/AMLStudio"
     "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
 )
-res_cfg = JobResourceConfiguration(
-    instance_count=1,
-    instance_type="Singularity.ND96amrs_A100_v4",
-    properties={
-        "singularity": {
-            "slaTier": "Premium",
-            "priority": "High",
-            "enableAzmlInt": False,
-        }
-    },
-)
-
+def make_res_cfg(instance_type="Singularity.ND96amrs_A100_v4"):
+    return JobResourceConfiguration(
+        instance_count=1,
+        instance_type=instance_type,
+        properties={
+            "singularity": {
+                "slaTier": "Premium",
+                "priority": "High",
+                "enableAzmlInt": False,
+            }
+        },
+    )
 # ============================================================================
 # 4) Load Component from YAML
 # ============================================================================
@@ -94,6 +94,7 @@ def mind_ensemble_eval_pipeline(
     batch_size: int = 8,
     run_convert: int = 0,
     debug_mode: str = "false",
+    instance_type: str = "Singularity.ND96amrs_A100_v4",
 ):
     """MIND Pointwise Ensemble Evaluation Pipeline
 
@@ -127,7 +128,7 @@ def mind_ensemble_eval_pipeline(
     )
 
     eval_node.compute = VC_ARM_ID
-    eval_node.resources = res_cfg
+    eval_node.resources = make_res_cfg(instance_type=instance_type)
     # Singularity policy: UAI lets the node authenticate to the RW_MOUNT datastore
     # (avoids NoIdentityOnCompute / datastore mount failures).
     eval_node.environment_variables = {
@@ -158,6 +159,9 @@ if __name__ == "__main__":
                         help="评估集 (default: dev)")
     parser.add_argument("--vm-cluster", default="recall", choices=list(VC_ARM_ID_MAP.keys()),
                         help="虚拟集群 ranking|recall (default: recall)")
+    parser.add_argument("--instance-type", default="Singularity.ND96amrs_A100_v4",
+                        help="实例类型/GKE SKU (default: Singularity.ND96amrs_A100_v4 8xA100). "
+                             "单卡 A100 = Singularity.ND12am_A100_v4")
     parser.add_argument("--mind-size", default="large", choices=["small", "large"],
                         help="MIND 数据集大小 (default: large)")
     parser.add_argument("--max-history", type=int, default=30,
@@ -192,6 +196,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         run_convert=args.run_convert,
         debug_mode=debug_mode,
+        instance_type=args.instance_type,
     )
 
     # Pipeline-level settings
@@ -220,4 +225,6 @@ if __name__ == "__main__":
     print(f"Max History:       {args.max_history}")
     print(f"Batch Size:        {args.batch_size}")
     print(f"Run Convert:       {args.run_convert}")
+    print(f"VM Cluster:        {args.vm_cluster}")
+    print(f"Instance Type:     {args.instance_type}")
     print(f"Debug Mode:        {debug_mode}")

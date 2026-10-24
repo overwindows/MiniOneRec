@@ -36,11 +36,14 @@ CAMPAIGNS = [
                     "Next train-only scale source25b9a083d93a5b3f57c0ce2781fcab3bf9ba0d13: "
                     "binary L2 0.01 fixed;131071 pairs/30944 training impressions, "
                     "same256 excluded train holdout. Exact-cache replay before reuse. "
+                    "Three-arm fixed-head dev source99d4ce25c26b0fd4f172eb154d1fc86605a30165; "
+                    "scaled head vs confirmed reference vs frozen from one shared feature pass. "
                     "One Standard ranking A100; six-hour timeout; no new full-model training.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
-                "Neither is the locked first5000 comparison; do not pool the two intervals.",
+                "New three-arm comparison: dev11001-16000,5000 impressions/183558 candidates. "
+                "All windows remain separate from locked first5000; do not pool intervals.",
         "eval": "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
                 "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
                 "MRR/nDCG point values improve but their intervals include zero. "
@@ -52,10 +55,15 @@ CAMPAIGNS = [
                 "(2048 impression resamples,seed42,unadjusted); coverage,head checksum and128 "
                 "feature/head spot checks independently verified. One training subset/seed, "
                 "not full-dev/test or SOTA; keep pilot and confirmation intervals separate. "
-                "Training-only larger-data test submitted; no new dev result or automatic follow-up "
-                "allocation. Reference head wins train-holdout AUC ties. "
+                "Larger-data fit Completed: reference0.69200943->scaled0.71224853 on the reused256 "
+                "TRAINING holdout only,not dev. All12 selection metrics/row exclusion/head spots "
+                "independently verified; new head passes the preregistered gate. "
+                "Fresh three-arm dev comparison submitted; primary contrast scaled-minus-confirmed, "
+                "with frozen as supporting control. No new dev result yet; no retuning. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", ""),
+            ("8f10cf1e-c9d4-4953-8261-ae3d0442397e", "Fixed three-arm comparison worker", ""),
             ("patient_nest_sjxf5vj85m", "Training-only readout data-scale parent", ""),
             ("6d032cc6-03de-4307-8eb3-378920c63172", "Training-only data-scale worker", ""),
             ("great_oven_88h8j3jgjl", "Fixed-head fresh5000 confirmation parent", "0.64790555"),
@@ -206,9 +214,10 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Continuing toward stronger adaptation: training-only data-scale test submitted, "
-    "131071 pairs instead of16383; fixed objective/regularization and no dev tuning. "
-    "One Standard ranking A100,six-hour cap; no new dev result from this stage. "
+    "Larger-data fit Completed: training-only holdout AUC0.69200943->0.71224853,selection only,not dev. "
+    "Three fixed arms submitted on new dev11001-16000: scaled vs confirmed readout(primary), "
+    "plus frozen control; no fitting or retuning. One Standard ranking A100,six-hour cap; "
+    "no new dev result yet. "
     "Frozen-readout gain confirmed on fresh dev6001-11000: matched AUC 0.62637000 -> 0.64790555, "
     "+0.02153556 (95% paired CI [+0.01380902,+0.02905105]); MRR/nDCG also improve with "
     "positive unadjusted intervals. Exact unchanged head, no retraining/retuning; all5000 "

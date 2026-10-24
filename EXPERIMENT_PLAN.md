@@ -1272,6 +1272,30 @@ Ranking A100 with21600-second timeout and six-hour submission wall-clock cap.
 No full-model training or additional automatic downstream job is launched.
 Run IDs/source follow actual submission; no new dev quality result yet.
 
+Actual parent `khaki_muscle_yll119dfc7`, immutable source
+`99d4ce25c26b0fd4f172eb154d1fc86605a30165`, output
+`shares/users/wuc/output_dir/jev_readout_recovery_20261024/fresh5000_three_arm_01`.
+Attached shell `jev-readout-scale-dev-controller`, separate status prefix
+`jev-readout-scale-dev-`; monitor mode `--comparison`.
+This is a separately registered evaluation allocation after the training-only
+gate passed, not an automatic downstream training campaign.
+
+At08:02 UTC+8 actual parent Running/worker
+`8f10cf1e-c9d4-4953-8261-ae3d0442397e` Queued. Controller PID68876
+has verified actual Ranking VC,one Standard ND12am_A100_v4,21600s,
+exact source/output and BOTH head paths/checksums. Read only attached shell
+`jev-readout-scale-dev-controller` after its completion notification;
+do not restart completed training controllers or submit duplicate jobs.
+
+The completed training-only table and newly submitted three-arm protocol
+are published with fresh AML-backed states. Full authenticated shared-site
+deployment succeeded; real log `jev-scale-three-arm-publication-20261024.log`
+records `Status: Succeeded` / `Deployment Complete`. Binding evidence:
+`jev-scale-three-arm-publication-verification.json` verifies all12 TRAINING
+selection values separately from previous dev metrics and keeps the new
+evaluator's quality-metric field empty. Browser rendering was not independently
+rechecked. Previous pilot/confirmation publication evidence remains separate.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

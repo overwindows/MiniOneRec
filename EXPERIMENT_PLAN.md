@@ -1453,6 +1453,51 @@ training-selection cells,head/result provenance,actual new parent state,
 empty refined-head dev metric and all preserved prior dev tables/intervals.
 Browser rendering not independently rechecked.
 
+#### Refined-head new-dev result: no established gain; retain scaled reference
+
+Parent `maroon_music_n00417p68k` and worker
+`907f0f26-3a75-4ca6-a2d0-ca153351814b` Completed; controller exited0 at
+2026-10-24 10:47 UTC (18:47 UTC+8),stage `three_arm_comparison_verified`.
+Source checkout matched6baf350d. SAME untouched dev16001-21000:
+
+| Same5000 impressions /186527 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.62556294 | 0.29615804 | 0.32245111 | 0.38317481 |
+| Retained scaled131071-pair reference | 0.66751333 | 0.32407162 | 0.35662381 | 0.41742222 |
+| Refined binary L2=0.001 | 0.66938687 | 0.32318974 | 0.35805351 | 0.41735250 |
+
+| Primary refined-minus-scaled | Mean difference | Paired impression-bootstrap95% CI |
+|---|---:|---:|
+| AUC | +0.00187354 | [-0.00083710,+0.00461701] |
+| MRR | -0.00088188 | [-0.00450070,+0.00267975] |
+| nDCG@5 | +0.00142970 | [-0.00238980,+0.00529909] |
+| nDCG@10 | -0.00006972 | [-0.00337412,+0.00309031] |
+
+Every primary interval includes zero (2048 paired impression resamples,
+seed42,unadjusted). The preregistered promotion rule fails: **do not promote
+the refined head; retain binary L2=0.01 scaled head279ef6c4**. Slightly
+higher AUC point value is not an established improvement. No dev retuning
+or selection of another grid candidate follows this result.
+Supporting scaled-minus-frozen AUC is +0.04195039
+[+0.03454470,+0.04924813]; refined-minus-frozen is +0.04382393
+[+0.03606471,+0.05124463]. Both adapters exceed frozen on this window,
+but that does not answer the primary refinement question affirmatively.
+All12 metrics,three contrasts,input hashes,exact coverage/order/labels,
+both pinned heads,training-result provenance and128 two-head mathematical
+spots independently verified. Evidence:
+`jev-readout-refinement-dev-independent-verification.json`.
+Result SHA256 `a3074f5af7acfdea5f431014ff34a809efaead61ebf685022d06476f27001f32`;
+raw scores SHA256 `928e389203fe608b7edc348ea487f82bc81f57103b8c65b1053eafd2663a4425`.
+One sample/seed,partial dev,not native two-exit JEV or SOTA. Do not pool with
+the prior dev windows or interpret the reused0.71929553 selection AUC as dev.
+Final negative-result publication succeeded in the full authenticated
+shared-site snapshot; receipt `jev-refinement-final-publication-20261024.log`
+records successful deployment. Binding proof
+`jev-refinement-final-publication-verification.json` checks all12 dev
+metrics,four primary intervals,result/raw hashes,Completed parent/worker
+and the no-promotion decision,while retaining all prior training/dev tables.
+Browser rendering not independently rechecked.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

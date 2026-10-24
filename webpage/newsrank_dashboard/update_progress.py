@@ -73,14 +73,16 @@ CAMPAIGNS = [
                 "CPU refinement Completed: TRAINING-only AUC0.71224853->0.71929553 selects "
                 "binary L2=0.001. MRR/nDCG10 slightly lower on the reused holdout; not an "
                 "all-metric gain. All24 metrics/all6 heads' full-holdout mathematics and full "
-                "training-cache digest independently verified. Frozen selected head faces "
-                "unused dev16001-21000 against current scaled reference and frozen control; "
-                "primary refined-minus-scaled,no retuning. Fresh comparison submitted,source"
+                "training-cache digest independently verified. Frozen selected head was evaluated on "
+                "previously unused dev16001-21000 against scaled reference and frozen control; "
+                "primary refined-minus-scaled,no retuning. Fresh comparison Completed,source"
                 "6baf350d9533f8db60c803024f914214df2c0484; one Standard Ranking A100,21600s. "
-                "No refined-head dev result yet. "
+                "Same newdev5000: scaledAUC0.66751333,refined0.66938687,frozen0.62556294. "
+                "Primary +0.00187354,95%CI[-0.00083710,+0.00461701]; all four primary "
+                "intervals include zero. Refined head NOT promoted; retain scaled L2=0.01. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("maroon_music_n00417p68k", "Refined vs scaled vs frozen newdev16001-21000 parent", ""),
+            ("maroon_music_n00417p68k", "Refinement not promoted; newdev16001-21000 parent", "0.66938687"),
             ("907f0f26-3a75-4ca6-a2d0-ca153351814b", "Fixed refined-head fresh5000 worker", ""),
             ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", "0.66443821"),
             ("8f10cf1e-c9d4-4953-8261-ae3d0442397e", "Fixed three-arm comparison worker", ""),
@@ -234,10 +236,13 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Refinement NOT promoted: primary newdev AUC +0.00187354 "
+    "(95%CI[-0.00083710,+0.00461701]); all four primary intervals include zero. "
+    "Retain scaled L2=0.01 head; no dev retuning or replacement selection. "
     "CPU refinement Completed: training-only AUC0.71224853->0.71929553 selects binary L2=0.001; "
     "not dev,and MRR/nDCG10 slightly lower. Selected head frozen for newdev16001-21000 "
-    "against scaled reference and frozen; fresh5000 comparison submitted,one A100/six hours. "
-    "No refined-head dev result yet. "
+    "against scaled reference and frozen; fresh5000 comparison Completed,one A100/six hours. "
+    "Same window: scaled0.66751333,refined0.66938687,frozen0.62556294. "
     "Larger-data fit Completed: training-only holdout AUC0.69200943->0.71224853,selection only,not dev. "
     "Three-arm fresh dev11001-16000 Completed: frozen AUC0.62981627,confirmed0.64560843,"
     "scaled0.66443821. Primary scaled-minus-confirmed +0.01882978 "

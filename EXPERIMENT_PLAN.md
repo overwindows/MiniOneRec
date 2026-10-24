@@ -1270,7 +1270,7 @@ head while preserving the earlier two-arm mode; component
 `monitor_jev_readout_probe.py --comparison` mode. Budget remains one Standard
 Ranking A100 with21600-second timeout and six-hour submission wall-clock cap.
 No full-model training or additional automatic downstream job is launched.
-Run IDs/source follow actual submission; no new dev quality result yet.
+The submission protocol below is retained; final dev results follow it.
 
 Actual parent `khaki_muscle_yll119dfc7`, immutable source
 `99d4ce25c26b0fd4f172eb154d1fc86605a30165`, output
@@ -1295,6 +1295,53 @@ records `Status: Succeeded` / `Deployment Complete`. Binding evidence:
 selection values separately from previous dev metrics and keeps the new
 evaluator's quality-metric field empty. Browser rendering was not independently
 rechecked. Previous pilot/confirmation publication evidence remains separate.
+
+#### Three-arm fresh-dev result: scaling improves over confirmed readout
+
+Parent `khaki_muscle_yll119dfc7` and worker
+`8f10cf1e-c9d4-4953-8261-ae3d0442397e` are Completed. Controller exited0;
+final stage `three_arm_comparison_verified` at2026-10-24 05:11 UTC
+(13:11 UTC+8). Source checkout matched the pinned revision. Do not restart.
+
+| Same untouched dev11001-16000 /5000 impressions /183558 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.62981627 | 0.30666348 | 0.33395060 | 0.39362614 |
+| Confirmed16383-pair readout | 0.64560843 | 0.31194677 | 0.33804576 | 0.40073355 |
+| Scaled131071-pair readout | 0.66443821 | 0.32573042 | 0.35819062 | 0.41857302 |
+
+| Primary scaled-minus-confirmed | Mean difference | Paired impression-bootstrap95% CI |
+|---|---:|---:|
+| AUC | +0.01882978 | [+0.01445333,+0.02334820] |
+| MRR | +0.01378365 | [+0.00877740,+0.01915956] |
+| nDCG@5 | +0.02014485 | [+0.01465929,+0.02582601] |
+| nDCG@10 | +0.01783947 | [+0.01305403,+0.02282135] |
+
+All four primary intervals exclude zero (2048 paired impression resamples,
+seed42,unadjusted). Supporting AUC scaled-minus-frozen is +0.03462194
+[+0.02724089,+0.04217320]; confirmed-minus-frozen is +0.01579216
+[+0.00789295,+0.02388755]. The confirmed-minus-frozen secondary-metric
+intervals include zero; do not claim every contrast improves every metric.
+All12 metrics and all12 contrast/metric intervals independently reconstructed;
+exact coverage/order/labels,input hashes,both pinned heads,training provenance
+and128 two-head mathematical spots verified. Evidence:
+`jev-readout-scale-dev-independent-verification.json`.
+Result SHA256 `74a4fbedb4c1b38940fe1942d0eaadbcebda448827c74e3ae65de225e7df3e2b`;
+raw score SHA256 `cd3a2dea860de585314814ea9322c34ac5339fb454c5962db9bdf7a5029594e7`.
+
+The preregistered data-scale gain generalized to a new dev window against
+the confirmed adapter, not just frozen JEV. This is one training subset/seed,
+not full-dev/test performance, native two-exit JEV reproduction or SOTA.
+No cross-window absolute-score comparison or pooled interval is warranted.
+The broader competitive objective remains open; retain the scaled head as
+the current readout reference and preserve training caches for follow-up.
+
+Final-result publication succeeded: complete authenticated shared-site
+deployment log `jev-scale-three-arm-final-publication-20261024.log` records
+`Status: Succeeded` / `Deployment Complete`. Binding proof
+`jev-scale-three-arm-final-publication-verification.json` checks the result
+and raw-score hashes,all12 published dev metrics,four primary paired intervals,
+training-selection table kept separate,both heads,and Completed parent/worker
+states from the freshly generated AML feed. Browser rendering not rechecked.
 
 ### Phase 2: RL Fine-tuning
 

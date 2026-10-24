@@ -58,11 +58,16 @@ CAMPAIGNS = [
                 "Larger-data fit Completed: reference0.69200943->scaled0.71224853 on the reused256 "
                 "TRAINING holdout only,not dev. All12 selection metrics/row exclusion/head spots "
                 "independently verified; new head passes the preregistered gate. "
-                "Fresh three-arm dev comparison submitted; primary contrast scaled-minus-confirmed, "
-                "with frozen as supporting control. No new dev result yet; no retuning. "
+                "Fresh three-arm dev comparison Completed: frozen AUC0.62981627,confirmed "
+                "readout0.64560843,scaled0.66443821 on the same5000 impressions. Primary "
+                "scaled-minus-confirmed AUC +0.01882978,95% paired CI [+0.01445333,+0.02334820]. "
+                "MRR +0.01378365,nDCG5 +0.02014485,nDCG10 +0.01783947; all four primary "
+                "unadjusted intervals positive. Scaled-minus-frozen AUC +0.03462194 "
+                "[+0.02724089,+0.04217320]. All12 metrics,three contrasts,raw coverage,"
+                "both head checksums and128 two-head spots independently verified. No retuning. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", ""),
+            ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", "0.66443821"),
             ("8f10cf1e-c9d4-4953-8261-ae3d0442397e", "Fixed three-arm comparison worker", ""),
             ("patient_nest_sjxf5vj85m", "Training-only readout data-scale parent", ""),
             ("6d032cc6-03de-4307-8eb3-378920c63172", "Training-only data-scale worker", ""),
@@ -215,9 +220,10 @@ CAMPAIGNS = [
 
 HEADLINE = (
     "Larger-data fit Completed: training-only holdout AUC0.69200943->0.71224853,selection only,not dev. "
-    "Three fixed arms submitted on new dev11001-16000: scaled vs confirmed readout(primary), "
-    "plus frozen control; no fitting or retuning. One Standard ranking A100,six-hour cap; "
-    "no new dev result yet. "
+    "Three-arm fresh dev11001-16000 Completed: frozen AUC0.62981627,confirmed0.64560843,"
+    "scaled0.66443821. Primary scaled-minus-confirmed +0.01882978 "
+    "(95% paired CI [+0.01445333,+0.02334820]); all four primary metric intervals positive. "
+    "No dev fitting or retuning; all12 metrics,three contrasts,both heads and128 spots verified. "
     "Frozen-readout gain confirmed on fresh dev6001-11000: matched AUC 0.62637000 -> 0.64790555, "
     "+0.02153556 (95% paired CI [+0.01380902,+0.02905105]); MRR/nDCG also improve with "
     "positive unadjusted intervals. Exact unchanged head, no retraining/retuning; all5000 "

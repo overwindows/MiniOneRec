@@ -1705,9 +1705,10 @@ Reusing this training holdout and checking three epochs risks selection
 overfit;one seed is not independent robustness. Existing four-field
 linear-head format/evaluator are deliberately unchanged;the new strict
 eight-field nonlinear head is CPU-tested separately before any future
-evaluation integration. All27 targeted source tests pass,including XOR
+evaluation integration. All28 targeted source tests pass,including XOR
 learning,zero-residual parity,NumPy/Torch inference agreement,determinism,
-invalid heads/data,deadline rejection,strict gate and legacy behavior.
+invalid heads/data/nonfinite parity,deadline rejection,strict gate without
+post-selection fallback and legacy behavior.
 
 ### Phase 2: RL Fine-tuning
 

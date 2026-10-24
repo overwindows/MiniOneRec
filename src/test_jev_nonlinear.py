@@ -1,4 +1,5 @@
 import hashlib
+import json
 from pathlib import Path
 import tempfile
 import time
@@ -106,6 +107,24 @@ class NonlinearTests(unittest.TestCase):
             candidate = {"name": "mlp", "validation": dict(auc=auc, mrr=mrr, ndcg5=.4, ndcg10=.5)}
             selected, _ = nonlinear.select_candidate([reference, candidate])
             self.assertEqual(selected["name"] != REFERENCE_NAME, opens)
+        selected, best = nonlinear.select_candidate([
+            reference,
+            {"name": "second", "validation": dict(auc=.71, mrr=.31, ndcg5=.41, ndcg10=.51)},
+            {"name": "best", "validation": dict(auc=.72, mrr=.29, ndcg5=.41, ndcg10=.51)},
+        ])
+        self.assertEqual(best["name"], "best")
+        self.assertEqual(selected["name"], REFERENCE_NAME)
+
+    def test_invalid_loader_parity_is_rejected_before_training(self):
+        for difference in (float("nan"), float("inf"), -.1, .3):
+            with self.subTest(difference=difference), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                args = refinement_tests.RefinementTests().fixture(root)
+                parity = json.loads((root / "parity.json").read_bytes())
+                parity["loader_max_margin_difference"] = difference
+                (root / "parity.json").write_text(json.dumps(parity))
+                with self.assertRaisesRegex(ValueError, "parity"):
+                    nonlinear.train(*args, root / "parity.json", root / "out", "revision")
 
     def test_train_only_artifacts_gate_and_reference_byte_preservation(self):
         for succeeds in (False, True):

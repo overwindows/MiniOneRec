@@ -151,8 +151,11 @@ def train(cache, provenance_path, provenance_sha256, head_path, head_sha256,
         cache, provenance_path, provenance_sha256, head_path, head_sha256, expected_rows,
     )
     parity = json.loads(parity_path.read_bytes())
-    if (not parity["head_rows_identical"] or parity["loader_max_margin_difference"] > 0.25
-            or parity["training_max_margin_difference"] > 0.25):
+    differences = np.asarray([
+        parity["loader_max_margin_difference"], parity["training_max_margin_difference"],
+    ], dtype=float)
+    if (not parity["head_rows_identical"] or not np.isfinite(differences).all()
+            or (differences < 0).any() or (differences > 0.25).any()):
         raise ValueError("Original frozen-loader parity evidence is invalid")
     reference_head, _ = load_head(head_path, head_sha256)
     output.mkdir(parents=True, exist_ok=True)

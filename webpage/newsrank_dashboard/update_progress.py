@@ -51,7 +51,13 @@ CAMPAIGNS = [
                     "Verified doubled head2df5077c4e20ef115f6a379f23536450eefcb8a20bfc7e14534e20e49064ff17; "
                     "training-result16771883911bf4ddf695e363db8f1839f8ae35509041478e1586e434d1ee09d1. "
                     "Registered newdev comparison source8d412f4ea386f726fb355a3932a136571d7a3938; "
-                    "same one-A100/six-hour cap,one frozen feature pass for all three arms.",
+                    "same one-A100/six-hour cap,one frozen feature pass for all three arms. "
+                    "CPU-only nonlinear binary sourceaf9eb9c0c584bfaf4638675898e7c195dba79af4: "
+                    "frozen retained linear margin plus ReLU16 correction,dropout0.1,zero output init. "
+                    "AdamW lr0.001/weight_decay0.01/batch2048/seed42,epochs4/8/16,"
+                    "4threads/1800s. Gate:AUCgain>=0.005 and no secondary regression. "
+                    "Pairwise objective control sourcede50e05c15eb9d7bf0ddebfc77142af6afa6b910: "
+                    "same architecture/optimizer/checkpoints/gate,equal-impression weighted pairs.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
@@ -111,6 +117,19 @@ CAMPAIGNS = [
                 "contrasts,exact coverage/input hashes,both heads/training provenance and128 "
                 "two-head spots independently verified atOct25 05:43 UTC+8;controller exited0. "
                 "No retuning,reselection or pooling windows;no automatic further data-only scale job. "
+                "Cached nonlinear binary control Completed: TRAINING-only bestepoch16 "
+                "AUC0.71685153 vs retained0.71224853,only+0.00460300 below0.005;"
+                "MRR0.35061941,nDCG5 0.38948949,nDCG10 0.44751655 all lower. "
+                "Strict gate fails;retain exact279ef6c4,no GPU allocated. All16 training metrics,"
+                "four heads' full-holdout mathematics,128spots and complete cache digest/"
+                "sample/exclusion independently verified. This is a reused training holdout,"
+                "not dev evidence;new GPU needs separate passed gate and dev-start>=26000. "
+                "Cached nonlinear pairwise control Completed: TRAINING-only bestepoch4 "
+                "AUC0.71410710 vs retained0.71224853,only+0.00185858;"
+                "MRR0.35689598,nDCG5 0.39043828,nDCG10 0.45345119 all lower. "
+                "Unchanged gate fails;retain exact279ef6c4. All16 pairwise metrics,four "
+                "heads' full-holdout math,128spots/cache/sample/exclusion independently verified. "
+                "Both CPU controllers exited0;neither nonlinear head receives a GPU test. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
             ("kind_snake_fkcl3465qw", "Doubled not promoted,newdev21001-26000 parent", "0.65448886"),
@@ -271,6 +290,9 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Both cached nonlinear controls rejected before GPU:binary bestTRAINING-AUC0.71685153,"
+    "pairwise0.71410710 vs retained0.71224853;both below+0.005 gate and both lowerMRR/nDCG. "
+    "Retain exact279ef6c4;all32 training metric cells/full-holdout head math verified,no newdev claim. "
     "Doubled head NOT promoted: untouched dev21001-26000 retainedAUC0.65561171 vs doubled0.65448886 "
     "(frozen0.62787974). Primary -0.00112285,95%CI[-0.00307466,+0.00088349];"
     "all four primary intervals include zero. Retain131071 head279ef6c4. "

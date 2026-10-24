@@ -1754,6 +1754,31 @@ fails secondary gates. Future dev-start>=26000 remains mandatory.
 All29 targeted tests pass,including hand-reconstructed unequal-group
 pairwise weighting and invalid impression-group rejection.
 
+#### Cached pairwise nonlinear result: gate also fails (October25 06:06 UTC+8)
+
+CPU-only source `de50e05c15eb9d7bf0ddebfc77142af6afa6b910`;
+controller exited0. All16 metrics,all four full-holdout head mathematical
+reconstructions,128 spots,full-cache hash,sample/exclusion and unchanged
+selection rule independently verified. No dev reads or GPU allocation.
+
+| Reused TRAINING holdout only /256 impressions /9526 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Retained131071 linear reference | 0.71224853 | 0.36626940 | 0.40001304 | 0.46114360 |
+| Pairwise MLP16 epoch4 | 0.71410710 | 0.35689598 | 0.39043828 | 0.45345119 |
+| Pairwise MLP16 epoch8 | 0.70789252 | 0.35024826 | 0.38635408 | 0.44265946 |
+| Pairwise MLP16 epoch16 | 0.71069218 | 0.34618127 | 0.38197816 | 0.44096265 |
+
+Best epoch4 AUC improves only+0.00185858,below0.005,and all secondary
+metrics decrease. Strict gate fails;retain exact279ef6c4. No fallback
+epoch reselection,no GPU test for either binary or pairwise nonlinear
+head. This rejects these specified controls,not all nonlinear modeling.
+Proof `jev-nonlinear-pairwise-independent-verification.json`.
+Result SHA256:
+`560adbb2a8f57842692993153e0cbce30bba21b6a092cf27db9286729c1d3c56`.
+Raw holdout scores SHA256:
+`99c6bda878e3b195380b14b363a7e3afbaec19eb15d07619517c780f4c8cf2b8`.
+No new dev result or SOTA claim. Both CPU runs are complete.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

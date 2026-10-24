@@ -1710,6 +1710,50 @@ learning,zero-residual parity,NumPy/Torch inference agreement,determinism,
 invalid heads/data/nonfinite parity,deadline rejection,strict gate without
 post-selection fallback and legacy behavior.
 
+#### Cached nonlinear binary result: gate fails (October25 05:59 UTC+8)
+
+CPU controller exited0;source
+`af9eb9c0c584bfaf4638675898e7c195dba79af4`. All16 holdout metrics,
+all four heads' full9526-row mathematics,128 spots,full training-cache
+digest,sample identity/exclusion and selection independently verified.
+No dev data read or GPU allocated.
+
+| Reused TRAINING holdout only /256 impressions /9526 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Retained131071 linear reference | 0.71224853 | 0.36626940 | 0.40001304 | 0.46114360 |
+| Binary MLP16 epoch4 | 0.71175598 | 0.36719867 | 0.39928874 | 0.46108529 |
+| Binary MLP16 epoch8 | 0.70950922 | 0.35658260 | 0.38447309 | 0.45545861 |
+| Binary MLP16 epoch16 | 0.71685153 | 0.35061941 | 0.38948949 | 0.44751655 |
+
+Best AUC checkpoint16 gains only+0.00460300,below the preregistered0.005
+gate,and lowers all three secondary metrics. Retain exact head279ef6c4,
+`nonlinear_head_opens_dev_gate=false`. Do not evaluate this binary MLP
+on dev or weaken its gate. Proof `jev-nonlinear-independent-verification.json`.
+Result SHA256:
+`6fe1bc2678aebd43759549b2760831a797967189fa844cd29d62d1524e000cfb`.
+Raw holdout scores SHA256:
+`f92c31105cf91d2a352f90240b5a1c377956424c3c86ae9cbb989a0cfebecfcc`.
+
+#### Next CPU-only objective control: impression-balanced pairwise MLP
+
+The binary MLP's training-holdout AUC/top-rank tradeoff motivates a ranking
+objective control,not dev-based tuning. Keep the same architecture,
+cache,reference,initialization,optimizer,seed42,16epochs,checkpoints4/8/16,
+4threads/1800s and unchanged0.005/all-secondary gate. Only replace binary
+CE by softplus(negative_margin-positive_margin) over within-impression
+positive/negative pairs. Each impression has equal total pair weight,
+as in the existing linear pairwise baseline. Uniformly shuffled pair
+minibatches use importance weights so the full-epoch objective has that
+same equal-impression normalization. Default binary behavior is preserved
+behind `--objective pairwise`;separate output and candidate names.
+
+This remains cached TRAINING-only selection on a reused holdout,not a
+fresh independent validation result. No dev reads,no automatic GPU
+submission,no fallback to a different epoch when the best-AUC checkpoint
+fails secondary gates. Future dev-start>=26000 remains mandatory.
+All29 targeted tests pass,including hand-reconstructed unequal-group
+pairwise weighting and invalid impression-group rejection.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

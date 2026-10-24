@@ -96,10 +96,33 @@ class NonlinearTests(unittest.TestCase):
                 head[key] = value
                 with self.assertRaises(ValueError):
                     nonlinear.validate_head(head)
+
         head = self.head()
         head["unknown"] = np.asarray(1.)
         with self.assertRaises(ValueError):
             nonlinear.validate_head(head)
+
+    def test_pairwise_loss_has_equal_impression_weight_and_rejects_bad_groups(self):
+        x = np.zeros((5, 2))
+        labels = np.asarray([0, 1, 0, 0, 1])
+        base = np.asarray([1., 2., 2., 5., 7.])
+        groups = ["a", "a", "b", "b", "b"]
+        reference = {key: value.copy() for key, value in self.head().items() if key in nonlinear.REFERENCE_FIELDS}
+        with patch("builtins.print"):
+            fitted = list(nonlinear.fit_checkpoints(
+                x, base, labels, reference, (1,), objective="pairwise", groups=groups,
+            ))
+        expected = .5 * np.logaddexp(0., -1.) + .25 * (
+            np.logaddexp(0., -5.) + np.logaddexp(0., -2.)
+        )
+        self.assertAlmostEqual(fitted[0][2], expected, places=12)
+        for invalid in (None, ["a"], ["a", "b", "a", "a", "b"]):
+            with self.assertRaises(ValueError):
+                list(nonlinear.fit_checkpoints(
+                    x, base, labels, reference, (1,), objective="pairwise", groups=invalid,
+                ))
+        with self.assertRaises(ValueError):
+            list(nonlinear.fit_checkpoints(x, base, labels, reference, (1,), objective="unknown"))
 
     def test_strict_gate_requires_material_auc_and_all_secondary_nonregression(self):
         reference = {"name": REFERENCE_NAME, "validation": dict(auc=.7, mrr=.3, ndcg5=.4, ndcg10=.5)}

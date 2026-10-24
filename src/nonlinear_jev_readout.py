@@ -12,7 +12,7 @@ import torch
 from torch import nn
 
 from evaluate_jev_readout import load_head
-from probe_jev_readout import metrics, predict, save_json
+from probe_jev_readout import metrics, pair_indices, predict, save_json
 from refine_jev_readout import load_inputs, REFERENCE_NAME
 from scale_jev_readout import sha256_file
 
@@ -70,7 +70,8 @@ def predict_nonlinear(head, features, margins):
     return scores
 
 
-def fit_checkpoints(features, margins, labels, reference, checkpoints=CHECKPOINTS, deadline=None):
+def fit_checkpoints(features, margins, labels, reference, checkpoints=CHECKPOINTS, deadline=None,
+                    objective="binary", groups=None):
     if (features.ndim != 2 or features.shape[1:] != reference["weight"].shape
             or margins.shape != labels.shape or labels.shape != (len(features),)
             or not len(features) or set(np.unique(labels)) != {0, 1}
@@ -78,6 +79,14 @@ def fit_checkpoints(features, margins, labels, reference, checkpoints=CHECKPOINT
             or not checkpoints or tuple(sorted(set(checkpoints))) != checkpoints
             or checkpoints[0] < 1):
         raise ValueError("Expected aligned mixed-label training data and increasing positive checkpoints")
+    if objective not in ("binary", "pairwise"):
+        raise ValueError("Expected binary or pairwise nonlinear objective")
+    pairs = None
+    if objective == "pairwise":
+        if groups is None or len(groups) != len(features):
+            raise ValueError("Pairwise nonlinear training requires aligned impression groups")
+        pairs = tuple(value.numpy() for value in pair_indices(labels, groups))
+    training_size = len(features) if pairs is None else len(pairs[0])
     base = np.empty(len(features), dtype=np.float64)
     for start in range(0, len(features), BATCH_SIZE):
         end = start + BATCH_SIZE
@@ -94,28 +103,33 @@ def fit_checkpoints(features, margins, labels, reference, checkpoints=CHECKPOINT
         generator = torch.Generator().manual_seed(42)
         for epoch in range(1, checkpoints[-1] + 1):
             network.train()
-            order = torch.randperm(len(features), generator=generator).numpy()
+            order = torch.randperm(training_size, generator=generator).numpy()
             total_loss = 0.
-            for start in range(0, len(features), BATCH_SIZE):
+            for start in range(0, training_size, BATCH_SIZE):
                 if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError("Nonlinear training exceeded its fixed CPU deadline")
-                indices = order[start:start + BATCH_SIZE]
+                batch = order[start:start + BATCH_SIZE]
+                indices = batch if pairs is None else np.concatenate((pairs[0][batch], pairs[1][batch]))
                 x = ((features[indices] - reference["mean"]) / reference["scale"]).astype(np.float32)
                 optimizer.zero_grad()
                 logits = torch.from_numpy(base[indices]) + network(torch.from_numpy(x)).squeeze(-1)
-                loss = nn.functional.binary_cross_entropy_with_logits(
-                    logits, torch.from_numpy(labels[indices].astype(np.float64)),
-                )
+                if pairs is None:
+                    loss = nn.functional.binary_cross_entropy_with_logits(
+                        logits, torch.from_numpy(labels[indices].astype(np.float64)),
+                    )
+                else:
+                    pair_weight = torch.from_numpy(pairs[2][batch] * training_size)
+                    loss = (nn.functional.softplus(logits[len(batch):] - logits[:len(batch)]) * pair_weight).mean()
                 if not torch.isfinite(loss):
                     raise FloatingPointError("Nonlinear training loss is nonfinite")
                 loss.backward()
                 if any(not torch.isfinite(parameter.grad).all() for parameter in network.parameters()):
                     raise FloatingPointError("Nonlinear training gradients are nonfinite")
                 optimizer.step()
-                total_loss += float(loss.detach()) * len(indices)
+                total_loss += float(loss.detach()) * len(batch)
             print(json.dumps({
                 "stage": "nonlinear_epoch", "epoch": epoch,
-                "training_loss": total_loss / len(features),
+                "training_loss": total_loss / training_size,
             }), flush=True)
             if epoch in checkpoints:
                 head = {key: reference[key].copy() for key in REFERENCE_FIELDS}
@@ -126,7 +140,7 @@ def fit_checkpoints(features, margins, labels, reference, checkpoints=CHECKPOINT
                     output_bias=np.asarray(float(network[-1].bias.detach()[0]), dtype=np.float32),
                 )
                 validate_head(head)
-                yield epoch, head, total_loss / len(features)
+                yield epoch, head, total_loss / training_size
 
 
 def select_candidate(candidates):
@@ -143,7 +157,9 @@ def select_candidate(candidates):
 
 
 def train(cache, provenance_path, provenance_sha256, head_path, head_sha256,
-          expected_rows, parity_path, output, source_revision):
+          expected_rows, parity_path, output, source_revision, objective="binary"):
+    if objective not in ("binary", "pairwise"):
+        raise ValueError("Expected binary or pairwise nonlinear objective")
     if output.exists() and any(output.iterdir()):
         raise FileExistsError("Nonlinear training output must be empty")
     deadline = time.monotonic() + 1800
@@ -166,6 +182,8 @@ def train(cache, provenance_path, provenance_sha256, head_path, head_sha256,
         "architecture": f"Retained linear margin + Linear({len(reference_head['weight'])},16)/ReLU/Dropout(0.1)/Linear(16,1)",
         "initialization": "seed42;zero output layer preserves reference initially",
         "optimizer": "CPU AdamW,lr0.001,weight_decay0.01,batch2048,seed42",
+        "objective": objective,
+        "pairwise_weighting": "Each impression has equal total pair weight;uniform shuffled pair minibatches are importance-weighted",
         "checkpoints": list(CHECKPOINTS), "cpu_threads_maximum": 4,
         "timeout_seconds": 1800, "minimum_dev_start": 26000,
         "selection": "Best reused-training-holdout AUC;reference wins ties",
@@ -184,8 +202,11 @@ def train(cache, provenance_path, provenance_sha256, head_path, head_sha256,
     hg = [row["impression_id"] for row in holdout]
     candidates = [{"name": REFERENCE_NAME, "validation": provenance["scaled"]}]
     all_scores = {REFERENCE_NAME: reference_scores}
-    for epoch, head, loss in fit_checkpoints(x, base, labels, reference_head, deadline=deadline):
-        name = f"mlp16_epoch{epoch}"
+    for epoch, head, loss in fit_checkpoints(
+        x, base, labels, reference_head, deadline=deadline,
+        objective=objective, groups=[row["impression_id"] for row in rows],
+    ):
+        name = f"mlp16_epoch{epoch}" if objective == "binary" else f"pairwise_mlp16_epoch{epoch}"
         scores = predict_nonlinear(head, hx, hb)
         values = metrics(hy, scores, hg)
         np.savez(output / (name + ".head.npz"), **head)
@@ -214,6 +235,7 @@ def train(cache, provenance_path, provenance_sha256, head_path, head_sha256,
     )
     result = {
         "source_revision": source_revision, "training_only": True,
+        "objective": objective,
         "training_pairs": len(rows), "training_impressions": provenance["training_impressions"],
         "train_holdout_impressions": provenance["train_holdout_impressions"],
         "holdout_candidates": len(holdout), "selected": selected["name"], "best_candidate": best["name"],
@@ -249,12 +271,13 @@ def main():
     ap.add_argument("--loader-parity", required=True, type=Path)
     ap.add_argument("--output", required=True, type=Path)
     ap.add_argument("--source-revision", required=True)
+    ap.add_argument("--objective", choices=("binary", "pairwise"), default="binary")
     args = ap.parse_args()
     torch.set_num_threads(min(torch.get_num_threads(), 4))
     train(
         args.cache, args.training_result, args.training_result_sha256,
         args.reference_head, args.reference_head_sha256, args.expected_training_rows,
-        args.loader_parity, args.output, args.source_revision,
+        args.loader_parity, args.output, args.source_revision, args.objective,
     )
 
 

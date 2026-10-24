@@ -43,7 +43,11 @@ CAMPAIGNS = [
                     "binary L2=0.1,0.001; pairwise L2=0.1,0.01,0.001; scaled reference wins "
                     "training-holdout ties. Four CPU threads; no new backbone extraction. "
                     "Selected binary L2=0.001,head a8bcae18921897418822c8efa3b2aa12ff8a0dbdefbc8810eb45565865f19b6c; "
-                    "training-result83663c14594882d82bba3ba81402887ab5c2d8c6bebc1d793b6d63c629a28560.",
+                    "training-result83663c14594882d82bba3ba81402887ab5c2d8c6bebc1d793b6d63c629a28560. "
+                    "Next data-only doubling sourceee17243f0d738c216b37998a780710ec7a5f10ba: "
+                    "262143 pairs/69958 impressions,reuse131071 exact-prefix cache,131072 new "
+                    "features. Binary L2=0.01,seed42,prompt/backbone and256 train holdout fixed; "
+                    "one Standard Ranking A100/21600s,training-only,no dev scoring.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
@@ -80,8 +84,13 @@ CAMPAIGNS = [
                 "Same newdev5000: scaledAUC0.66751333,refined0.66938687,frozen0.62556294. "
                 "Primary +0.00187354,95%CI[-0.00083710,+0.00461701]; all four primary "
                 "intervals include zero. Refined head NOT promoted; retain scaled L2=0.01. "
+                "Data-only doubling is submitted; no new quality metric. Strict training-holdout "
+                "gate first; any future dev test must use new21001-26000 against retained "
+                "131071 head and frozen,not retune or pool old windows. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("coral_turtle_b21f31930c", "Training-only data doubling parent,262143 pairs", ""),
+            ("673f3dd0-32ae-4885-9ad8-f9ad0c778652", "Training-only doubled-data worker", ""),
             ("maroon_music_n00417p68k", "Refinement not promoted; newdev16001-21000 parent", "0.66938687"),
             ("907f0f26-3a75-4ca6-a2d0-ca153351814b", "Fixed refined-head fresh5000 worker", ""),
             ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", "0.66443821"),
@@ -236,6 +245,8 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Continuing training-only data doubling:262143 pairs,reuse131071 cached,131072 new features. "
+    "Same binary L2=0.01/backbone/prompt;one A100/six-hour cap,no new quality result. "
     "Refinement NOT promoted: primary newdev AUC +0.00187354 "
     "(95%CI[-0.00083710,+0.00461701]); all four primary intervals include zero. "
     "Retain scaled L2=0.01 head; no dev retuning or replacement selection. "

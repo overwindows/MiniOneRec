@@ -1529,6 +1529,25 @@ Actual doubled-sample preflight checks all262143 IDs/order/labels,69958
 training impressions,exact131071 prefix,holdout exclusion and new component
 schema.20 related source tests and8 independent-monitor fixtures pass.
 Run IDs/source must follow actual submission; no new quality claim yet.
+Actual parent **`coral_turtle_b21f31930c`**, worker
+`673f3dd0-32ae-4885-9ad8-f9ad0c778652`; immutable source
+`ee17243f0d738c216b37998a780710ec7a5f10ba`.
+Output `shares/users/wuc/output_dir/jev_readout_recovery_20261024/double_train_01`.
+At19:01 UTC+8 parent Running/worker Queued; monitor PID26260 verified
+actual Standard Ranking A100x1,21600s,source/output,retained reference
+head path/checksum,262144 pair-cap tag and original holdout-cache root.
+Attached shell **`jev-double-scale-controller`**; monitor profile
+`--doubling`,status prefix `jev-readout-double-scale-`. Enforces original
+creation-based six-hour deadline; do not duplicate or restart it.
+No new train-selection or dev quality metric is available.
+The retained-head decision and actual doubled-data submission are published
+in the complete authenticated shared-site snapshot. Receipt
+`jev-double-scale-submission-publication-20261024.log` records
+`Status: Succeeded` / `Deployment Complete`; binding proof
+`jev-double-scale-submission-publication-verification.json` verifies source,
+262143/131071/131072 counts,actual fresh parent state and empty training-only
+quality metric while preserving all prior training/dev tables and intervals.
+Browser rendering not independently rechecked.
 
 ### Phase 2: RL Fine-tuning
 

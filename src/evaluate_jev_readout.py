@@ -35,6 +35,8 @@ def main():
     ap.add_argument("--data-root", type=Path, required=True)
     ap.add_argument("--head-path", type=Path, required=True)
     ap.add_argument("--head-sha256", required=True)
+    ap.add_argument("--reference-head", type=Path)
+    ap.add_argument("--reference-head-sha256")
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--source-revision", required=True)
     ap.add_argument("--dev-start", type=int, default=6000)
@@ -42,10 +44,25 @@ def main():
     args = ap.parse_args()
     if args.dev_start < 6000 or args.dev_impressions < 1:
         ap.error("Confirmation must exclude dev rows already used by the pilot")
+    if bool(args.reference_head) != bool(args.reference_head_sha256):
+        ap.error("Reference head path and checksum must be supplied together")
+    if args.reference_head and args.dev_start < 11000:
+        ap.error("Three-arm comparison must exclude both completed readout dev windows")
     args.output.mkdir(parents=True, exist_ok=True)
     if (args.output / "result.json").exists():
         raise FileExistsError("Refusing to overwrite a completed confirmation")
     head, head_bytes = load_head(args.head_path, args.head_sha256)
+    reference_head = None
+    if args.reference_head:
+        reference_head, reference_bytes = load_head(
+            args.reference_head, args.reference_head_sha256,
+        )
+        if reference_head["weight"].shape != head["weight"].shape:
+            raise ValueError("Compared readouts have different representation dimensions")
+        (args.output / "reference.head.npz").write_bytes(reference_bytes)
+        (args.output / "head-training-result.json").write_bytes(
+            (args.head_path.parent / "result.json").read_bytes()
+        )
     selection_path = args.head_path.parent / "train-selection.json"
     selection = json.loads(selection_path.read_text(encoding="utf-8"))
     if args.head_path.name != selection["selected"] + ".head.npz":
@@ -64,6 +81,7 @@ def main():
     )
     sample_features, sample_base, sample_scores = [], [], []
     base_parts, score_parts = [], []
+    reference_parts, sample_reference = [], []
     scorer = JevScorer(args.model_path, prompt_contract="legacy", max_prompt_tokens=4095)
     for parameter in scorer.model.parameters():
         parameter.requires_grad_(False)
@@ -79,21 +97,32 @@ def main():
             raise FloatingPointError("Fixed-head confirmation scores are nonfinite")
         base_parts.append(base)
         score_parts.append(scores)
+        if reference_head is not None:
+            reference_scores = predict(reference_head, features, base)
+            if not np.isfinite(reference_scores).all():
+                raise FloatingPointError("Reference-head scores are nonfinite")
+            reference_parts.append(reference_scores)
         chosen = sample_indices[(sample_indices >= start) & (sample_indices < start + len(chunk))] - start
         if len(chosen):
             sample_features.append(features[chosen])
             sample_base.append(base[chosen])
             sample_scores.append(scores[chosen])
+            if reference_head is not None:
+                sample_reference.append(reference_scores[chosen])
         if start % 512 == 0:
             print(json.dumps({
                 "stage": "confirmation", "processed": start + len(chunk), "total": len(rows),
             }), flush=True)
     base, scores = np.concatenate(base_parts), np.concatenate(score_parts)
-    np.savez(
-        args.output / "readout-spotcheck.npz", indices=sample_indices,
-        features=np.concatenate(sample_features), margins=np.concatenate(sample_base),
-        selected=np.concatenate(sample_scores),
+    spot = dict(
+        indices=sample_indices, features=np.concatenate(sample_features),
+        margins=np.concatenate(sample_base), selected=np.concatenate(sample_scores),
     )
+    reference_scores = None
+    if reference_head is not None:
+        reference_scores = np.concatenate(reference_parts)
+        spot["reference"] = np.concatenate(sample_reference)
+    np.savez(args.output / "readout-spotcheck.npz", **spot)
     labels = np.asarray([row["label"] for row in rows])
     groups = [row["impression_id"] for row in rows]
     frozen = metrics(labels, base, groups)
@@ -102,13 +131,16 @@ def main():
         position = 0
         for impression, candidates in records:
             end = position + len(candidates)
-            handle.write(json.dumps({
+            record = {
                 "impression_id": impression,
                 "candidate_ids": [row["candidate_id"] for row in candidates],
                 "labels": [row["label"] for row in candidates],
                 "frozen_margins": base[position:end].tolist(),
                 "selected_margins": scores[position:end].tolist(),
-            }, allow_nan=False) + "\n")
+            }
+            if reference_scores is not None:
+                record["reference_margins"] = reference_scores[position:end].tolist()
+            handle.write(json.dumps(record, allow_nan=False) + "\n")
             position = end
     result = {
         "source_revision": args.source_revision,
@@ -124,10 +156,20 @@ def main():
         },
         "limitations": [
             "Fixed frozen-backbone readout, not full-model or native two-exit JEV training.",
-            "Fresh dev rows6001-11000 by default; not the old first5000 comparison.",
+            f"Dev rows{args.dev_start + 1}-{args.dev_start + len(records)}; not the old first5000 comparison.",
             "One training subset/seed; no SOTA or repeated-seed claim.",
         ],
     }
+    if reference_scores is not None:
+        reference_metrics = metrics(labels, reference_scores, groups)
+        result.update(
+            reference_head_sha256=args.reference_head_sha256,
+            reference_metrics=reference_metrics,
+            primary_comparison="selected_minus_reference",
+            delta_vs_reference={
+                key: selected[key] - reference_metrics[key] for key in selected
+            },
+        )
     save_json(args.output / "result.json", result)
     print(json.dumps(result, indent=2), flush=True)
 

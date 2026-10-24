@@ -1220,6 +1220,58 @@ not six hours from the monitor restart. Private evidence:
 `jev-readout-scale-controller-resume-01.log`. Await this resumed shell's
 completion notification, then read that known shell; do not duplicate it.
 
+#### Larger-data fit completed; fresh three-arm test registered (2026-10-24 UTC+8)
+
+Training-only parent `patient_nest_sjxf5vj85m` and worker
+`6d032cc6-03de-4307-8eb3-378920c63172` are Completed. The resumed controller
+exited0 at07:51 UTC+8, stage `training_scale_independently_verified`.
+Actual131071 pairs from30944 training impressions were fitted with the
+unchanged binary objective,L2 0.01,seed42 and frozen backbone.
+
+**These are reused training-holdout selection metrics, not dev results:**
+
+| Same256 training-holdout impressions /9526 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.59377260 | 0.26778246 | 0.28753004 | 0.34517504 |
+| Confirmed16383-pair readout | 0.69200943 | 0.32886587 | 0.36049582 | 0.42302331 |
+| New131071-pair readout | 0.71224853 | 0.36626940 | 0.40001304 | 0.46114360 |
+
+The new head passes the preregistered strict train-holdout AUC gate.
+Exact training row IDs/order/labels,holdout exclusion,all12 holdout metrics,
+head checksums and128 two-head mathematical spot checks were independently
+verified. The large training feature-file digest is worker-recorded, not
+independently downloaded. Evidence:
+`jev-readout-scale-independent-verification.json`.
+Training result SHA256:
+`5a4cf046889b40d5ce6ada7a5240f91a21919ab48d0161857fb559eca4a36dd7`.
+New head SHA256:
+`279ef6c47f09e7fe49b803810159cac6fba7ee23d612ea33318af6ec37f86457`.
+
+**Fixed before new dev scoring:** compare three unchanged conditions on
+untouched dev rows11001-16000,5000 impressions/183558 candidates.
+Primary contrast is scaled-minus-confirmed readout, not merely scaled-minus-
+frozen. Scaled-minus-frozen and confirmed-minus-frozen are supporting
+contrasts. Report AUC,MRR,nDCG@5,nDCG@10 and2048 paired impression-bootstrap
+resamples,seed42,unadjusted. Keep all prior windows separate; no pooling,
+model selection,retraining or retuning on this dev window.
+
+One frozen-backbone feature pass is reused for both readouts, preserving
+raw three-arm margins and128 deterministic two-head feature spot checks.
+The selected head and original confirmed head are both checksum-pinned;
+the selected head's training-result provenance is pinned to the verified
+training-only outcome. Exact-window preflight verifies all IDs/news coverage,
+both classes per impression and both actual2560-dimensional heads.
+All31 JEV source tests and6 independent-monitor fixture tests cover this
+path, including executor mounting of both checksum-pinned heads.
+
+Implementation extends `evaluate_jev_readout.py` with an optional comparison
+head while preserving the earlier two-arm mode; component
+`readout_comparison.yaml`, launcher `--comparison-head` and separate
+`monitor_jev_readout_probe.py --comparison` mode. Budget remains one Standard
+Ranking A100 with21600-second timeout and six-hour submission wall-clock cap.
+No full-model training or additional automatic downstream job is launched.
+Run IDs/source follow actual submission; no new dev quality result yet.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

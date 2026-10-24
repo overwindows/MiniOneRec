@@ -220,6 +220,8 @@ def main():
     parser.add_argument("--output-root", default="")
     parser.add_argument("--readout-head", default="")
     parser.add_argument("--readout-head-sha256", default="")
+    parser.add_argument("--comparison-head", default="")
+    parser.add_argument("--comparison-head-sha256", default="")
 
     args = parser.parse_args()
 
@@ -241,6 +243,8 @@ def main():
         'output_root': f"{args.mount_dir}/{args.output_root}" if args.mount_dir and args.output_root else args.output_root,
         'readout_head': f"{args.mount_dir}/{args.readout_head}" if args.mount_dir and args.readout_head else args.readout_head,
         'readout_head_sha256': args.readout_head_sha256,
+        'comparison_head': f"{args.mount_dir}/{args.comparison_head}" if args.mount_dir and args.comparison_head else args.comparison_head,
+        'comparison_head_sha256': args.comparison_head_sha256,
     }
 
     # 合成完整路径

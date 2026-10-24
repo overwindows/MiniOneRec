@@ -19,16 +19,24 @@ def main():
     parser.add_argument("--fixed-head", default=None)
     parser.add_argument("--fixed-head-sha256", default=None)
     parser.add_argument("--scale-training", action="store_true")
+    parser.add_argument("--comparison-head", default=None)
+    parser.add_argument("--comparison-head-sha256", default=None)
     args = parser.parse_args()
     if bool(args.fixed_head) != bool(args.fixed_head_sha256):
         parser.error("--fixed-head and --fixed-head-sha256 must be supplied together")
     if args.scale_training and not args.fixed_head:
         parser.error("--scale-training requires the checksum-pinned reference head")
+    if bool(args.comparison_head) != bool(args.comparison_head_sha256):
+        parser.error("Comparison head path and checksum must be supplied together")
+    if args.comparison_head and (args.scale_training or not args.fixed_head):
+        parser.error("Comparison is evaluation-only and requires a fixed selected head")
     if not VC_ARM_ID.lower().endswith("/virtualclusters/ranking"):
         raise RuntimeError("The bounded recovery probe must use the ranking virtual cluster")
     component_file = "readout_confirmation.yaml" if args.fixed_head else "readout_probe.yaml"
     if args.scale_training:
         component_file = "readout_scale.yaml"
+    if args.comparison_head:
+        component_file = "readout_comparison.yaml"
     component_path = Path(__file__).parent / "components" / "mind_jev_eval" / component_file
     revision, component, upload = prepare_source_component(
         component_path, args.source_revision, args.bundle_source,
@@ -49,6 +57,11 @@ def main():
         )
         if args.fixed_head:
             inputs.update(readout_head=args.fixed_head, readout_head_sha256=args.fixed_head_sha256)
+        if args.comparison_head:
+            inputs.update(
+                comparison_head=args.comparison_head,
+                comparison_head_sha256=args.comparison_head_sha256,
+            )
         node = component(**inputs)
         node.compute = VC_ARM_ID
         node.resources = JobResourceConfiguration(
@@ -70,6 +83,8 @@ def main():
     )
     if args.scale_training:
         job.display_name = "JEV train-only readout data scaling,131072 pair cap"
+    if args.comparison_head:
+        job.display_name = "JEV scaled vs confirmed vs frozen,fresh dev11001-16000"
     job.tags = {
         "source_revision": revision, "jev_experiment": "frozen_residual_readout",
         "budget": "one_A100_six_hours", "dev_selection": "none",
@@ -78,6 +93,11 @@ def main():
         job.tags.update(jev_experiment="fixed_readout_confirmation", head_sha256=args.fixed_head_sha256)
     if args.scale_training:
         job.tags.update(jev_experiment="training_data_scale", train_pairs_budget="131072")
+    if args.comparison_head:
+        job.tags.update(
+            jev_experiment="fixed_readout_comparison",
+            comparison_head_sha256=args.comparison_head_sha256,
+        )
     try:
         created = ml_client.jobs.create_or_update(job)
     finally:

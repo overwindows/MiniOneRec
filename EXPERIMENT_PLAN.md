@@ -1671,6 +1671,44 @@ Raw-score SHA256:
 `aa9bf431f12e84badc647c06d4a4a5c281c614ace4b0fa1ac4a55e389d5631b6`.
 One training subset/seed,partial dev,not full-dev/test or SOTA.
 
+#### Next controlled test: cached nonlinear correction (October25,2026)
+
+Data-only doubling failed its independent-dev promotion gate. Keep retained
+131071-pair head279ef6c4 unchanged;test a different function class rather
+than allocating another data-extraction job.
+
+`src/nonlinear_jev_readout.py` fits a small correction to that retained
+margin:standardize the cached final-normalized JEV features with the
+retained head's original mean/scale,then Linear(2560,16),ReLU,training-only
+dropout0.1,and Linear(16,1). Add its scalar output to the unchanged
+retained linear margin. Zero initialization of the final layer preserves
+that reference before fitting. Both frozen backbone and retained linear
+parameters stay unchanged;no extra model features or dev inputs.
+
+Predeclared CPU-only protocol:reuse the independently downloaded131071
+training pairs and original excluded256-impression/9526-candidate training
+holdout. Verify full feature-cache/provenance hashes,exact sampled row
+identity/exclusion,and reproduction of all four retained holdout metrics
+before fitting. CPU AdamW,lr0.001,weight_decay0.01,batch2048,seed42,maximum
+4threads/1800seconds;one16-epoch trajectory,only checkpoints4/8/16.
+Best training-holdout AUC wins,reference wins ties. Open a future dev gate
+only if that best checkpoint improves holdout AUC by at least0.005 AND
+does not lower MRR,nDCG@5 or nDCG@10;otherwise retain the exact reference.
+This is a conservative compute gate,not statistical evidence of quality.
+
+Persist all three heads,16 candidate metrics,full holdout scores,128
+feature spots and hashes;independently reconstruct every head's full
+holdout mathematics and selection decision. No dev data or dev scores
+are inputs,no GPU is automatically submitted,and any subsequent
+fixed-head evaluation must use new dev-start>=26000 (rows26001 onward).
+Reusing this training holdout and checking three epochs risks selection
+overfit;one seed is not independent robustness. Existing four-field
+linear-head format/evaluator are deliberately unchanged;the new strict
+eight-field nonlinear head is CPU-tested separately before any future
+evaluation integration. All27 targeted source tests pass,including XOR
+learning,zero-residual parity,NumPy/Torch inference agreement,determinism,
+invalid heads/data,deadline rejection,strict gate and legacy behavior.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

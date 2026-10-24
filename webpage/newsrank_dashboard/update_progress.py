@@ -41,7 +41,9 @@ CAMPAIGNS = [
                     "One Standard ranking A100; six-hour timeout; no new full-model training. "
                     "Cached CPU refinement source20a8bd26abdb7ba0a84c2e2a2e651593b6f2ba43: "
                     "binary L2=0.1,0.001; pairwise L2=0.1,0.01,0.001; scaled reference wins "
-                    "training-holdout ties. Four CPU threads; no new backbone extraction.",
+                    "training-holdout ties. Four CPU threads; no new backbone extraction. "
+                    "Selected binary L2=0.001,head a8bcae18921897418822c8efa3b2aa12ff8a0dbdefbc8810eb45565865f19b6c; "
+                    "training-result83663c14594882d82bba3ba81402887ab5c2d8c6bebc1d793b6d63c629a28560.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
@@ -68,11 +70,18 @@ CAMPAIGNS = [
                 "unadjusted intervals positive. Scaled-minus-frozen AUC +0.03462194 "
                 "[+0.02724089,+0.04217320]. All12 metrics,three contrasts,raw coverage,"
                 "both head checksums and128 two-head spots independently verified. No retuning. "
-                "Training-only cached refinement is active; no refined-head dev result or new "
-                "GPU allocation. Any selected head must face unused dev16001-21000 against "
-                "the current scaled reference; the reused train holdout is selection only. "
+                "CPU refinement Completed: TRAINING-only AUC0.71224853->0.71929553 selects "
+                "binary L2=0.001. MRR/nDCG10 slightly lower on the reused holdout; not an "
+                "all-metric gain. All24 metrics/all6 heads' full-holdout mathematics and full "
+                "training-cache digest independently verified. Frozen selected head faces "
+                "unused dev16001-21000 against current scaled reference and frozen control; "
+                "primary refined-minus-scaled,no retuning. Fresh comparison submitted,source"
+                "6baf350d9533f8db60c803024f914214df2c0484; one Standard Ranking A100,21600s. "
+                "No refined-head dev result yet. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("maroon_music_n00417p68k", "Refined vs scaled vs frozen newdev16001-21000 parent", ""),
+            ("907f0f26-3a75-4ca6-a2d0-ca153351814b", "Fixed refined-head fresh5000 worker", ""),
             ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", "0.66443821"),
             ("8f10cf1e-c9d4-4953-8261-ae3d0442397e", "Fixed three-arm comparison worker", ""),
             ("patient_nest_sjxf5vj85m", "Training-only readout data-scale parent", ""),
@@ -225,8 +234,10 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Continuing: training-only cached readout refinement,CPU only,no new backbone extraction "
-    "or GPU allocation. The current scaled head remains the dev-validated reference. "
+    "CPU refinement Completed: training-only AUC0.71224853->0.71929553 selects binary L2=0.001; "
+    "not dev,and MRR/nDCG10 slightly lower. Selected head frozen for newdev16001-21000 "
+    "against scaled reference and frozen; fresh5000 comparison submitted,one A100/six hours. "
+    "No refined-head dev result yet. "
     "Larger-data fit Completed: training-only holdout AUC0.69200943->0.71224853,selection only,not dev. "
     "Three-arm fresh dev11001-16000 Completed: frozen AUC0.62981627,confirmed0.64560843,"
     "scaled0.66443821. Primary scaled-minus-confirmed +0.01882978 "

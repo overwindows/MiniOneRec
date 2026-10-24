@@ -1424,6 +1424,34 @@ This is selection evidence,not dev or SOTA. The separately registered
 newdev16001-21000 test remains primary refined-minus-scaled,with frozen
 supporting control,5000 impressions/186527 candidates and no retuning.
 Actual submission IDs and source must be recorded after real allocation.
+Promotion rule fixed before scoring: retain the current scaled reference
+unless the refined-minus-scaled AUC paired95% interval is wholly positive.
+Report every secondary metric/interval,including regressions; do not select
+another candidate or tune from this dev result. No automatic downstream
+training follows either outcome.
+
+Actual parent **`maroon_music_n00417p68k`**, worker
+`907f0f26-3a75-4ca6-a2d0-ca153351814b`; immutable evaluation source
+`6baf350d9533f8db60c803024f914214df2c0484` (CPU fit source remains20a8bd26).
+Output `shares/users/wuc/output_dir/jev_readout_recovery_20261024/refinement_dev_01`.
+Uploaded selected head,training result,selection,parity and protocol were
+read back byte-for-byte before submission; no remote artifact overwrite.
+At13:36 UTC+8 parent Running/worker Queued; monitor PID66036 verified one
+Standard Ranking ND12am_A100_v4,21600s,exact source/output,both head
+paths/checksums and start16000. Live attached shell
+`jev-refinement-dev-controller`; profile `--refinement`,status
+`jev-readout-refinement-dev-status.json`. Six-hour creation-based deadline
+is enforced; no duplicate evaluator/controller. Two submission guard tests
+also reject failed/tied gates,changed provenance and existing submission intent.
+No refined-head dev quality result yet.
+The completed CPU-selection table and real new-dev submission are published
+in the full authenticated shared-site snapshot. Deployment receipt
+`jev-refinement-submission-publication-20261024.log` records
+`Status: Succeeded` / `Deployment Complete`. Binding proof
+`jev-refinement-submission-publication-verification.json` checks all24
+training-selection cells,head/result provenance,actual new parent state,
+empty refined-head dev metric and all preserved prior dev tables/intervals.
+Browser rendering not independently rechecked.
 
 ### Phase 2: RL Fine-tuning
 

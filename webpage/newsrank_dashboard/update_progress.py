@@ -102,11 +102,18 @@ CAMPAIGNS = [
                 "primary doubled-minus-retained,2048 paired resamples/seed42/unadjusted. "
                 "Promote only if primary AUC95% interval positive,report secondary regressions. "
                 "Actual new-dev parentkind_snake_fkcl3465qw,worker9f55bfbc-db7b-4439-9817-0303b17f64ec "
-                "submitted;initial parentRunning/workerQueued atOct25 00:19 UTC+8. "
-                "No new dev quality result yet; no retuning or pooling old windows. "
+                "Completed: newdev21001-26000 AUC retained0.65561171,doubled0.65448886,"
+                "frozen0.62787974. Primary doubled-minus-retained -0.00112285,"
+                "95%CI[-0.00307466,+0.00088349]. All four primary point differences negative "
+                "but all intervals include zero,not a statistically established regression. "
+                "Doubled head NOT promoted;retain131071 head279ef6c4. Supporting retained-minus-"
+                "frozen AUC +0.02773197[+0.02035031,+0.03488561]. All12 dev metrics,three "
+                "contrasts,exact coverage/input hashes,both heads/training provenance and128 "
+                "two-head spots independently verified atOct25 05:43 UTC+8;controller exited0. "
+                "No retuning,reselection or pooling windows;no automatic further data-only scale job. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("kind_snake_fkcl3465qw", "Doubled vs retained vs frozen,newdev21001-26000 parent", ""),
+            ("kind_snake_fkcl3465qw", "Doubled not promoted,newdev21001-26000 parent", "0.65448886"),
             ("9f55bfbc-db7b-4439-9817-0303b17f64ec", "Fixed doubled-head fresh5000 worker", ""),
             ("coral_turtle_b21f31930c", "Training-only data doubling parent,262143 pairs", ""),
             ("673f3dd0-32ae-4885-9ad8-f9ad0c778652", "Training-only doubled-data worker", ""),
@@ -264,12 +271,16 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Doubled head NOT promoted: untouched dev21001-26000 retainedAUC0.65561171 vs doubled0.65448886 "
+    "(frozen0.62787974). Primary -0.00112285,95%CI[-0.00307466,+0.00088349];"
+    "all four primary intervals include zero. Retain131071 head279ef6c4. "
+    "All12 dev metrics,three contrasts,both heads and128spots independently verified;both jobsCompleted,"
+    "controller exited0. No retuning,pooling or automatic further data-only scaling. "
     "Doubling Completed:training-only AUC0.71224853->0.71305557,only+0.00080704;MRR/nDCG10 lower. "
     "262143 pairs,reuse131071 cached,131072 new features;all12 holdout metrics/128spots verified. "
     "Metadata-only readback repair,no GPU rerun. Frozen doubled head2df5077c vs retained279ef6c4 "
-    "and frozen on untouched dev21001-26000/186223candidates; comparison submitted,initial workerQueued. "
-    "No new dev quality result; "
-    "one A100/six-hour cap,promote only with positive primary paired AUC interval,no retuning. "
+    "and frozen on untouched dev21001-26000/186223candidates;fixed comparison Completed,"
+    "one A100/six-hour cap;train-only gain did not establish a dev improvement. "
     "Refinement NOT promoted: primary newdev AUC +0.00187354 "
     "(95%CI[-0.00083710,+0.00461701]); all four primary intervals include zero. "
     "Retain scaled L2=0.01 head; no dev retuning or replacement selection. "

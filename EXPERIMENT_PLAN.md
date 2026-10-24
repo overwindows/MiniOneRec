@@ -1629,6 +1629,48 @@ Controller attached as `jev-double-dev-controller`;await its completion
 notification and read that known shell once,no duplicate job/budget reset.
 No new dev quality metric yet;retain current279ef6c4 pending this test.
 
+#### Final doubled-head new-dev result: no promotion (October25,2026 UTC+8)
+
+Parent `kind_snake_fkcl3465qw` and worker
+`9f55bfbc-db7b-4439-9817-0303b17f64ec` both Completed;controller
+`jev-double-dev-controller` exited0. Completion notification consumed and
+known shell read once. Actual evaluation source remains
+`8d412f4ea386f726fb355a3932a136571d7a3938`. Final independent verification:
+October24 21:43 UTC /October25 05:43 UTC+8,
+stage `three_arm_comparison_verified`,source checkout observed.
+Earlier submission/queued/no-result entries above are historical.
+
+| Same untouched dev21001-26000 /5000 impressions /186223 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.62787974 | 0.30124496 | 0.32909718 | 0.39100421 |
+| Retained131071-pair reference | 0.65561171 | 0.32347555 | 0.35483987 | 0.41735882 |
+| Doubled262143-pair readout | 0.65448886 | 0.32171964 | 0.35290252 | 0.41657858 |
+
+| Primary doubled-minus-retained metric | Mean difference | Paired impression-bootstrap95% CI |
+|---|---:|---|
+| AUC | -0.00112285 | [-0.00307466,+0.00088349] |
+| MRR | -0.00175591 | [-0.00424986,+0.00062358] |
+| nDCG@5 | -0.00193735 | [-0.00465904,+0.00056335] |
+| nDCG@10 | -0.00078023 | [-0.00305400,+0.00152517] |
+
+2048 paired impression resamples,seed42,unadjusted. All primary point
+differences negative,but every interval includes zero;not a statistically
+established regression and no incremental gain. Promotion gate fails:
+**retain131071 head279ef6c4;do NOT promote doubled2df5077c**.
+Supporting retained-minus-frozen AUC+0.02773197[+0.02035031,+0.03488561];
+doubled-minus-frozen+0.02660912[+0.01938342,+0.03366962]. Beating frozen is
+not the incremental promotion criterion. No dev retuning,reselection or
+pooling with prior windows;no automatic further data-only scaling job.
+
+All12 metrics,three contrasts,exact coverage/input hashes,both heads,
+training provenance and128 two-head mathematical spots independently
+verified. Proof `jev-readout-double-dev-independent-verification.json`.
+Result SHA256:
+`3711b20e2a7a26f23d497c844ce726371c1a5534d0315ca9bb6ad65c5d06d3e4`.
+Raw-score SHA256:
+`aa9bf431f12e84badc647c06d4a4a5c281c614ace4b0fa1ac4a55e389d5631b6`.
+One training subset/seed,partial dev,not full-dev/test or SOTA.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

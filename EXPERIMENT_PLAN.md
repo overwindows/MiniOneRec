@@ -1388,6 +1388,42 @@ snapshot deployment succeeded (`jev-refinement-active-publication-20261024.log`,
 `Status: Succeeded` / `Deployment Complete`). No browser rendering recheck.
 The current scaled head remains the only promoted reference; no refinement
 selection or refined-head dev gain is claimed while this search is pending.
+At13:30 UTC+8 the cache download completed successfully and the controller
+advanced to `fitting_cpu_only`. The complete1.342GB training feature file
+now independently matches its worker-recorded digest; training rows and
+both original holdout artifacts also verify. This stronger cache readback
+belongs to this follow-up,not the earlier training-only scale verification.
+No dev inference or new GPU allocation has occurred.
+
+#### Cached refinement completed; new head frozen before dev (2026-10-24)
+
+CPU controller exited0 at13:33 UTC+8,stage
+`training_refinement_independently_verified`. The predeclared training-only
+AUC rule selects `binary_l2_0.001_refined`; no dev scoring entered selection.
+
+| Reused training-holdout selection ONLY /256 impressions /9526 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Scaled reference,binary L2=0.01 | 0.71224853 | 0.36626940 | 0.40001304 | 0.46114360 |
+| Binary L2=0.1 | 0.70212702 | 0.34273964 | 0.37794570 | 0.43546179 |
+| Selected binary L2=0.001 | 0.71929553 | 0.36588080 | 0.40813435 | 0.45902339 |
+| Pairwise L2=0.1 | 0.70619615 | 0.35914937 | 0.38719994 | 0.44838450 |
+| Pairwise L2=0.01 | 0.71431441 | 0.36174241 | 0.39494351 | 0.45597102 |
+| Pairwise L2=0.001 | 0.71780435 | 0.35147886 | 0.38811139 | 0.44807563 |
+
+The training-only AUC gate passes,but selected MRR and nDCG@10 are slightly
+below the reference on this reused holdout; do not claim all metrics improved.
+Independent verification reconstructs all24 candidate metrics and every
+candidate's scores over the full holdout feature cache,checks the full
+training-cache digest,exact sample/exclusion and original reference bytes.
+Evidence `jev-refinement-training-independent-verification.json`.
+Frozen selected head SHA256:
+`a8bcae18921897418822c8efa3b2aa12ff8a0dbdefbc8810eb45565865f19b6c`;
+training result SHA256:
+`83663c14594882d82bba3ba81402887ab5c2d8c6bebc1d793b6d63c629a28560`.
+This is selection evidence,not dev or SOTA. The separately registered
+newdev16001-21000 test remains primary refined-minus-scaled,with frozen
+supporting control,5000 impressions/186527 candidates and no retuning.
+Actual submission IDs and source must be recorded after real allocation.
 
 ### Phase 2: RL Fine-tuning
 

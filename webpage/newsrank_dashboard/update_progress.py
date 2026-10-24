@@ -38,7 +38,10 @@ CAMPAIGNS = [
                     "same256 excluded train holdout. Exact-cache replay before reuse. "
                     "Three-arm fixed-head dev source99d4ce25c26b0fd4f172eb154d1fc86605a30165; "
                     "scaled head vs confirmed reference vs frozen from one shared feature pass. "
-                    "One Standard ranking A100; six-hour timeout; no new full-model training.",
+                    "One Standard ranking A100; six-hour timeout; no new full-model training. "
+                    "Cached CPU refinement source20a8bd26abdb7ba0a84c2e2a2e651593b6f2ba43: "
+                    "binary L2=0.1,0.001; pairwise L2=0.1,0.01,0.001; scaled reference wins "
+                    "training-holdout ties. Four CPU threads; no new backbone extraction.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
@@ -65,6 +68,9 @@ CAMPAIGNS = [
                 "unadjusted intervals positive. Scaled-minus-frozen AUC +0.03462194 "
                 "[+0.02724089,+0.04217320]. All12 metrics,three contrasts,raw coverage,"
                 "both head checksums and128 two-head spots independently verified. No retuning. "
+                "Training-only cached refinement is active; no refined-head dev result or new "
+                "GPU allocation. Any selected head must face unused dev16001-21000 against "
+                "the current scaled reference; the reused train holdout is selection only. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
             ("khaki_muscle_yll119dfc7", "Scaled vs confirmed vs frozen fresh5000 parent", "0.66443821"),
@@ -219,6 +225,8 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Continuing: training-only cached readout refinement,CPU only,no new backbone extraction "
+    "or GPU allocation. The current scaled head remains the dev-validated reference. "
     "Larger-data fit Completed: training-only holdout AUC0.69200943->0.71224853,selection only,not dev. "
     "Three-arm fresh dev11001-16000 Completed: frozen AUC0.62981627,confirmed0.64560843,"
     "scaled0.66443821. Primary scaled-minus-confirmed +0.01882978 "

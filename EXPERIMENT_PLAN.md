@@ -1375,6 +1375,20 @@ All18 directly related readout/refinement tests pass,including exact-reference
 tie retention,cache tampering/leakage rejection,shared-feature evaluation and
 the selected head's minimum fresh-window guard.
 
+Committed source `20a8bd26abdb7ba0a84c2e2a2e651593b6f2ba43`.
+Cache downloader `jev-refinement-cache-download` is active with bounded
+16MB range reads; controller `jev-refinement-training-controller`,PID73664,
+has a live `waiting_for_pinned_training_cache` heartbeat. It waits at most
+30 minutes,then runs at mostone hour of4-thread CPU fitting and independent
+raw-score/all-head verification. No new GPU job has been submitted.
+Seven independent-monitor fixtures pass,including refined-head provenance,
+both-head mathematics,all three contrasts and exact new5000-window coverage.
+Active protocol and retained final-dev tables are published; full authenticated
+snapshot deployment succeeded (`jev-refinement-active-publication-20261024.log`,
+`Status: Succeeded` / `Deployment Complete`). No browser rendering recheck.
+The current scaled head remains the only promoted reference; no refinement
+selection or refined-head dev gain is claimed while this search is pending.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

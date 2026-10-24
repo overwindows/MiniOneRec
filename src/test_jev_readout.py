@@ -255,6 +255,12 @@ class ReadoutTests(unittest.TestCase):
                     self.assertEqual(result["primary_comparison"], "selected_minus_reference")
                 else:
                     self.assertNotIn("reference_metrics", result)
+                (head_dir / "train-selection.json").write_text(json.dumps({
+                    "selected": "scaled", "minimum_dev_start": 16000,
+                }))
+                args[args.index("--output") + 1] = str(root / "overlap")
+                with patch("sys.argv", args), self.assertRaisesRegex(ValueError, "overlaps"):
+                    readout_eval.main()
 
     def test_three_arm_evaluator_rejects_previously_used_windows(self):
         with patch("sys.argv", [
@@ -279,6 +285,7 @@ class ReadoutTests(unittest.TestCase):
             "--readout-head", "shares/scaled.head.npz", "--readout-head-sha256", "scaled-digest",
             "--comparison-head", "shares/reference.head.npz",
             "--comparison-head-sha256", "reference-digest",
+            "--comparison-dev-start", "16000",
         ]
         with patch("sys.argv", args), patch.object(executor, "PipelineExecutor") as factory:
             factory.return_value.run.return_value = True
@@ -289,6 +296,7 @@ class ReadoutTests(unittest.TestCase):
         self.assertEqual(variables["readout_head"], "/mnt/fixture/shares/scaled.head.npz")
         self.assertEqual(variables["comparison_head"], "/mnt/fixture/shares/reference.head.npz")
         self.assertEqual(variables["comparison_head_sha256"], "reference-digest")
+        self.assertEqual(variables["comparison_dev_start"], 16000)
 
 
 if __name__ == "__main__":

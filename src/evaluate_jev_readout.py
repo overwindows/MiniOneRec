@@ -65,6 +65,8 @@ def main():
         )
     selection_path = args.head_path.parent / "train-selection.json"
     selection = json.loads(selection_path.read_text(encoding="utf-8"))
+    if args.dev_start < selection.get("minimum_dev_start", 6000):
+        raise ValueError("Dev window overlaps windows excluded by this head's training protocol")
     if args.head_path.name != selection["selected"] + ".head.npz":
         raise ValueError("Pinned readout is not the original train-selected candidate")
     for name in ("train-selection.json", "loader-parity.json"):

@@ -18,7 +18,7 @@
     },
     {
       "name": "Compare three fixed readouts on untouched fresh5000",
-      "command": "CUDA_VISIBLE_DEVICES=0 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True /home/aiscuser/.conda/envs/MiniOneRec/bin/python -u src/evaluate_jev_readout.py --model-path {model_path} --data-root {data_root} --head-path {readout_head} --head-sha256 {readout_head_sha256} --reference-head {comparison_head} --reference-head-sha256 {comparison_head_sha256} --output {output_root} --source-revision {source_revision} --dev-start 11000 --dev-impressions 5000",
+      "command": "CUDA_VISIBLE_DEVICES=0 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True /home/aiscuser/.conda/envs/MiniOneRec/bin/python -u src/evaluate_jev_readout.py --model-path {model_path} --data-root {data_root} --head-path {readout_head} --head-sha256 {readout_head_sha256} --reference-head {comparison_head} --reference-head-sha256 {comparison_head_sha256} --output {output_root} --source-revision {source_revision} --dev-start {comparison_dev_start} --dev-impressions 5000",
       "working_dir": "{code_dir}/MiniOneRec"
     }
   ],

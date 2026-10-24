@@ -1,9 +1,9 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: jev_fixed_readout_three_arm
 display_name: Fixed JEV Three-Arm Fresh5000 Comparison
-version: "1"
+version: "2"
 type: command
-description: Scaled vs confirmed readout vs frozen on untouched dev11001-16000; no fitting
+description: Two pinned readouts vs frozen on a registered fresh5000 window; no fitting
 inputs:
   msndni:
     type: uri_folder
@@ -24,6 +24,10 @@ inputs:
     type: string
   comparison_head_sha256:
     type: string
+  comparison_dev_start:
+    type: integer
+    default: 11000
+    min: 11000
 code: .
 environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5
 command: >-
@@ -38,4 +42,5 @@ command: >-
   --readout-head-sha256 ${{inputs.readout_head_sha256}}
   --comparison-head ${{inputs.comparison_head}}
   --comparison-head-sha256 ${{inputs.comparison_head_sha256}}
+  --comparison-dev-start ${{inputs.comparison_dev_start}}
   --debug-mode false

@@ -1343,6 +1343,38 @@ and raw-score hashes,all12 published dev metrics,four primary paired intervals,
 training-selection table kept separate,both heads,and Completed parent/worker
 states from the freshly generated AML feed. Browser rendering not rechecked.
 
+#### Cached readout refinement preregistration (2026-10-24)
+
+After the three-arm scale result, reuse ONLY the131071 training-pair cache
+and original256-impression excluded TRAINING holdout. No dev scores/features
+enter this search. Independently download and hash the complete feature cache
+against `39f2309b22c67db5d4245b905122b837dff6abd5f9ca98802638b341938a5aca`;
+check exact independently audited training rows,holdout hashes/exclusion
+and reproduce the current scaled head's training-holdout metrics.
+
+Use the existing CPU float64 LBFGS helper,max100 iterations,at most4 threads.
+Fixed candidates: binary L2=0.1,0.001 and impression-balanced pairwise
+L2=0.1,0.01,0.001. Binary L2=0.01 is the current scaled reference,not a new
+fit. Select maximum training-holdout AUC with reference winning ties;
+candidate-order wins ties among new candidates. Preserve every head,all
+candidate holdout scores,cache/provenance hashes and128 mathematical spots.
+This is reused selection evidence,not independent robustness.
+
+No additional backbone pass or GPU training is needed. If a new head
+strictly passes the training-only gate,freeze it before registering a
+comparison against the current131071-pair scaled head plus frozen JEV on
+unused dev16001-21000. Primary refined-minus-scaled,2048 paired impression
+resamples,seed42,unadjusted; no dev fitting,retuning or cross-window pooling.
+If no candidate improves the training gate,retain the scaled head and
+record the negative result without a redundant GPU comparison.
+
+Actual metadata-only preflight passes5000 impressions/186527 candidates,
+unique IDs,news/history coverage and both classes per impression; parameterized
+component schema validates with historic default11000 and new start16000.
+All18 directly related readout/refinement tests pass,including exact-reference
+tie retention,cache tampering/leakage rejection,shared-feature evaluation and
+the selected head's minimum fresh-window guard.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

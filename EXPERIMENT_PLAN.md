@@ -1549,6 +1549,60 @@ in the complete authenticated shared-site snapshot. Receipt
 quality metric while preserving all prior training/dev tables and intervals.
 Browser rendering not independently rechecked.
 
+#### Doubling job completed; local metadata readback repaired
+
+Independent AML readback confirms parent `coral_turtle_b21f31930c` and
+worker `673f3dd0-32ae-4885-9ad8-f9ad0c778652` Completed,with no worker
+error. Local controller exit1 is a verification failure,not a failed GPU
+training run: the old20,000,000-byte request truncated the22,055,701-byte
+`train.rows.json`. Remote file status independently matches the canonical
+size derived from the exact262143-row audit.
+
+The private verifier now derives its metadata bound from that audited
+sample and requests one extra byte to reject unexpected oversize data.
+Regression coverage exercises complete over20MB readback and excess-byte
+rejection; no coverage,identity,provenance or metric check was removed.
+Original failure log/status are preserved. Shell
+`jev-double-scale-verifier-recovery-01` reads and verifies the SAME completed
+job; no GPU resubmission or budget reset. Original creation was October24
+11:00:29 UTC,deadline17:00:29 UTC (October25 01:00:29 UTC+8).
+Independent training-outcome verification is pending; worker-reported
+selection numbers are not yet treated as verified quality evidence.
+Evidence `jev-double-scale-readback-recovery.json`.
+
+#### Doubling training result independently verified (October25,2026 UTC+8)
+
+Verification-only recovery exited0 at October24 16:13 UTC /October25
+00:13 UTC+8,stage `training_scale_independently_verified`. Both cloud jobs
+Completed; original metadata-readback failure remains documented above.
+No GPU work or budget was restarted.
+
+| Same reused TRAINING-holdout selection ONLY /256 impressions /9526 candidates | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.59377260 | 0.26778246 | 0.28753004 | 0.34517504 |
+| Retained131071-pair reference | 0.71224853 | 0.36626940 | 0.40001304 | 0.46114360 |
+| New262143-pair doubled head | 0.71305557 | 0.36538425 | 0.40591689 | 0.45882088 |
+
+Strict train-only AUC gate passes by +0.00080704; MRR and nDCG@10 are
+slightly lower. This is a small reused-training-holdout selection gain,
+NOT independent dev performance or an all-metric improvement.
+All12 metrics,exact262143-row sample/exclusion,both head hashes,reference
+cache/provenance and128 two-head mathematical spots independently verified.
+The new2.68GB training-feature digest8d4f803d is worker-recorded,not
+independently downloaded in full. Evidence:
+`jev-readout-double-scale-independent-verification.json`.
+Selected `binary_l2_0.01_doubled`,head SHA256:
+`2df5077c4e20ef115f6a379f23536450eefcb8a20bfc7e14534e20e49064ff17`.
+Training result SHA256:
+`16771883911bf4ddf695e363db8f1839f8ae35509041478e1586e434d1ee09d1`.
+
+Freeze this exact head for the already registered newdev21001-26000
+comparison against retained131071 head279ef6c4 and frozen. Primary
+doubled-minus-retained,2048 paired impression resamples,seed42,unadjusted.
+No fitting,reselection,retuning or pooling with earlier windows. Retain
+the current reference unless the primary AUC95% interval is wholly positive;
+report every secondary metric and regression. No new dev result yet.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

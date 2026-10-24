@@ -1498,6 +1498,38 @@ metrics,four primary intervals,result/raw hashes,Completed parent/worker
 and the no-promotion decision,while retaining all prior training/dev tables.
 Browser rendering not independently rechecked.
 
+#### Next registered experiment: double data,not more dev-directed tuning
+
+The failed refinement does not replace the retained scaled L2=0.01 head.
+Test data quantity again with objective,L2=0.01,seed42,prompt and frozen
+backbone fixed. Exact deterministic sample262143 pairs/69958 impressions:
+reuse the verified131071-pair cache as exact prefix; extract only131072 new
+training representations. All original256 training-holdout impressions
+remain excluded. Pin reference head279ef6c4 and training result5a4cf046.
+Original holdout features/rows remain in the original pilot cache,not in
+the larger training output; the new path explicitly mounts that separate
+root and checks its pinned digests. Replay16 train and16 holdout rows in
+identical batches before reuse,and reproduce retained reference holdout
+metrics. Hash the entire reused training feature file39f2309b.
+
+Select only if new training-holdout AUC strictly exceeds the reference;
+reference wins ties. Training stage never reads/scores dev. Save all
+scores,head hashes,exact row metadata and128 two-head mathematical spots.
+Independent monitor reconstructs12 holdout metrics and checks strict gate,
+full expected sample/exclusion,reference cache/provenance and both heads.
+Future evaluation must be separately registered on newdev21001-26000,
+comparing doubled head,retained131071 head and frozen. Primary doubled-
+minus-retained AUC,2048 paired impression resamples,seed42,unadjusted;
+promote only if primary AUC95% interval wholly positive; report all
+secondary results,no dev retuning or cross-window pooling.
+
+One Standard Ranking A100,21600-second worker timeout and six-hour
+creation-based wall-clock deadline. No full-model/downstream training.
+Actual doubled-sample preflight checks all262143 IDs/order/labels,69958
+training impressions,exact131071 prefix,holdout exclusion and new component
+schema.20 related source tests and8 independent-monitor fixtures pass.
+Run IDs/source must follow actual submission; no new quality claim yet.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

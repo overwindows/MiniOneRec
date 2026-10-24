@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--fixed-head", default=None)
     parser.add_argument("--fixed-head-sha256", default=None)
     parser.add_argument("--scale-training", action="store_true")
+    parser.add_argument("--double-training", action="store_true")
     parser.add_argument("--comparison-head", default=None)
     parser.add_argument("--comparison-head-sha256", default=None)
     parser.add_argument("--comparison-dev-start", type=int, default=11000)
@@ -27,6 +28,8 @@ def main():
         parser.error("--fixed-head and --fixed-head-sha256 must be supplied together")
     if args.scale_training and not args.fixed_head:
         parser.error("--scale-training requires the checksum-pinned reference head")
+    if args.double_training and not args.scale_training:
+        parser.error("--double-training requires --scale-training")
     if bool(args.comparison_head) != bool(args.comparison_head_sha256):
         parser.error("Comparison head path and checksum must be supplied together")
     if args.comparison_head and (args.scale_training or not args.fixed_head):
@@ -39,6 +42,8 @@ def main():
     component_file = "readout_confirmation.yaml" if args.fixed_head else "readout_probe.yaml"
     if args.scale_training:
         component_file = "readout_scale.yaml"
+    if args.double_training:
+        component_file = "readout_double_scale.yaml"
     if args.comparison_head:
         component_file = "readout_comparison.yaml"
     component_path = Path(__file__).parent / "components" / "mind_jev_eval" / component_file
@@ -61,6 +66,10 @@ def main():
         )
         if args.fixed_head:
             inputs.update(readout_head=args.fixed_head, readout_head_sha256=args.fixed_head_sha256)
+        if args.double_training:
+            inputs["readout_holdout_cache"] = (
+                "shares/users/wuc/output_dir/jev_readout_recovery_20261023/run_02"
+            )
         if args.comparison_head:
             inputs.update(
                 comparison_head=args.comparison_head,
@@ -88,6 +97,8 @@ def main():
     )
     if args.scale_training:
         job.display_name = "JEV train-only readout data scaling,131072 pair cap"
+    if args.double_training:
+        job.display_name = "JEV train-only doubled readout data,262144 pair cap"
     if args.comparison_head:
         job.display_name = (
             f"JEV three fixed readouts,fresh dev{args.comparison_dev_start + 1}"
@@ -100,7 +111,10 @@ def main():
     if args.fixed_head:
         job.tags.update(jev_experiment="fixed_readout_confirmation", head_sha256=args.fixed_head_sha256)
     if args.scale_training:
-        job.tags.update(jev_experiment="training_data_scale", train_pairs_budget="131072")
+        job.tags.update(
+            jev_experiment="training_data_scale",
+            train_pairs_budget="262144" if args.double_training else "131072",
+        )
     if args.comparison_head:
         job.tags.update(
             jev_experiment="fixed_readout_comparison",

@@ -286,6 +286,7 @@ class ReadoutTests(unittest.TestCase):
             "--comparison-head", "shares/reference.head.npz",
             "--comparison-head-sha256", "reference-digest",
             "--comparison-dev-start", "16000",
+            "--readout-holdout-cache", "shares/original-cache",
         ]
         with patch("sys.argv", args), patch.object(executor, "PipelineExecutor") as factory:
             factory.return_value.run.return_value = True
@@ -297,6 +298,7 @@ class ReadoutTests(unittest.TestCase):
         self.assertEqual(variables["comparison_head"], "/mnt/fixture/shares/reference.head.npz")
         self.assertEqual(variables["comparison_head_sha256"], "reference-digest")
         self.assertEqual(variables["comparison_dev_start"], 16000)
+        self.assertEqual(variables["readout_holdout_cache"], "/mnt/fixture/shares/original-cache")
 
 
 if __name__ == "__main__":

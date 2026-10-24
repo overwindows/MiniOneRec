@@ -20,6 +20,8 @@ from probe_jev_readout import (
 TRAIN_PAIR_LIMIT = 131072
 REFERENCE_RESULT_SHA256 = "67ceef2c76caf9068a1f16af8eac2dfd0a006aef4d0661ecc753dbe72f1620a6"
 REFERENCE_HEAD_SHA256 = "d7796a02baeed17a72acc42b23ae70f494654560dd3c2f39528cc54febe48f38"
+DOUBLE_REFERENCE_HEAD_SHA256 = "279ef6c47f09e7fe49b803810159cac6fba7ee23d612ea33318af6ec37f86457"
+DOUBLE_REFERENCE_RESULT_SHA256 = "5a4cf046889b40d5ce6ada7a5240f91a21919ab48d0161857fb559eca4a36dd7"
 
 
 def sha256_file(path):
@@ -76,22 +78,42 @@ def main():
     ap.add_argument("--reference-head-sha256", required=True)
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--source-revision", required=True)
+    ap.add_argument("--double-training", action="store_true")
+    ap.add_argument("--holdout-cache-root", type=Path)
     args = ap.parse_args()
-    if args.reference_head_sha256 != REFERENCE_HEAD_SHA256:
-        ap.error("This data-only experiment requires the confirmed original head")
+    expected_head = DOUBLE_REFERENCE_HEAD_SHA256 if args.double_training else REFERENCE_HEAD_SHA256
+    expected_result = DOUBLE_REFERENCE_RESULT_SHA256 if args.double_training else REFERENCE_RESULT_SHA256
+    expected_pairs = 131071 if args.double_training else 16383
+    expected_selected = "binary_l2_0.01_scaled" if args.double_training else "binary_l2_0.01"
+    pair_limit = 262144 if args.double_training else TRAIN_PAIR_LIMIT
+    candidate_name = "binary_l2_0.01_doubled" if args.double_training else "binary_l2_0.01_scaled"
+    if args.reference_head_sha256 != expected_head:
+        ap.error("This data-only experiment requires its preregistered reference head")
+    if bool(args.holdout_cache_root) != args.double_training:
+        ap.error("--double-training requires the original --holdout-cache-root; other modes must omit it")
     if args.output.exists() and any(args.output.iterdir()):
         raise FileExistsError("Training-only scale output must be empty")
     args.output.mkdir(parents=True, exist_ok=True)
     torch.set_num_threads(min(torch.get_num_threads(), 8))
     reference_head, head_bytes = load_head(args.reference_head, args.reference_head_sha256)
     reference_root = args.reference_head.parent
-    if sha256_file(reference_root / "result.json") != REFERENCE_RESULT_SHA256:
-        raise ValueError("Reference pilot provenance checksum differs")
+    holdout_root = args.holdout_cache_root if args.double_training else reference_root
+    if sha256_file(reference_root / "result.json") != expected_result:
+        raise ValueError("Reference training provenance checksum differs")
     original = json.loads((reference_root / "result.json").read_bytes())
     selection = json.loads((reference_root / "train-selection.json").read_bytes())
-    if (original["selected"] != "binary_l2_0.01" or selection["selected"] != original["selected"]
-            or original["training_pairs"] != 16383 or original["train_holdout_impressions"] != 256):
+    if (original["selected"] != expected_selected or selection["selected"] != original["selected"]
+            or original["training_pairs"] != expected_pairs or original["train_holdout_impressions"] != 256):
         raise ValueError("Reference training protocol differs")
+    if args.double_training and (
+        not original["training_only"] or not original["scaled_head_opens_dev_gate"]
+        or sha256_file(reference_root / "train.features.npz") != original["train_features_sha256"]
+    ):
+        raise ValueError("Larger reference cache differs from the verified training-scale result")
+    if args.double_training:
+        for name in ("train_holdout.features.npz", "train_holdout.rows.json"):
+            if sha256_file(holdout_root / name) != original["feature_cache_sha256"][name]:
+                raise ValueError("Original holdout-cache digest differs")
     train_dir = args.data_root / "train"
     data_hashes = {}
     for filename in ("news.tsv", "behaviors.tsv"):
@@ -115,7 +137,7 @@ def main():
         max_len=4096, sample=-1, seed=42, max_history=30, neg_ratio=1.0,
         hard_neg_ratio=0.5, use_abstract=True, use_chat_template=False,
     )
-    rows = sample_training_rows(dataset.samples, validation_ids, TRAIN_PAIR_LIMIT)
+    rows = sample_training_rows(dataset.samples, validation_ids, pair_limit)
     del dataset
     cached_count = original["training_pairs"]
     if len(rows) <= cached_count:
@@ -125,7 +147,7 @@ def main():
         reference_root, "train", rows[:cached_count], dimension,
     )
     validation_x, validation_base = load_cached_features(
-        reference_root, "train_holdout", validation_rows, dimension,
+        holdout_root, "train_holdout", validation_rows, dimension,
     )
     check_cached_model(scorer, rows, cached_x, cached_base, "train_cache_replay")
     check_cached_model(scorer, validation_rows, validation_x, validation_base, "holdout_cache_replay")
@@ -139,20 +161,21 @@ def main():
            for key in reference_metrics):
         raise ValueError("Reference holdout metrics do not reproduce the original selection")
     cache_hashes = {
-        name: sha256_file(reference_root / name)
+        name: sha256_file((holdout_root if name.startswith("train_holdout") else reference_root) / name)
         for name in ("train.features.npz", "train.rows.json",
                      "train_holdout.features.npz", "train_holdout.rows.json")
     }
     save_json(args.output / "protocol.json", {
         "source_revision": args.source_revision, "training_only": True,
-        "training_pair_limit": TRAIN_PAIR_LIMIT, "training_pairs": len(rows),
+        "training_pair_limit": pair_limit, "training_pairs": len(rows),
         "cached_training_pairs": cached_count,
         "reference_head_sha256": args.reference_head_sha256,
-        "reference_result_sha256": REFERENCE_RESULT_SHA256,
+        "reference_result_sha256": expected_result,
         "cache_sha256": cache_hashes, "data_sha256": data_hashes,
         "objective": "binary", "regularization": 0.01, "seed": 42,
         "train_holdout_impressions": 256, "fresh_cache_replay_rows_per_split": 16,
         "dev_evaluation": "none; selection uses training holdout only",
+        **({"minimum_dev_start": 21000} if args.double_training else {}),
     })
     new_x, new_base = extract(scorer, rows[cached_count:], None, "new_training_features")
     train_x = np.concatenate([cached_x, new_x])
@@ -169,7 +192,6 @@ def main():
     )
     scaled_scores = predict(head, validation_x, validation_base)
     scaled_metrics = metrics(labels, scaled_scores, groups)
-    candidate_name = "binary_l2_0.01_scaled"
     np.savez(args.output / (candidate_name + ".head.npz"), **head)
     (args.output / "reference_readout.head.npz").write_bytes(head_bytes)
     gate = scaled_metrics["auc"] > reference_metrics["auc"]
@@ -181,6 +203,7 @@ def main():
             {"name": candidate_name, "validation": scaled_metrics, "training_loss": loss},
         ],
         "rule": "Strictly larger train-holdout AUC; confirmed reference wins exact ties",
+        **({"minimum_dev_start": 21000} if args.double_training else {}),
     })
     (args.output / "loader-parity.json").write_bytes(
         (reference_root / "loader-parity.json").read_bytes()

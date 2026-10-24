@@ -223,6 +223,7 @@ def main():
     parser.add_argument("--comparison-head", default="")
     parser.add_argument("--comparison-head-sha256", default="")
     parser.add_argument("--comparison-dev-start", type=int, default=11000)
+    parser.add_argument("--readout-holdout-cache", default="")
 
     args = parser.parse_args()
 
@@ -247,6 +248,7 @@ def main():
         'comparison_head': f"{args.mount_dir}/{args.comparison_head}" if args.mount_dir and args.comparison_head else args.comparison_head,
         'comparison_head_sha256': args.comparison_head_sha256,
         'comparison_dev_start': args.comparison_dev_start,
+        'readout_holdout_cache': f"{args.mount_dir}/{args.readout_holdout_cache}" if args.mount_dir and args.readout_holdout_cache else args.readout_holdout_cache,
     }
 
     # 合成完整路径

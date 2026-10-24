@@ -47,11 +47,17 @@ CAMPAIGNS = [
                     "Next data-only doubling sourceee17243f0d738c216b37998a780710ec7a5f10ba: "
                     "262143 pairs/69958 impressions,reuse131071 exact-prefix cache,131072 new "
                     "features. Binary L2=0.01,seed42,prompt/backbone and256 train holdout fixed; "
-                    "one Standard Ranking A100/21600s,training-only,no dev scoring.",
+                    "one Standard Ranking A100/21600s,training-only,no dev scoring. "
+                    "Verified doubled head2df5077c4e20ef115f6a379f23536450eefcb8a20bfc7e14534e20e49064ff17; "
+                    "training-result16771883911bf4ddf695e363db8f1839f8ae35509041478e1586e434d1ee09d1. "
+                    "Registered newdev comparison source8d412f4ea386f726fb355a3932a136571d7a3938; "
+                    "same one-A100/six-hour cap,one frozen feature pass for all three arms.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
                 "New three-arm comparison: dev11001-16000,5000 impressions/183558 candidates. "
+                "Refinement dev16001-21000:5000 impressions/186527 candidates. "
+                "Next doubled-head dev21001-26000:5000 impressions/186223 candidates. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
         "eval": "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
                 "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
@@ -84,11 +90,24 @@ CAMPAIGNS = [
                 "Same newdev5000: scaledAUC0.66751333,refined0.66938687,frozen0.62556294. "
                 "Primary +0.00187354,95%CI[-0.00083710,+0.00461701]; all four primary "
                 "intervals include zero. Refined head NOT promoted; retain scaled L2=0.01. "
-                "Data-only doubling is submitted; no new quality metric. Strict training-holdout "
-                "gate first; any future dev test must use new21001-26000 against retained "
-                "131071 head and frozen,not retune or pool old windows. "
+                "Data-only doubling Completed and independently verified: reused TRAINING-only "
+                "holdout AUC0.71224853->0.71305557,only+0.00080704; MRR/nDCG10 lower. "
+                "All12 holdout metrics,exact262143-row sample/exclusion,both heads/provenance "
+                "and128 two-head mathematical spots verified. Local controller readback failed "
+                "because its20MB request truncated22,055,701-byte metadata; sample-derived "
+                "bound plus extra-byte sentinel repaired verification. Same completed GPU job "
+                "was NOT rerun; new2.68GB feature digest is worker-recorded,not fully downloaded. "
+                "Tiny train-only AUC gain passes the registered gate,not independent dev evidence. "
+                "Freeze doubled head for new21001-26000 vs retained131071 head and frozen; "
+                "primary doubled-minus-retained,2048 paired resamples/seed42/unadjusted. "
+                "Promote only if primary AUC95% interval positive,report secondary regressions. "
+                "Actual new-dev parentkind_snake_fkcl3465qw,worker9f55bfbc-db7b-4439-9817-0303b17f64ec "
+                "submitted;initial parentRunning/workerQueued atOct25 00:19 UTC+8. "
+                "No new dev quality result yet; no retuning or pooling old windows. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("kind_snake_fkcl3465qw", "Doubled vs retained vs frozen,newdev21001-26000 parent", ""),
+            ("9f55bfbc-db7b-4439-9817-0303b17f64ec", "Fixed doubled-head fresh5000 worker", ""),
             ("coral_turtle_b21f31930c", "Training-only data doubling parent,262143 pairs", ""),
             ("673f3dd0-32ae-4885-9ad8-f9ad0c778652", "Training-only doubled-data worker", ""),
             ("maroon_music_n00417p68k", "Refinement not promoted; newdev16001-21000 parent", "0.66938687"),
@@ -245,8 +264,12 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Continuing training-only data doubling:262143 pairs,reuse131071 cached,131072 new features. "
-    "Same binary L2=0.01/backbone/prompt;one A100/six-hour cap,no new quality result. "
+    "Doubling Completed:training-only AUC0.71224853->0.71305557,only+0.00080704;MRR/nDCG10 lower. "
+    "262143 pairs,reuse131071 cached,131072 new features;all12 holdout metrics/128spots verified. "
+    "Metadata-only readback repair,no GPU rerun. Frozen doubled head2df5077c vs retained279ef6c4 "
+    "and frozen on untouched dev21001-26000/186223candidates; comparison submitted,initial workerQueued. "
+    "No new dev quality result; "
+    "one A100/six-hour cap,promote only with positive primary paired AUC interval,no retuning. "
     "Refinement NOT promoted: primary newdev AUC +0.00187354 "
     "(95%CI[-0.00083710,+0.00461701]); all four primary intervals include zero. "
     "Retain scaled L2=0.01 head; no dev retuning or replacement selection. "

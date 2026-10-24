@@ -1603,6 +1603,32 @@ No fitting,reselection,retuning or pooling with earlier windows. Retain
 the current reference unless the primary AUC95% interval is wholly positive;
 report every secondary metric and regression. No new dev result yet.
 
+#### Actual doubled-head new-dev submission (October25,2026 UTC+8)
+
+Submitted parent `kind_snake_fkcl3465qw`,worker
+`9f55bfbc-db7b-4439-9817-0303b17f64ec`;source
+`8d412f4ea386f726fb355a3932a136571d7a3938`.
+Output `shares/users/wuc/output_dir/jev_readout_recovery_20261025/double_fresh5000_01`.
+Exact previously unused dev21001-26000:5000 impressions/186223 candidates,
+news/history coverage,unique IDs,both classes and exact order audited.
+Order SHA256:
+`8a82e336ae41bd442da8b2e8d233104826be72af638a9d10c623a1451e3983a3`.
+Both actual head checksums and dimension2560 independently preflighted;
+selected training-result digest16771883 reconfirmed before allocation.
+
+Primary frozen doubled2df5077c-minus-retained279ef6c4,plus frozen control,
+from one feature pass. Same2048 paired impression resamples,seed42,
+unadjusted;promoteonlywith wholly positive primary AUC95% interval,
+report all secondary regressions,no fitting,reselection,retuning or pooling.
+One Standard Ranking A100/21600s,original creation-based six-hour deadline.
+Initial actual state at October24 16:19 UTC /October25 00:19 UTC+8:
+parent Running,worker Queued,NOT yet extracting. Verifier PID49200
+checks actual source/output,resources,both head paths/checksums and typed
+window. Related9 independent mathematical/provenance/readback fixtures pass.
+Controller attached as `jev-double-dev-controller`;await its completion
+notification and read that known shell once,no duplicate job/budget reset.
+No new dev quality metric yet;retain current279ef6c4 pending this test.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

@@ -1779,6 +1779,47 @@ Raw holdout scores SHA256:
 `99c6bda878e3b195380b14b363a7e3afbaec19eb15d07619517c780f4c8cf2b8`.
 No new dev result or SOTA claim. Both CPU runs are complete.
 
+#### Next signal-family control: cross-fitted popularity (October26,2026)
+
+Dataset remains **MIND_small**,not MIND_large or competition/test scores.
+The binary/pairwise nonlinear controls did not qualify for dev evaluation.
+Keep retained131071 head279ef6c4 frozen,and add training-behavior signals
+not present explicitly in its text features.
+
+`src/behavior_jev_readout.py` uses only the checksum-pinned official
+MIND_small training behaviors (SHA256a424547c) and verified feature cache.
+Exclude ALL256 training-holdout impressions before counting any exposure
+or click. Hash each remaining impression with SHA256("42:"+ID),first8
+bytes big-endian modulo5. Every fitting row uses counts and global class
+priors excluding its ENTIRE impression fold. Holdout rows use the full
+non-holdout training population. Check every cached impression/candidate/
+label against source behaviors;reject malformed/duplicate/missing rows.
+
+Four fixed features:log1p(exposures/global_exposures*1e6),
+log1p(clicks/global_clicks*1e6),smoothed item-CTR log-odds minus background
+CTR log-odds,and an observed-item indicator. Beta smoothing strength20
+is fixed before results. Unknown news maps to neutral features;do not
+invent a click prior from evaluation labels. Persist full and per-fold
+integer counts and validate sum/count identities on reload.
+
+Fit only a four-feature correction to the unchanged retained margin,
+using the existing float64 LBFGS/max100 iterations:two fixed candidates,
+binary and equally impression-weighted pairwise,bothL2=0.01. Reference
+wins AUC ties. Unchanged conservative compute gate:best reused-training-
+holdout AUC must improve by>=0.005 AND MRR/nDCG5/nDCG10 must not decrease;
+otherwise keep exact279ef6c4 with no alternative-candidate reselection.
+Max4 CPUthreads/1800s,no dev inputs or automatic GPU submission. Only if
+the gate passes may a separately frozen comparison use unused
+dev26001-31000;previous windows remain excluded.
+
+All35 targeted source tests pass,including own-fold target-label mutation,
+entire-holdout label mutation,hand-calculated smoothing,unknown-item
+neutrality,count/hash corruption,source/cache identity checks and legacy
+readout behavior. This is a train-only compute gate on a reused holdout,
+not independent robustness. Whole official training logs supply the
+population,not only the131071 cached fitting pairs;fold exclusion is
+not a claim of temporal/causal validation or user-disjoint validation.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

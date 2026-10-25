@@ -1820,6 +1820,55 @@ not independent robustness. Whole official training logs supply the
 population,not only the131071 cached fitting pairs;fold exclusion is
 not a claim of temporal/causal validation or user-disjoint validation.
 
+#### Behavioral selection outcome and frozen fresh-dev protocol
+
+Training-only source25b50700e63aa273e553328793c13c4d0bb81afb completed
+successfully. Independently rebuilt every source integer count,the full
+131071-row fit/9526-row holdout feature matrices,all three heads' complete
+holdout score mathematics,and all12 metrics. No dev scores were used.
+
+| MIND_small reused TRAINING holdout | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Retained131071 reference | 0.712248527659 | 0.366269403387 | 0.400013039175 | 0.461143604744 |
+| Behavioral binary L2=0.01 | 0.735290951674 | 0.367851403727 | 0.407183903881 | 0.465065764585 |
+| Behavioral pairwise L2=0.01,selected | 0.736222448598 | 0.367711763788 | 0.408061414881 | 0.465881764661 |
+
+Pairwise passes the previously fixed compute gate:AUC+0.023973920939,
+with all three secondary point estimates higher. Freeze this correction,
+the population and the retained JEV head BEFORE any new-dev scoring:
+
+- Correction32e8af31786d059d90b47c32ecd118cfe0633f9c7c8d4922ed52deb703d2ff68.
+- Populationba4d7855aabe6894c6eecd9c9a0e69f1d326200891bc174dae048f9841ecc62c.
+- Training result1670421674adeb8fb41f858d065edd5b276b97e3fcddb7fa0bdde23d761e63fe.
+- Retained JEV head279ef6c47f09e7fe49b803810159cac6fba7ee23d612ea33318af6ec37f86457.
+
+Use ONLY untouched MIND_small dev26001-31000,5000 impressions,without
+pooling earlier windows. Metadata preflight verified188821 candidates,
+unique impression IDs,news/history coverage and both classes in every
+impression. Impression-order SHA256:
+ca6be42a0bcf65aa61109254769fd9bf648d689551d4b5a1f27fc90c7d60d775.
+One Standard Ranking A100/21600s frozen-backbone
+pass produces retained279ef6c4,originald7796a02 and frozen margins.
+Then `src/evaluate_jev_behavior.py` adds the selected frozen four-feature
+correction to retained279ef6c4 margins on CPU;the correction is NOT a
+2560-dimensional backbone head. No fitting,reselection,threshold search,
+population updates or label-dependent feature construction on dev.
+
+Final three arms are behavioral hybrid,retained279ef6c4 and frozen JEV.
+Primary contrast is hybrid-minus-retained. Use2048 paired impression
+bootstrap replicates,seed42,unadjusted95% intervals,for all four metrics
+and all three contrasts. Promote ONLY if the primary AUC interval is
+wholly positive;report every secondary regression. Otherwise retain
+279ef6c4 regardless of its competitor's point estimate. Intermediate
+baseline-only results cannot alter whether or how the frozen hybrid runs.
+Freeze an immutable source worktree for the delayed CPU stage;verify the
+complete dev candidate order/coverage,all features and correction math,
+all12 metrics,input checksums,training provenance and bootstrap results.
+
+The reused training holdout can overfit;the population adds official
+training-log information beyond cached fit rows. This result is NOT
+independent dev evidence,MIND_large,test/leaderboard or SOTA evidence.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

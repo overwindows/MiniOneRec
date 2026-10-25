@@ -41,6 +41,12 @@ VC_ARM_ID_MAP = {
         "/resourceGroups/rg-cs-recall-ml-singularity"
         "/providers/Microsoft.MachineLearningServices/virtualClusters/recall"
     ),
+    # shared (A100 available here when ranking/recall saturate — teammate uses it)
+    "shared": (
+        "/subscriptions/b6dc87f3-c479-49c8-8cb5-7896da3ff895"
+        "/resourceGroups/RG-CS-shared-ml-Singularity"
+        "/providers/Microsoft.MachineLearningServices/virtualClusters/Shared"
+    ),
 }
 VC_ARM_ID = VC_ARM_ID_MAP["recall"]
 
@@ -158,7 +164,7 @@ if __name__ == "__main__":
     parser.add_argument("--split", default="dev", choices=["dev", "test"],
                         help="评估集 (default: dev)")
     parser.add_argument("--vm-cluster", default="recall", choices=list(VC_ARM_ID_MAP.keys()),
-                        help="虚拟集群 ranking|recall (default: recall)")
+                        help="虚拟集群 ranking|recall|shared (default: recall)")
     parser.add_argument("--instance-type", default="Singularity.ND96amrs_A100_v4",
                         help="实例类型/GKE SKU (default: Singularity.ND96amrs_A100_v4 8xA100). "
                              "单卡 A100 = Singularity.ND12am_A100_v4")

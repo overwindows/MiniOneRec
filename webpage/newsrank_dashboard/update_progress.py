@@ -57,13 +57,23 @@ CAMPAIGNS = [
                     "AdamW lr0.001/weight_decay0.01/batch2048/seed42,epochs4/8/16,"
                     "4threads/1800s. Gate:AUCgain>=0.005 and no secondary regression. "
                     "Pairwise objective control sourcede50e05c15eb9d7bf0ddebfc77142af6afa6b910: "
-                    "same architecture/optimizer/checkpoints/gate,equal-impression weighted pairs.",
+                    "same architecture/optimizer/checkpoints/gate,equal-impression weighted pairs. "
+                    "Cross-fitted behavioral training source25b50700e63aa273e553328793c13c4d0bb81afb: "
+                    "four fixed popularity features,five impression-hash folds,smoothing20;"
+                    "exclude all256 holdout impressions from every count. Binary/pairwise L2=0.01. "
+                    "Selected correction32e8af31786d059d90b47c32ecd118cfe0633f9c7c8d4922ed52deb703d2ff68; "
+                    "populationba4d7855aabe6894c6eecd9c9a0e69f1d326200891bc174dae048f9841ecc62c; "
+                    "training-result1670421674adeb8fb41f858d065edd5b276b97e3fcddb7fa0bdde23d761e63fe. "
+                    "Frozen evaluation source7c6aa8b3948c7e759125570f732e74dabc148e25;"
+                    "one Standard Ranking A100/21600s plus immutable CPU correction.",
         "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
                 "New three-arm comparison: dev11001-16000,5000 impressions/183558 candidates. "
                 "Refinement dev16001-21000:5000 impressions/186527 candidates. "
                 "Next doubled-head dev21001-26000:5000 impressions/186223 candidates. "
+                "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
+                "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
         "eval": "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
                 "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
@@ -130,8 +140,23 @@ CAMPAIGNS = [
                 "Unchanged gate fails;retain exact279ef6c4. All16 pairwise metrics,four "
                 "heads' full-holdout math,128spots/cache/sample/exclusion independently verified. "
                 "Both CPU controllers exited0;neither nonlinear head receives a GPU test. "
+                "Behavioral CPU control Completed:MIND-small TRAINING-only referenceAUC0.71224853,"
+                "binary0.73529095,selected pairwise0.73622245;all secondary point metrics improve. "
+                "Unchanged +0.005/all-secondary gate passes;all source integer counts,complete fit/"
+                "holdout feature matrices,three full-holdout heads and12 metrics independently verified. "
+                "Reused selection holdout,extra official training-log population;not dev/SOTA evidence. "
+                "Freeze correction and population for newdev26001-31000;final primary hybrid-minus-retained,"
+                "2048 paired resamples/seed42/unadjusted,promote only positive primary AUC95%CI. "
+                "No dev fitting/reselection/count updates/pooling;report secondary regressions. "
+                "No independent behavioral dev quality result yet;retain279ef6c4. "
+                "Actual baseline parentkhaki_clock_p86ytlrfth,"
+                "workerc33d2b74-0cea-4b9b-b5b5-8029f31dd421;initial parentRunning/"
+                "workerQueued,not feature extraction. Source/resources/head paths/window "
+                "verified;attached controller applies immutable CPU hybrid after verified scoring. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("khaki_clock_p86ytlrfth", "Behavioral experiment frozen-baseline pass parent,dev26001-31000;hybrid pending", ""),
+            ("c33d2b74-0cea-4b9b-b5b5-8029f31dd421", "Behavioral experiment baseline worker;not a hybrid quality result", ""),
             ("kind_snake_fkcl3465qw", "Doubled not promoted,newdev21001-26000 parent", "0.65448886"),
             ("9f55bfbc-db7b-4439-9817-0303b17f64ec", "Fixed doubled-head fresh5000 worker", ""),
             ("coral_turtle_b21f31930c", "Training-only data doubling parent,262143 pairs", ""),
@@ -290,6 +315,9 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "MIND-small behavioral TRAINING-only gate passed:AUC0.71224853->0.73622245,"
+    "all secondary point metrics improve;not dev,test/leaderboard or SOTA. "
+    "Frozen newdev26001-31000/188821candidates;no behavioral dev quality result yet,retain279ef6c4. "
     "Both cached nonlinear controls rejected before GPU:binary bestTRAINING-AUC0.71685153,"
     "pairwise0.71410710 vs retained0.71224853;both below+0.005 gate and both lowerMRR/nDCG. "
     "Retain exact279ef6c4;all32 training metric cells/full-holdout head math verified,no newdev claim. "

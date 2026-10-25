@@ -1869,6 +1869,31 @@ The reused training holdout can overfit;the population adds official
 training-log information beyond cached fit rows. This result is NOT
 independent dev evidence,MIND_large,test/leaderboard or SOTA evidence.
 
+Actual evaluation submitted October25,2026 at20:03 UTC /October26 04:03
+UTC+8:parentkhaki_clock_p86ytlrfth,
+workerc33d2b74-0cea-4b9b-b5b5-8029f31dd421.
+Committed source7c6aa8b3948c7e759125570f732e74dabc148e25;immutable CPU
+worktree `jev-behavior-fixed-source-7c6aa8b3`. Output
+`jev_readout_recovery_20261025/behavior_fresh5000_01`.
+Initial server readback:parentRunning,workerQueued,not yet feature extraction.
+Actual Standard Ranking one-A100/21600s allocation,source,output,both
+backbone-head paths/checksums and zero-based26000 window verified.
+Attached controller `jev-behavior-dev-controller` PID73884;monitorPID78068.
+Creation-based six-hour deadline,no duplicate submission or budget reset.
+The controller independently verifies the baseline pass,then runs the
+immutable CPU correction and independent full-feature/head/metric/paired
+verifier automatically. Quality remains unavailable;279ef6c4 remains
+retained until the predeclared independent-dev gate passes.
+
+Behavioral training/actual-submission publication completed:full authenticated
+shared-site snapshot returned `Status: Succeeded` and `Deployment Complete`.
+Receipt `jev-behavior-submission-publication-20261025.log`;binding proof
+`jev-behavior-submission-publication-verification.json` verifies Table21's
+12 training cells,all frozen hashes,actual source/window/188821 candidates,
+parent/worker identities and empty quality fields in one fresh AML feed.
+Historical windows and prior rejection decisions remain separately verified.
+No signed-in browser rendering verification is claimed;dev result pending.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

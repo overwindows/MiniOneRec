@@ -191,11 +191,20 @@ CAMPAIGNS = [
                 "SystemError,missing registry layer,zero recorded compute time;"
                 "75284 rows remain. Bounded replacement parentfrosty_spoon_4xzk0mw81z "
                 "submitted;original stage2 deadline2026-10-26 14:11:59UTC unchanged. "
-                "Submitted does not mean its worker is executing. No full-data heads/dev score. "
+                "Replacement completed11:25UTC,459516 rows covered. Final stage3 parent"
+                "tidy_night_p3t3smvnym,worker5c53ab1c-d326-410d-92c3-ee1cc2080f25 "
+                "Completed;all469264 rows assembled and both heads fitted12:28UTC. "
+                "Every stage metadata independently verified. Fitted-artifact CPU verifier "
+                "stopped on population_sha256:exactly three ZIP creator-OS bytes differ "
+                "Windows0/Linux3;all NPY payload bytes and array values exactly identical. "
+                "Strict CPU-only serialization recovery retains both hashes and all count/"
+                "feature/loss/cache-spot checks. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("frosty_spoon_4xzk0mw81z", "Stage2 infrastructure replacement;original14:11UTC deadline,no further retry", ""),
-            ("76c17e08-785c-43b4-a7d3-4d6073a6b024", "Replacement stage2 worker;parentRunning is not proof of execution", ""),
+            ("tidy_night_p3t3smvnym", "Completed stage3:all469264 rows and full fit;independent CPU verification pending", ""),
+            ("5c53ab1c-d326-410d-92c3-ee1cc2080f25", "Completed final feature/fit worker;not a dev quality score", ""),
+            ("frosty_spoon_4xzk0mw81z", "Completed and verified stage2 replacement,459516 rows covered", ""),
+            ("76c17e08-785c-43b4-a7d3-4d6073a6b024", "Completed replacement stage2 worker;original deadline preserved", ""),
             ("purple_dress_s2zryf6ck7", "Original stage2 failed before execution;image-pull SystemError,zero recorded compute", ""),
             ("5c616a1a-bf65-4e2b-bb8f-e6689746b5ca", "Failed stage2 worker;no monitor-captured worker log", ""),
             ("musing_sprout_blpm5x03ms", "Completed and verified stage1,393980/469264 rows now covered", ""),

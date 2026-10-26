@@ -2192,6 +2192,59 @@ proof`jev-full-training-infrastructure-recovery-publication-verification.json`,
 which also binds the original stage/aggregate deadlines and archived state.
 No signed-in browser rendering verification claimed.
 
+The one infrastructure replacement succeeded without changing the image
+or model:stage2 Completed with65536 new rows,459516 total,exact row metadata
+verified. Feature SHA256:
+`a3c09341fcdef4f91e26aaef2ddee75b1c9adf0655796f79611eaa3fdefe6db6`.
+Stage3 parent`tidy_night_p3t3smvnym`,worker
+`5c53ab1c-d326-410d-92c3-ee1cc2080f25`,created11:30:32UTC,deadline17:30:32UTC,
+Completed. All9748 final rows verified,469264/469264 covered.
+Final feature SHA256:
+`c4ddaf77fd6495bfe3c6f2667fb7b497cd2c0692be9dee8119fadda2cdc933f1`.
+The worker fitted both full-data heads12:28UTC:
+text`5392ad5738d09a9e0df9a502754ceb833f807f9f4c8b9fbc6a7ceded1adf13bc`,
+behavior`48b04d256401751de412291bbc6e78265176049e1f62cb536c7ceab5fd22cd52`.
+These are not yet independently accepted fitted artifacts or quality results.
+
+The CPU verifier stopped at`population_sha256`12:35UTC. Full-file diagnosis
+finds exactly three ZIP central-header creator-OS bytes,Windows0/Linux3,
+at offsets2435227/2435285/2435341. Every NPY payload byte and every value in
+item_ids/counts/totals is identical,including shapes/dtypes. Original
+preregistered Windows population SHA993852a23416f436ed1dd0d7f6a8fde75dfb884b69da9c6b3242a1d00e67d06f
+is preserved;the exact Linux archive SHA is
+`b2bdeb1b7d4d1c090aee9f8b216a00275c89ba810e07b6fad093219e97ae9f95`.
+Evidence:`jev-full-training-population-diagnostics.json`;original failed
+state/log/verifier/watcher preserved underoriginal-population-error names.
+CPU recovery derives Linux bytes only from the checksum-bound original,
+changes only those three documented creator-OS fields,and requires the
+entire remote file and worker digest to match. No arbitrary archive
+normalization,semantic-only checksum fallback,head refit,source/data/recipe/
+window change,training rerun or budget/deadline reset. Full independent
+population counts,all behavioral features,scores,losses and128 cache/text
+spots must still pass before the one registered fresh official-dev job.
+The final publication watcher correctly stopped on this verifier error.
+No full-training dev result exists.
+
+Nine targeted controller fixtures pass,including the actual three observed
+byte offsets,known Linux digest,unchanged original bytes,unsupported creator
+codes and tampering rejection. The offline full469264-row verifier passes
+with Linux population/row bytes and rejects incomplete coverage;synthetic
+zero heads,not model quality. Proof:
+`jev-full-verifier-population-linux-smoke.json`.
+CPU-only recovery registered12:49UTC with all four successful stages reused.
+Controller shell/log:`jev-full-refit-controller-population-recovery(.log)`;
+recovery proof:`jev-full-training-population-recovery-verification.json`.
+The full independent fitted-artifact check is running;the controller will
+submit the single registered fresh-dev job only after that check succeeds.
+Replacement guarded publisher shell/state:
+`jev-full-final-publication-population-watch(.json)`,log
+`jev-full-training-final-publication-population.log`. Prior controller/
+watcher errors remain preserved. All-features webpage refresh deployed
+`Status:Succeeded`/`Deployment Complete`;receipt
+`jev-full-training-all-features-publication-20261026.log`,proof
+`jev-full-training-all-features-publication-verification.json`.
+All original deadlines and scientific settings remain unchanged.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

@@ -2312,6 +2312,33 @@ signed-in browser rendering verification claimed. Campaign complete with
 a negative primary result;no additional model/data/recipe tuning or GPU
 job is automatically authorized by this result.
 
+#### Post-hoc regression diagnosis:existing frozen arms only
+
+CPU-only accounting on the same already-exposed dev31001-36000 replays five
+existing arms from checksum-bound raw scores. All20 metric cells reproduce
+their verified results,and the original hybrid contrast/intervals reproduce
+exactly. No candidate fitting,score mixtures,tuning,GPU job or promotion.
+
+| Existing component | Subset-trained | Full-trained | AUC change |
+|---|---:|---:|---:|
+| Text readout AUC,before behavior |0.66343769|0.66094967|-0.00248802|
+| Behavioral AUC lift above own text baseline |+0.01255060|+0.01108578|-0.00146483|
+| Hybrid AUC |0.67598829|0.67203545|-0.00395284|
+
+Exploratory text-scaling95%CI[-0.00485889,-0.00009004];behavioral-lift
+change95%CI[-0.00397179,+0.00097415]. Both frozen behavioral corrections
+still improve their own text baselines,with positive AUC intervals.
+The regression is already present before the behavioral correction;the
+behavioral-lift reduction is not independently clear at this interval.
+The sum is an accounting identity,not causal isolation:the populations,
+corrections and text margins differ. These are post-hoc,unadjusted,
+2048 paired-impression bootstrap intervals,seed42,not independent new
+confirmation. They identify neither regularization,objective,data cohort
+nor optimization as the cause. Do not tune/select a replacement using
+these exposed dev labels. The retained candidate and primary rejection
+remain unchanged. Artifact:`jev-full-regression-diagnosis.json`;
+generator:`diagnose_jev_full_regression.py` in the session files.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

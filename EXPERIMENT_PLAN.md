@@ -1924,6 +1924,57 @@ Recover only saved CPU scoring/verification;no GPU rerun,new training,
 head/population/window change,reselection or deadline/budget reset.
 Original controller error evidence remains preserved.
 
+#### Verified official-dev result: behavioral hybrid passes promotion gate
+
+CPU recovery source60cd6e4940f0f6924a1b7dfefcfb1012795010d3;unchanged GPU
+source7c6aa8b3948c7e759125570f732e74dabc148e25. Recovery exited0,
+independently verified October26 01:41UTC /09:41UTC+8. Same official
+MIND_small dev26001-31000,5000 impressions/188821 candidates.
+
+| Official MIND_small dev condition | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV | 0.62893530 | 0.29733073 | 0.32481915 | 0.38229220 |
+| Retained131071 text readout | 0.66104433 | 0.32175543 | 0.35096800 | 0.41470848 |
+| Fixed behavioral pairwise hybrid | 0.67411689 | 0.32969184 | 0.36348107 | 0.42513257 |
+
+| Primary hybrid-minus-retained | Mean difference | Paired impression-bootstrap95% CI |
+|---|---:|---|
+| AUC | +0.01307257 | [+0.00955989,+0.01672927] |
+| MRR | +0.00793641 | [+0.00388142,+0.01193081] |
+| nDCG@5 | +0.01251307 | [+0.00788235,+0.01694465] |
+| nDCG@10 | +0.01042409 | [+0.00651074,+0.01421139] |
+
+2048 paired impression resamples,seed42,unadjusted. All four primary
+intervals positive,no secondary regression;predeclared promotion gate
+passes. Retain the hybrid as the new research candidate:existing text
+head279ef6c4 plus correction32e8af31 plus populationba4d7855. The4-feature
+correction alone is not a2560-dimensional head replacement. Supporting
+hybrid-minus-frozen AUC+0.04518160[+0.03809412,+0.05271782];
+retained-minus-frozen+0.03210903[+0.02489327,+0.03933017].
+
+Full features/correction math/exact coverage/all12 metrics/all three
+paired contrasts independently reconstructed. No dev fitting,reselection,
+count updates,window pooling,GPU rerun or budget reset. Original timeout
+snapshot/log preserved. Proof `jev-behavior-dev-independent-verification.json`;
+resultb5d6aba3be6c54047d3f288b71ca4ed580907869d3ee22e5f83af2bc99ea7d47;
+raw19f1f6f07d3f4370c8953b1c9028bdbafea68ba3c66a489af87148117feacc77.
+This remains partial official-dev evidence for a131071-pair subset-trained
+model,not full-dev/test,MIND_large,SOTA or the requested full-training fit.
+Full training audit:156965 impressions,236344 clicked/5607100 unclicked
+candidates,5843444 total;existing negative sampling yields469264 fit rows.
+Full-training coverage/refit remains a separate unresolved scope,not done.
+
+Verified-dev publication completed:the full authenticated shared-site
+snapshot returned `Status: Succeeded` / `Deployment Complete`.
+Receipt `jev-behavior-final-publication-20261026.log`;binding proof
+`jev-behavior-final-publication-verification.json` validates all12
+official-dev cells,four primary intervals,source/model/population hashes,
+CPU-only recovery and completed-job feed. Training-selection Table21 is
+collapsed and clearly separate from official-dev Tables22-23. The GPU
+run's feed metric is its retained-head AUC0.66104433,not the CPU hybrid
+AUC0.67411689;the hybrid result is explicitly reported separately.
+No signed-in browser rendering verification is claimed.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

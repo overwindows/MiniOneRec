@@ -148,16 +148,21 @@ CAMPAIGNS = [
                 "Freeze correction and population for newdev26001-31000;final primary hybrid-minus-retained,"
                 "2048 paired resamples/seed42/unadjusted,promote only positive primary AUC95%CI. "
                 "No dev fitting/reselection/count updates/pooling;report secondary regressions. "
-                "No independent behavioral dev quality result yet;retain279ef6c4. "
+                "Official MIND-small dev26001-31000 Completed:hybridAUC0.67411689 vs "
+                "retained0.66104433,frozen0.62893530. Primary+0.01307257,"
+                "95%CI[+0.00955989,+0.01672927];all four primary intervals positive. "
+                "Retain hybrid32e8af31+text279ef6c4+populationba4d7855 as research candidate. "
                 "Actual baseline parentkhaki_clock_p86ytlrfth,"
-                "workerc33d2b74-0cea-4b9b-b5b5-8029f31dd421;parent/workerRunning. "
-                "Baseline scoring162432/188821 candidates (86.0%) atOct26 00:41UTC/"
-                "Oct25 17:41UTC-7;no longer queued. Runtime source checkout/resources/head "
-                "paths/window verified;attached controller applies immutable CPU hybrid after verified scoring. "
+                "workerc33d2b74-0cea-4b9b-b5b5-8029f31dd421;bothCompleted. "
+                "CPU-only recovery source60cd6e4940f0f6924a1b7dfefcfb1012795010d3 fixes repeated "
+                "full-array conversion in metric aggregation;no model change or GPU rerun/budget reset. "
+                "Full features/head mathematics/coverage/12metrics/three paired contrasts independently "
+                "verified Oct26 01:41UTC;recovery exit0. Subset-trained on131071 pairs,not the "
+                "requested full-training refit;not full-dev/test,MIND-large or SOTA. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("khaki_clock_p86ytlrfth", "Behavioral experiment frozen-baseline pass parent,dev26001-31000;hybrid pending", ""),
-            ("c33d2b74-0cea-4b9b-b5b5-8029f31dd421", "Behavioral experiment baseline worker;not a hybrid quality result", ""),
+            ("khaki_clock_p86ytlrfth", "Completed GPU baseline pass,dev26001-31000;CPU hybrid0.67411689 in Table22", "0.66104433"),
+            ("c33d2b74-0cea-4b9b-b5b5-8029f31dd421", "Completed frozen-baseline worker;hybrid verified separately on CPU", ""),
             ("kind_snake_fkcl3465qw", "Doubled not promoted,newdev21001-26000 parent", "0.65448886"),
             ("9f55bfbc-db7b-4439-9817-0303b17f64ec", "Fixed doubled-head fresh5000 worker", ""),
             ("coral_turtle_b21f31930c", "Training-only data doubling parent,262143 pairs", ""),
@@ -316,11 +321,13 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Baseline scoring Running:162432/188821 candidates (86.0%) as ofOct26 00:41UTC/"
-    "Oct25 17:41UTC-7;this is execution progress,not a dev quality result. "
+    "Verified official MIND-small dev26001-31000:hybridAUC0.67411689 vsretained0.66104433,"
+    "delta+0.01307257,95%CI[+0.00955989,+0.01672927];all four primary intervals positive. "
+    "New research candidate is the hybrid;subset-trained on131071 pairs,NOT full-training/SOTA. "
+    "CPU-only recovery complete,no GPU rerun;all12 metrics/three contrasts/full features verified. "
     "MIND-small behavioral TRAINING-only gate passed:AUC0.71224853->0.73622245,"
     "all secondary point metrics improve;not dev,test/leaderboard or SOTA. "
-    "Frozen newdev26001-31000/188821candidates;no behavioral dev quality result yet,retain279ef6c4. "
+    "Official-dev result covers5000 impressions/188821candidates;requested full-training refit remains separate. "
     "Both cached nonlinear controls rejected before GPU:binary bestTRAINING-AUC0.71685153,"
     "pairwise0.71410710 vs retained0.71224853;both below+0.005 gate and both lowerMRR/nDCG. "
     "Retain exact279ef6c4;all32 training metric cells/full-holdout head math verified,no newdev claim. "

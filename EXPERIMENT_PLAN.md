@@ -2265,6 +2265,53 @@ preserved;controller shell/log:
 `jev-full-refit-controller-transport-recovery(.log)`.
 All original parent and aggregate deadlines remain unchanged.
 
+#### Full-training campaign final official-dev result (October27 UTC+8)
+
+The full fitted-artifact verification passed,including all counts,behavioral
+features,hybrid scores,both losses and128 cache/text-head spots. Training
+used all156965 official MIND-small impressions/469264 sampled rows with no
+training holdout. The single fresh official-dev pass,parent
+`zen_oven_dxw716bx8c`,worker`110eab85-3df5-4b7a-947c-9d0b5ba0aa78`,
+Completed before its creation-based six-hour deadline. Official dev
+impressions31001-36000:5000 impressions/189095 candidates,not training
+holdout,full-dev,test,MIND-large or leaderboard evaluation.
+
+| Frozen arm | AUC | MRR | nDCG5 | nDCG10 |
+|---|---:|---:|---:|---:|
+| Frozen JEV |0.62488338|0.29519263|0.32302276|0.38354872|
+| Retained subset hybrid |0.67598829|0.32733137|0.36660216|0.42598350|
+| Full-training hybrid |0.67203545|0.32918194|0.36906438|0.42860420|
+
+Primary full-training-minus-retained AUC delta**-0.00395284**,paired
+impression-bootstrap95%CI**[-0.00675987,-0.00115384]**,entirely negative.
+**Do not promote the full-training hybrid;retain the subset hybrid.**
+Secondary deltas:MRR+0.00185057,CI[-0.00165696,+0.00514166];
+nDCG5+0.00246222,CI[-0.00127959,+0.00609273];
+nDCG10+0.00262070,CI[-0.00043716,+0.00562322]. All three intervals cross
+zero;their positive point estimates do not establish improvements.
+2048 paired-impression resamples,seed42,unadjusted intervals;one training
+seed. No dev fitting,reselection,pooling windows or post-hoc promotion.
+The retained hybrid's0.67598829 here is a same-window comparison;do not
+compare the full model against its earlier0.67411689 ondev26001-31000.
+
+All12 metric cells,both full correction/feature matrices,exact coverage
+and three paired contrasts independently reconstructed. Controller exited0.
+Quality proof is stored in`jev-full-refit-campaign.json`;final result
+SHA256`b1add99e0b2a9179fb614e4ac67ed9b878bfa530e26dc0d2f342fe2b0ec4a43f`,
+raw-score SHA256
+`f470c7eab2001ae7ff66b2f366299690371e00201715a43faddecebb7877945d`.
+Guarded final publication completed2026-10-27 03:25UTC+8 with
+`Status:Succeeded`/`Deployment Complete`. Watch state:
+`jev-full-final-publication-transport-watch.json` reports`final_result_published`.
+Receipt:`jev-full-training-final-publication-transport.log`;binding proof:
+`jev-full-training-final-publication-verification.json`.
+HTML SHA256`e0402848f853f62a85a615828f8c3f42228d4c706b9b14dfd0f92fa674b6090e`;
+feed SHA256`f80926082c343e11114c9818648b32592112b7e51b63858d33501917f30aee15`.
+Other shared-site assets and authentication remained unchanged. No
+signed-in browser rendering verification claimed. Campaign complete with
+a negative primary result;no additional model/data/recipe tuning or GPU
+job is automatically authorized by this result.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

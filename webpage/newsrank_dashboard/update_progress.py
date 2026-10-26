@@ -169,7 +169,11 @@ CAMPAIGNS = [
                 "all3212 unpaired sampled impressions still train text/counts/normalization. "
                 "Fresh official dev31001-36000/5000impressions/189095candidates compares "
                 "FULL hybrid versus OLD subset hybrid,each with its own frozen correction/"
-                "population. Quality pending;training loss is not a dev metric. At most four "
+                "population. Final official-dev result independently verified:full hybrid AUC0.67203545,"
+                "retained subset hybrid0.67598829,frozen0.62488338. Primary delta-0.00395284,"
+                "95%CI[-0.00675987,-0.00115384],entirely negative:do not promote full training. "
+                "MRR/nDCG point estimates slightly higher,but all three intervals include zero. "
+                "Earlier stage status notes below are historical;training loss is not a dev metric. At most four "
                 "training stages plus one dev job,one Standard Ranking A100/21600s at a time,"
                 "six-hour parent-creation deadlines,30h aggregate cap,no deadline resets. "
                 "One disclosed infrastructure-only exception permits one additional submission "
@@ -205,6 +209,8 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("zen_oven_dxw716bx8c", "Completed shared dev31001-36000 pass;full hybrid0.67203545 verified on CPU", ""),
+            ("110eab85-3df5-4b7a-947c-9d0b5ba0aa78", "Completed exact-source official-dev worker;all5000 impressions", ""),
             ("tidy_night_p3t3smvnym", "Completed stage3:all469264 rows and full fit;independent CPU verification pending", ""),
             ("5c53ab1c-d326-410d-92c3-ee1cc2080f25", "Completed final feature/fit worker;not a dev quality score", ""),
             ("frosty_spoon_4xzk0mw81z", "Completed and verified stage2 replacement,459516 rows covered", ""),
@@ -374,55 +380,12 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
-    "Verified official MIND-small dev26001-31000:hybridAUC0.67411689 vsretained0.66104433,"
-    "delta+0.01307257,95%CI[+0.00955989,+0.01672927];all four primary intervals positive. "
-    "New research candidate is the hybrid;subset-trained on131071 pairs,NOT full-training/SOTA. "
-    "CPU-only recovery complete,no GPU rerun;all12 metrics/three contrasts/full features verified. "
-    "MIND-small behavioral TRAINING-only gate passed:AUC0.71224853->0.73622245,"
-    "all secondary point metrics improve;not dev,test/leaderboard or SOTA. "
-    "Official-dev result covers5000 impressions/188821candidates. Full-training follow-up uses "
-    "all156965 official impressions/469264 sampled rows,zero held-out training impressions,"
-    "no fitting-row cap;quality pending untouched official dev31001-36000/189095candidates. "
-    "Both cached nonlinear controls rejected before GPU:binary bestTRAINING-AUC0.71685153,"
-    "pairwise0.71410710 vs retained0.71224853;both below+0.005 gate and both lowerMRR/nDCG. "
-    "Retain exact279ef6c4;all32 training metric cells/full-holdout head math verified,no newdev claim. "
-    "Doubled head NOT promoted: untouched dev21001-26000 retainedAUC0.65561171 vs doubled0.65448886 "
-    "(frozen0.62787974). Primary -0.00112285,95%CI[-0.00307466,+0.00088349];"
-    "all four primary intervals include zero. Retain131071 head279ef6c4. "
-    "All12 dev metrics,three contrasts,both heads and128spots independently verified;both jobsCompleted,"
-    "controller exited0. No retuning,pooling or automatic further data-only scaling. "
-    "Doubling Completed:training-only AUC0.71224853->0.71305557,only+0.00080704;MRR/nDCG10 lower. "
-    "262143 pairs,reuse131071 cached,131072 new features;all12 holdout metrics/128spots verified. "
-    "Metadata-only readback repair,no GPU rerun. Frozen doubled head2df5077c vs retained279ef6c4 "
-    "and frozen on untouched dev21001-26000/186223candidates;fixed comparison Completed,"
-    "one A100/six-hour cap;train-only gain did not establish a dev improvement. "
-    "Refinement NOT promoted: primary newdev AUC +0.00187354 "
-    "(95%CI[-0.00083710,+0.00461701]); all four primary intervals include zero. "
-    "Retain scaled L2=0.01 head; no dev retuning or replacement selection. "
-    "CPU refinement Completed: training-only AUC0.71224853->0.71929553 selects binary L2=0.001; "
-    "not dev,and MRR/nDCG10 slightly lower. Selected head frozen for newdev16001-21000 "
-    "against scaled reference and frozen; fresh5000 comparison Completed,one A100/six hours. "
-    "Same window: scaled0.66751333,refined0.66938687,frozen0.62556294. "
-    "Larger-data fit Completed: training-only holdout AUC0.69200943->0.71224853,selection only,not dev. "
-    "Three-arm fresh dev11001-16000 Completed: frozen AUC0.62981627,confirmed0.64560843,"
-    "scaled0.66443821. Primary scaled-minus-confirmed +0.01882978 "
-    "(95% paired CI [+0.01445333,+0.02334820]); all four primary metric intervals positive. "
-    "No dev fitting or retuning; all12 metrics,three contrasts,both heads and128 spots verified. "
-    "Frozen-readout gain confirmed on fresh dev6001-11000: matched AUC 0.62637000 -> 0.64790555, "
-    "+0.02153556 (95% paired CI [+0.01380902,+0.02905105]); MRR/nDCG also improve with "
-    "positive unadjusted intervals. Exact unchanged head, no retraining/retuning; all5000 "
-    "impressions/187881 candidates and128 feature/head spot checks independently verified. "
-    "Earlier dev5001-6000 pilot AUC 0.61530684 -> 0.63367586 remains a separate comparison. "
-    "Both jobs Completed; one training subset/seed, not full-dev/test validation or SOTA. "
-    "Recorded competition target: 0.7326; best submitted ensemble: 0.7144. "
-    "Matched frozen controls completed 2026-10-20: legacy AUC 0.6362 vs native-click 0.6331; "
-    "paired AUC interval includes zero, so no prompt-only improvement is established. "
-    "Full input audit passed all 469264 training pairs and 187009 dev candidates without truncation. "
-    "Full-data decision-loss + legacy-prompt experiment Completed and independently verified: "
-    "decision AUC 0.56365540 versus old SFT 0.54519484 and matched frozen 0.63623517. "
-    "Decision-minus-old +0.01846056 (95% paired CI [+0.00735828,+0.02897442]); "
-    "still below frozen by 0.07257978. Partial recovery, not successful adaptation or SOTA. "
-    "One training seed; impression-bootstrap intervals unadjusted; downstream campaigns remain gated."
+    "Verified full-training MIND-small official dev31001-36000:"
+    "full hybrid AUC0.67203545,retained hybrid0.67598829,frozen0.62488338;"
+    "primary delta-0.00395284,95%CI[-0.00675987,-0.00115384]. "
+    "Do not promote:the primary AUC confidence interval is entirely negative. "
+    "Training used all156965 official impressions/469264 sampled rows,"
+    "zero training-holdout exclusions. Partial official dev,one seed,not MIND-large/test or SOTA."
 )
 
 

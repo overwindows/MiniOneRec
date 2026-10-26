@@ -148,7 +148,7 @@ def main():
         "source_revision": args.source_revision,
         "backbone": "frozen; fixed checksum-pinned readout; no fitting or reselection",
         "head_sha256": args.head_sha256, "selected": selection["selected"],
-        "train_holdout_impressions": 256,
+        "train_holdout_impressions": selection.get("train_holdout_impressions", 256),
         "dev_start_zero_based": args.dev_start, "dev_impressions": len(records),
         "dev_candidates": len(rows), "frozen": frozen, "selected_metrics": selected,
         "delta": {key: selected[key] - frozen[key] for key in frozen},
@@ -159,7 +159,9 @@ def main():
         "limitations": [
             "Fixed frozen-backbone readout, not full-model or native two-exit JEV training.",
             f"Dev rows{args.dev_start + 1}-{args.dev_start + len(records)}; not the old first5000 comparison.",
-            "One training subset/seed; no SOTA or repeated-seed claim.",
+            ("All official training impressions with existing negative sampling;one seed,no SOTA or repeated-seed claim."
+             if selection.get("train_holdout_impressions") == 0
+             else "One training subset/seed; no SOTA or repeated-seed claim."),
         ],
     }
     if reference_scores is not None:

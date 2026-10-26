@@ -80,6 +80,22 @@ class ReadoutTests(unittest.TestCase):
             self.assertAlmostEqual(actual[name], value)
         self.assertEqual(actual, metrics(np.asarray(labels), np.asarray(scores), groups))
 
+    def test_full_training_allows_unpaired_groups_only_when_explicit(self):
+        labels, groups = [1, 0, 1, 0], ["a", "a", "positive-only", "negative-only"]
+        with self.assertRaises(ValueError):
+            pair_indices(labels, groups)
+        left, right, weights = pair_indices(labels, groups, allow_unpaired=True)
+        self.assertEqual(left.tolist(), [0])
+        self.assertEqual(right.tolist(), [1])
+        self.assertEqual(weights.tolist(), [1.])
+        with self.assertRaises(ValueError):
+            pair_indices([1, 0], ["a", "b"], allow_unpaired=True)
+        head, loss = fit_head(
+            self.features, self.base, labels, groups, .01, "pairwise", allow_unpaired=True,
+        )
+        self.assertTrue(np.isfinite(loss))
+        np.testing.assert_array_equal(head["mean"], self.features.mean(axis=0))
+
     def test_invalid_objectives_nonfinite_and_degenerate_groups_fail(self):
         with self.assertRaises(ValueError):
             fit_head(self.features, self.base, self.labels, self.groups, 0, "binary")
@@ -210,8 +226,8 @@ class ReadoutTests(unittest.TestCase):
             self.assertEqual(row["scaled_margins"], [2, 2])
 
     def test_three_arm_evaluator_reuses_one_feature_pass_and_preserves_two_arm_default(self):
-        for with_reference in (False, True):
-            with self.subTest(with_reference=with_reference), tempfile.TemporaryDirectory() as directory:
+        for with_reference, full_training in ((False, False), (True, False), (True, True)):
+            with self.subTest(with_reference=with_reference, full_training=full_training), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 head_dir, dev = root / "heads", root / "data" / "dev"
                 head_dir.mkdir()
@@ -224,7 +240,10 @@ class ReadoutTests(unittest.TestCase):
                 head["weight"] = -head["weight"]
                 reference_path = head_dir / "reference.head.npz"
                 np.savez(reference_path, **head)
-                (head_dir / "train-selection.json").write_text(json.dumps({"selected": "scaled"}))
+                selection = {"selected": "scaled"}
+                if full_training:
+                    selection.update(train_holdout_impressions=0, minimum_dev_start=31000)
+                (head_dir / "train-selection.json").write_text(json.dumps(selection))
                 (head_dir / "loader-parity.json").write_text("{}")
                 (head_dir / "result.json").write_text('{"training_only":true}')
                 records = [
@@ -239,7 +258,7 @@ class ReadoutTests(unittest.TestCase):
                     "--head-path", str(selected_path), "--head-sha256",
                     hashlib.sha256(selected_path.read_bytes()).hexdigest(),
                     "--output", str(root / "out"), "--source-revision", "fixture",
-                    "--dev-start", "11000", "--dev-impressions", "2",
+                    "--dev-start", "31000" if full_training else "11000", "--dev-impressions", "2",
                 ]
                 if with_reference:
                     args += [
@@ -259,6 +278,7 @@ class ReadoutTests(unittest.TestCase):
                 result = json.loads((root / "out" / "result.json").read_text())
                 self.assertEqual(result["selected_metrics"]["auc"], 1)
                 self.assertEqual(result["frozen"]["auc"], 0.5)
+                self.assertEqual(result["train_holdout_impressions"], 0 if full_training else 256)
                 raw = json.loads((root / "out" / "dev.scores.jsonl").read_text().splitlines()[0])
                 self.assertEqual("reference_margins" in raw, with_reference)
                 if with_reference:
@@ -268,7 +288,7 @@ class ReadoutTests(unittest.TestCase):
                 else:
                     self.assertNotIn("reference_metrics", result)
                 (head_dir / "train-selection.json").write_text(json.dumps({
-                    "selected": "scaled", "minimum_dev_start": 16000,
+                    "selected": "scaled", "minimum_dev_start": 36000 if full_training else 16000,
                 }))
                 args[args.index("--output") + 1] = str(root / "overlap")
                 with patch("sys.argv", args), self.assertRaisesRegex(ValueError, "overlaps"):
@@ -299,6 +319,7 @@ class ReadoutTests(unittest.TestCase):
             "--comparison-head-sha256", "reference-digest",
             "--comparison-dev-start", "16000",
             "--readout-holdout-cache", "shares/original-cache",
+            "--readout-cache-root", "shares/doubled-cache", "--full-training-stage", "3",
         ]
         with patch("sys.argv", args), patch.object(executor, "PipelineExecutor") as factory:
             factory.return_value.run.return_value = True
@@ -311,6 +332,8 @@ class ReadoutTests(unittest.TestCase):
         self.assertEqual(variables["comparison_head_sha256"], "reference-digest")
         self.assertEqual(variables["comparison_dev_start"], 16000)
         self.assertEqual(variables["readout_holdout_cache"], "/mnt/fixture/shares/original-cache")
+        self.assertEqual(variables["readout_cache_root"], "/mnt/fixture/shares/doubled-cache")
+        self.assertEqual(variables["full_training_stage"], 3)
 
 
 if __name__ == "__main__":

@@ -1962,7 +1962,7 @@ This remains partial official-dev evidence for a131071-pair subset-trained
 model,not full-dev/test,MIND_large,SOTA or the requested full-training fit.
 Full training audit:156965 impressions,236344 clicked/5607100 unclicked
 candidates,5843444 total;existing negative sampling yields469264 fit rows.
-Full-training coverage/refit remains a separate unresolved scope,not done.
+Full-training coverage/refit was not done at this readout;the frozen follow-up below resolves its scope.
 
 Verified-dev publication completed:the full authenticated shared-site
 snapshot returned `Status: Succeeded` / `Deployment Complete`.
@@ -1974,6 +1974,63 @@ collapsed and clearly separate from official-dev Tables22-23. The GPU
 run's feed metric is its retained-head AUC0.66104433,not the CPU hybrid
 AUC0.67411689;the hybrid result is explicitly reported separately.
 No signed-in browser rendering verification is claimed.
+
+#### Full official-training refit preregistration (2026-10-26)
+
+The user requests full training and autonomous continuation. Use **all156965
+official MIND-small training impressions**,retaining the existing seed42,
+negative_ratio1/hard_negative_ratio0.5 sampler:469264 fitting rows,236344
+clicked and232920 sampled unclicked candidates. Remove the131071-row cap
+and all256 training-holdout exclusions. This is not a5.84M-all-candidate
+negative expansion. All3212 single-class sampled impressions train the
+binary text head and contribute population counts/feature normalization;
+153753 mixed-class impressions supply the pairwise correction contrasts.
+Five-fold impression-hash cross-fitting excludes each fitting impression's
+entire fold from its own popularity features,not a training-data holdout.
+
+Freeze one recipe,no training-quality selection:binary text residual L2=.01,
+then pairwise four-feature correction L2=.01,normalized with every fitting
+row;five folds,smoothing20,seed42,float64 LBFGS/max100iterations,four CPU
+threads. Backbone,prompt/history30/abstracts/negative sampler stay unchanged.
+Population includes every official training impression. Publish quality only
+from official dev,never training loss or reused training-holdout scores.
+
+Exact uncapped row SHA256:
+`2771ba130ec47c6e27dea318641d25ea671529c03727b59b04e9f563319abcde`;
+full-population SHA256:
+`993852a23416f436ed1dd0d7f6a8fde75dfb884b69da9c6b3242a1d00e67d06f`.
+Reuse262143 checksum-pinned doubled-cache rows and765 matching former-holdout
+rows. Hash whole caches and replay16 frozen hidden features/margins per cache
+before reuse. Extract exactly206356 missing rows in four sequential stages:
+65536/65536/65536/9748. These shard boundaries are storage/compute limits,
+not training subset limits;assemble and fit all469264 rows only after
+complete,duplicate-free coverage. Keep immutable committed source throughout.
+
+Budget:at most four training-feature jobs plus one fresh-dev job,each one
+Standard Ranking A100 with21600s worker timeout and a six-hour deadline
+from its parent creation,including queue time. At most one allocation at
+a time;maximum30hours aggregate per-parent wall-clock budget,no resets or
+duplicate retries after uncertain submissions. CPU-only recovery may reuse
+completed GPU artifacts without changing heads,features,windows or deadlines.
+
+Fresh official dev**31001-36000**,5000 impressions/**189095 candidates**;
+impression-order SHA256:
+`dde64229686bfc8a93472750ca788a2c65d7e5de8b23ed5e2fa2bb63b79a01c7`.
+One shared frozen-feature pass compares new full text head against retained
+text279ef6c4 and frozen JEV. CPU then applies the new full correction/full
+population to the former and the **old**correction32e8af31/populationba4d7855
+to the latter. Primary is **full-data hybrid minus retained subset hybrid**,
+not hybrid versus uncorrected text. Independently verify coverage,features,
+both head mathematics,all12 metrics and all3 contrasts;2048 paired-impression
+bootstrap resamples,seed42,unadjusted95% intervals. Promote only if the
+primary AUC interval is strictly positive;report all secondary regressions.
+No fitting,reselection or pooling earlier dev windows. Still partial
+MIND-small dev,one seed,not full-dev/test,MIND-large or SOTA evidence.
+
+Implementation and preflight are complete;**no full-training job submitted
+yet**. Private proof:`jev-full-training-preflight.json`. Current published
+quality remains the independently verified subset hybrid AUC0.67411689
+on dev26001-31000 until this new full-training/dev campaign actually ends.
 
 ### Phase 2: RL Fine-tuning
 

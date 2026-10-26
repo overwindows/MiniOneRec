@@ -21,28 +21,35 @@ def save_json(path, value):
     path.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
 
-def pair_indices(labels, groups):
+def pair_indices(labels, groups, allow_unpaired=False):
     buckets = defaultdict(list)
     for index, group in enumerate(groups):
         buckets[group].append(index)
     left, right, weights = [], [], []
+    paired_groups = 0
     for indices in buckets.values():
         positive = [i for i in indices if labels[i] == 1]
         negative = [i for i in indices if labels[i] == 0]
         if not positive or not negative:
+            if allow_unpaired:
+                continue
             raise ValueError("Each training impression must have both classes")
+        paired_groups += 1
         for p in positive:
             for n in negative:
                 left.append(p)
                 right.append(n)
                 weights.append(1 / (len(positive) * len(negative)))
+    if not paired_groups:
+        raise ValueError("Pairwise training requires at least one mixed-label impression")
     return (
         torch.tensor(left), torch.tensor(right),
-        torch.tensor(weights, dtype=torch.float64) / len(buckets),
+        torch.tensor(weights, dtype=torch.float64) / paired_groups,
     )
 
 
-def fit_head(features, margins, labels, groups, regularization, objective, max_iter=100):
+def fit_head(features, margins, labels, groups, regularization, objective, max_iter=100,
+             *, allow_unpaired=False):
     if objective not in ("binary", "pairwise") or regularization <= 0:
         raise ValueError("Expected binary/pairwise objective and positive regularization")
     features = np.asarray(features, dtype=np.float64)
@@ -60,7 +67,7 @@ def fit_head(features, margins, labels, groups, regularization, objective, max_i
     targets = torch.from_numpy(labels)
     weight = torch.zeros(x.shape[1], dtype=torch.float64, requires_grad=True)
     bias = torch.zeros((), dtype=torch.float64, requires_grad=True)
-    pairs = pair_indices(labels, groups) if objective == "pairwise" else None
+    pairs = pair_indices(labels, groups, allow_unpaired=allow_unpaired) if objective == "pairwise" else None
     optimizer = torch.optim.LBFGS(
         [weight, bias], max_iter=max_iter, line_search_fn="strong_wolfe",
         tolerance_grad=1e-7, tolerance_change=1e-10,

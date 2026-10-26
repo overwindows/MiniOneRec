@@ -224,6 +224,8 @@ def main():
     parser.add_argument("--comparison-head-sha256", default="")
     parser.add_argument("--comparison-dev-start", type=int, default=11000)
     parser.add_argument("--readout-holdout-cache", default="")
+    parser.add_argument("--readout-cache-root", default="")
+    parser.add_argument("--full-training-stage", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -249,6 +251,8 @@ def main():
         'comparison_head_sha256': args.comparison_head_sha256,
         'comparison_dev_start': args.comparison_dev_start,
         'readout_holdout_cache': f"{args.mount_dir}/{args.readout_holdout_cache}" if args.mount_dir and args.readout_holdout_cache else args.readout_holdout_cache,
+        'readout_cache_root': f"{args.mount_dir}/{args.readout_cache_root}" if args.mount_dir and args.readout_cache_root else args.readout_cache_root,
+        'full_training_stage': args.full_training_stage,
     }
 
     # 合成完整路径

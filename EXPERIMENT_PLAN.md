@@ -2245,6 +2245,26 @@ watcher errors remain preserved. All-features webpage refresh deployed
 `jev-full-training-all-features-publication-verification.json`.
 All original deadlines and scientific settings remain unchanged.
 
+The resumed verifier passed the complete population-count/behavioral-feature/
+score/loss checks and reached independent source-cache spot reads. At
+12:59UTC an Azure Data Lake HTTPS ReadTimeout interrupted one bounded range
+request;this was not a numerical,coverage or model mismatch. No dev job
+had been submitted. Original state/log/verifier/watcher error preserved
+underoriginal-range-timeout names.
+
+The verifier now retries only the identical read-only OPEN/GETFILESTATUS
+request,at most four attempts with1/2/4-second backoff,for Timeout,
+ConnectionError or HTTP408/429/500/502/503/504. Each failed attempt is logged;
+exhaustion rethrows. Nontransient errors,untrusted redirects,checksums,
+truncated ranges and all numerical tolerances remain strict;no alternate
+bytes,skipped spots,success-shaped fallback or new training allocation.
+Eleven targeted fixtures pass,including exact repeated arguments,bounded
+exhaustion,read-only restriction and immediate nontransient failure.
+CPU recovery registered13:05UTC with all four completed training stages
+preserved;controller shell/log:
+`jev-full-refit-controller-transport-recovery(.log)`.
+All original parent and aggregate deadlines remain unchanged.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

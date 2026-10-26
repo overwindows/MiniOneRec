@@ -198,7 +198,11 @@ CAMPAIGNS = [
                 "stopped on population_sha256:exactly three ZIP creator-OS bytes differ "
                 "Windows0/Linux3;all NPY payload bytes and array values exactly identical. "
                 "Strict CPU-only serialization recovery retains both hashes and all count/"
-                "feature/loss/cache-spot checks. No training rerun or new dev result. "
+                "feature/loss/cache-spot checks. Full population counts/behavioral features/scores/losses "
+                "passed before an Azure storage ReadTimeout in cache spot-checking. "
+                "Strict verification resumed with four bounded attempts per identical "
+                "read-only request,1/2/4s backoff;range lengths/checksums/tolerances unchanged. "
+                "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
             ("tidy_night_p3t3smvnym", "Completed stage3:all469264 rows and full fit;independent CPU verification pending", ""),

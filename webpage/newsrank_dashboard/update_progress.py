@@ -171,21 +171,30 @@ CAMPAIGNS = [
                 "FULL hybrid versus OLD subset hybrid,each with its own frozen correction/"
                 "population. Quality pending;training loss is not a dev metric. At most four "
                 "training stages plus one dev job,one Standard Ranking A100/21600s at a time,"
-                "six-hour parent-creation deadlines,30h aggregate cap,no resets/duplicates. "
+                "six-hour parent-creation deadlines,30h aggregate cap,no deadline resets. "
+                "One disclosed infrastructure-only exception permits one additional submission "
+                "for the terminal zero-compute stage2 image-pull failure,at most six submissions "
+                "including that failed attempt,under the original stage2 deadline;no further retry. "
                 "Actual full-training stage0 parentshy_celery_p9fd7cc41x submitted;"
                 "server source/cache paths/stage/Ranking allocation verified. "
                 "Stage0 GPU Completed:65536 new features,328444/469264 total rows covered. "
                 "CPU-only metadata recovery resolves WindowsCRLF versus LinuxLF digests;"
                 "original local hashes and exact complete remote bytes/IDs/order/labels checked. "
                 "Completed GPU features preserved,no rerun,model/data/source/window change or "
-                "deadline reset. Same campaign continues at planned stage1. "
+                "deadline reset. Stage1 subsequently completed08:01UTC:65536 new features,"
+                "393980/469264 total rows covered and exact row metadata verified. "
                 "Actual stage1 parentmusing_sprout_blpm5x03ms,"
                 "worker30894111-0833-43e8-a6c8-e8319cfee423;source/cache/stage/"
-                "allocation verified. Initial readback parentRunning,workerQueued. "
-                "Submitted does not mean the worker is running;see live status. "
+                "allocation verified. Stage2 parentpurple_dress_s2zryf6ck7 and "
+                "worker5c616a1a-bf65-4e2b-bb8f-e6689746b5ca failed08:24UTC "
+                "before the monitor obtained a worker log. Confirmed pre-execution image-pull "
+                "SystemError,missing registry layer,zero recorded compute time;"
+                "75284 rows remain,no replacement submitted and no full-data heads/dev score. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("musing_sprout_blpm5x03ms", "Full-training stage1,next65536 missing features;reuse completed stage0", ""),
+            ("purple_dress_s2zryf6ck7", "Full-training stage2 failed;service-side diagnosis,no replacement submitted", ""),
+            ("5c616a1a-bf65-4e2b-bb8f-e6689746b5ca", "Failed stage2 worker;no monitor-captured worker log", ""),
+            ("musing_sprout_blpm5x03ms", "Completed and verified stage1,393980/469264 rows now covered", ""),
             ("30894111-0833-43e8-a6c8-e8319cfee423", "Full-training stage1 worker;not a dev quality score", ""),
             ("shy_celery_p9fd7cc41x", "Full-training stage0,65536 missing features;all469264 rows fit after four stages", ""),
             ("khaki_clock_p86ytlrfth", "Completed GPU baseline pass,dev26001-31000;CPU hybrid0.67411689 in Table22", "0.66104433"),

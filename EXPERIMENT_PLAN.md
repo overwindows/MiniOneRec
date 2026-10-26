@@ -2119,6 +2119,43 @@ snapshot returned`Status:Succeeded`/`Deployment Complete`;receipt
 Original submission publication proof and original failure evidence retained;
 no signed-in browser rendering check claimed.
 
+Stage1 completed2026-10-26 08:01UTC and its entire65536-row metadata
+was independently verified. Coverage is393980/469264 rows;75284 remain.
+Feature SHA256:
+`5635bc0433fb0e2d9dff4fbae6e20c0f5aee473048143792cae23937f7cc518b`.
+The controller automatically submitted the registered stage2:
+parent`purple_dress_s2zryf6ck7`,worker
+`5c616a1a-bf65-4e2b-bb8f-e6689746b5ca`,created08:11:59UTC,
+fixed deadline14:11:59UTC. Both were Failed by08:24:42UTC;the monitor
+obtained no worker log. The controller and guarded final publisher stopped
+and their error evidence is preserved. Service-side failure diagnosis is
+in progress;no replacement allocation or deadline/budget reset. Do not
+blindly resume this terminal parent. Both completed feature stages remain
+usable. No full-training fit or fresh full-training dev result exists yet.
+
+Cloud diagnosis identifies a pre-execution infrastructure failure:
+`SystemError`/`KnownSystemError`,container`pre-caching-job`,`ErrImagePull`,
+missing registry layer
+`sha256:998e2433689d901095a5164b1e2ab60c49a3a27281a1b5979560744cb989cbbb`.
+Worker start/end are both08:23:20UTC,recorded compute/duration00:00:00,
+no effective start or user logs. Diagnostic evidence:
+`jev-full-refit-stage-02-cloud-diagnostics.json`.
+Do not attribute this failure to the training code or claim zero charges.
+
+Explicit infrastructure-only budget amendment:allow exactly one additional
+parent submission for this confirmed terminal,zero-compute image-pull
+failure,subject to a fresh service-side error check and HTTP404 for the
+unused stage2 output directory. At most six parent submissions including
+the failed pre-execution attempt;still four successful training stages and
+one dev pass,one Standard Ranking A100 at a time. Preserve the original
+stage2 deadline2026-10-26 14:11:59UTC and original aggregate deadline
+2026-10-27 08:09:23UTC;no extra wall-clock allowance or automatic retry.
+Model,source,environment version5,data,features,heads,recipe and dev window
+are unchanged. A second infrastructure failure stops the campaign.
+Original state,failed phase,submission receipt and watcher errors remain
+archived. Eight controller fixtures pass,including exact failure eligibility,
+absent-output checks,and deadline preservation;not model-quality evidence.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

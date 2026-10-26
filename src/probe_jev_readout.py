@@ -98,12 +98,13 @@ def predict(head, features, margins):
 
 
 def metrics(labels, scores, groups):
+    labels, scores = np.asarray(labels), np.asarray(scores)
     buckets = defaultdict(list)
     for index, group in enumerate(groups):
         buckets[group].append(index)
     values = []
     for indices in buckets.values():
-        y, s = np.asarray(labels)[indices], np.asarray(scores)[indices]
+        y, s = labels[indices], scores[indices]
         if not np.isfinite(s).all() or not (0 < y.sum() < len(y)):
             raise ValueError("Ranking metrics require finite scores and both classes")
         values.append([auc_score(y, s), mrr_score(y, s), ndcg_score(y, s, 5), ndcg_score(y, s, 10)])

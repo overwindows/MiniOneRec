@@ -1908,6 +1908,22 @@ binding proof `jev-behavior-web-refresh-publication-verification.json`.
 Training scores remain explicitly training-only;the running dev test has
 no published quality metric. Earlier queued snapshots below are historical.
 
+#### CPU-only completion recovery after successful fresh-dev scoring
+
+The same GPU parent/worker Completed;baseline coverage188821 candidates,
+all12 metrics/three contrasts/input hashes/both heads/128 spots independently
+verified October26 01:29UTC. Subsequent CPU hybrid calculation hit its
+180-second timeout before writing output;the GPU job did not fail.
+Root cause:ranking aggregation converted the entire Python label list
+to an array inside each impression loop,repeated for all three arms.
+Move identical array conversion outside the loop;preserve grouping,
+tie handling,metric formulas and averaging. Regression coverage checks
+one conversion per full input and exact list/array/tied-score parity.
+Record the CPU recovery source separately from the unchanged GPU source.
+Recover only saved CPU scoring/verification;no GPU rerun,new training,
+head/population/window change,reselection or deadline/budget reset.
+Original controller error evidence remains preserved.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

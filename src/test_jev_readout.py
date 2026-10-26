@@ -68,6 +68,18 @@ class ReadoutTests(unittest.TestCase):
         self.assertAlmostEqual(float(weight[:1].sum()), 0.5)
         self.assertAlmostEqual(float(weight[1:].sum()), 0.5)
 
+    def test_metrics_convert_full_inputs_once_and_preserve_ties(self):
+        labels = [1, 0, 0, 0, 1, 0]
+        scores = [1., 0., 0., 1., 0., 0.]
+        groups = ["a"] * 3 + ["b"] * 3
+        with patch("probe_jev_readout.np.asarray", wraps=np.asarray) as convert:
+            actual = metrics(labels, scores, groups)
+        self.assertEqual(sum(call.args[0] is labels for call in convert.call_args_list), 1)
+        self.assertEqual(sum(call.args[0] is scores for call in convert.call_args_list), 1)
+        for name, value in {"auc": .625, "mrr": 2 / 3, "ndcg5": .75, "ndcg10": .75}.items():
+            self.assertAlmostEqual(actual[name], value)
+        self.assertEqual(actual, metrics(np.asarray(labels), np.asarray(scores), groups))
+
     def test_invalid_objectives_nonfinite_and_degenerate_groups_fail(self):
         with self.assertRaises(ValueError):
             fit_head(self.features, self.base, self.labels, self.groups, 0, "binary")

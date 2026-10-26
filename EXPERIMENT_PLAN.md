@@ -2027,10 +2027,32 @@ primary AUC interval is strictly positive;report all secondary regressions.
 No fitting,reselection or pooling earlier dev windows. Still partial
 MIND-small dev,one seed,not full-dev/test,MIND-large or SOTA evidence.
 
-Implementation and preflight are complete;**no full-training job submitted
-yet**. Private proof:`jev-full-training-preflight.json`. Current published
+Implementation and preflight are complete;source
+`e44b2e1147b5b7d637dc37d354ede943ba84ec57`. Actual stage0 parent
+**`shy_celery_p9fd7cc41x`** was created2026-10-26 02:11:24UTC;
+fixed deadline08:11:24UTC. Server source,stage0,exact old-cache/former-holdout
+paths,output root,one Standard Ranking A100 and21600s timeout verified.
+Submission alone does not establish that a worker is running. Campaign
+controller:`jev-full-refit-controller`,PID63568,persistent state
+`jev-full-refit-campaign.json`;immutable source worktree
+`jev-full-refit-source-e44b2e11`. Aggregate deadline2026-10-27 08:09:23UTC.
+Do not resubmit/reset deadlines. Private preflight proof:
+`jev-full-training-preflight.json`. Current published
 quality remains the independently verified subset hybrid AUC0.67411689
 on dev26001-31000 until this new full-training/dev campaign actually ends.
+
+Submission publication complete2026-10-26 02:22UTC:parent
+`shy_celery_p9fd7cc41x` and worker
+`ca8a0e8f-4a36-413e-9f3e-4308b58a95e3` bothRunning;exact source checkout
+seen,source/environment setup still in progress,no completed features or
+full-training quality claimed. Full authenticated shared-site snapshot
+returned`Status:Succeeded`/`Deployment Complete`;receipt
+`jev-full-training-submission-publication-20261026.log`,binding proof
+`jev-full-training-submission-publication-verification.json`.
+Preserved the current shared-page layout and added official-dev12-metric
+and full-training protocol sections without reverting other page changes.
+All other shared assets/auth configuration remained unchanged. No signed-in
+browser rendering check claimed. Feed training metric is empty.
 
 ### Phase 2: RL Fine-tuning
 

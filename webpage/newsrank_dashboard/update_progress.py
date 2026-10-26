@@ -159,8 +159,25 @@ CAMPAIGNS = [
                 "Full features/head mathematics/coverage/12metrics/three paired contrasts independently "
                 "verified Oct26 01:41UTC;recovery exit0. Subset-trained on131071 pairs,not the "
                 "requested full-training refit;not full-dev/test,MIND-large or SOTA. "
+                "Full-training follow-up sourcee44b2e1147b5b7d637dc37d354ede943ba84ec57 "
+                "uses all156965 official training impressions/469264 sampled rows,"
+                "zero training holdout and no fitting-row cap. Existing seed42 negative "
+                "sampling unchanged,not a5.84M-all-candidate expansion. Reuse262143 doubled "
+                "cache rows and765 former-holdout rows;206356 missing features split"
+                "65536/65536/65536/9748,then jointly fit every row. Fixed binary text L2=.01,"
+                "pairwise behavioral L2=.01,five folds,smoothing20,four CPU threads;"
+                "all3212 unpaired sampled impressions still train text/counts/normalization. "
+                "Fresh official dev31001-36000/5000impressions/189095candidates compares "
+                "FULL hybrid versus OLD subset hybrid,each with its own frozen correction/"
+                "population. Quality pending;training loss is not a dev metric. At most four "
+                "training stages plus one dev job,one Standard Ranking A100/21600s at a time,"
+                "six-hour parent-creation deadlines,30h aggregate cap,no resets/duplicates. "
+                "Actual full-training stage0 parentshy_celery_p9fd7cc41x submitted;"
+                "server source/cache paths/stage/Ranking allocation verified. "
+                "Submitted does not mean the worker is running;see live status. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("shy_celery_p9fd7cc41x", "Full-training stage0,65536 missing features;all469264 rows fit after four stages", ""),
             ("khaki_clock_p86ytlrfth", "Completed GPU baseline pass,dev26001-31000;CPU hybrid0.67411689 in Table22", "0.66104433"),
             ("c33d2b74-0cea-4b9b-b5b5-8029f31dd421", "Completed frozen-baseline worker;hybrid verified separately on CPU", ""),
             ("kind_snake_fkcl3465qw", "Doubled not promoted,newdev21001-26000 parent", "0.65448886"),
@@ -327,7 +344,9 @@ HEADLINE = (
     "CPU-only recovery complete,no GPU rerun;all12 metrics/three contrasts/full features verified. "
     "MIND-small behavioral TRAINING-only gate passed:AUC0.71224853->0.73622245,"
     "all secondary point metrics improve;not dev,test/leaderboard or SOTA. "
-    "Official-dev result covers5000 impressions/188821candidates;requested full-training refit remains separate. "
+    "Official-dev result covers5000 impressions/188821candidates. Full-training follow-up uses "
+    "all156965 official impressions/469264 sampled rows,zero held-out training impressions,"
+    "no fitting-row cap;quality pending untouched official dev31001-36000/189095candidates. "
     "Both cached nonlinear controls rejected before GPU:binary bestTRAINING-AUC0.71685153,"
     "pairwise0.71410710 vs retained0.71224853;both below+0.005 gate and both lowerMRR/nDCG. "
     "Retain exact279ef6c4;all32 training metric cells/full-holdout head math verified,no newdev claim. "

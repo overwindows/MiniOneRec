@@ -1894,6 +1894,20 @@ parent/worker identities and empty quality fields in one fresh AML feed.
 Historical windows and prior rejection decisions remain separately verified.
 No signed-in browser rendering verification is claimed;dev result pending.
 
+Web status refresh,October26 00:41UTC /October25 17:41UTC-7:the same
+parent/worker are nowRunning;baseline scoring162432/188821 candidates
+(86.0%),no longer queued. Exact runtime source checkout is observed.
+This is execution progress only;no independently verified behavioral dev
+quality or promotion decision is available. The frozen recipe and
+creation-based deadline are unchanged.
+
+Refreshed method/dataset/results/status page and fresh AML execution feed
+deployed successfully as a full authenticated shared-site snapshot.
+Receipt `jev-behavior-web-refresh-publication-20261026.log`;
+binding proof `jev-behavior-web-refresh-publication-verification.json`.
+Training scores remain explicitly training-only;the running dev test has
+no published quality metric. Earlier queued snapshots below are historical.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

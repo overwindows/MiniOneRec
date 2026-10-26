@@ -150,9 +150,10 @@ CAMPAIGNS = [
                 "No dev fitting/reselection/count updates/pooling;report secondary regressions. "
                 "No independent behavioral dev quality result yet;retain279ef6c4. "
                 "Actual baseline parentkhaki_clock_p86ytlrfth,"
-                "workerc33d2b74-0cea-4b9b-b5b5-8029f31dd421;initial parentRunning/"
-                "workerQueued,not feature extraction. Source/resources/head paths/window "
-                "verified;attached controller applies immutable CPU hybrid after verified scoring. "
+                "workerc33d2b74-0cea-4b9b-b5b5-8029f31dd421;parent/workerRunning. "
+                "Baseline scoring162432/188821 candidates (86.0%) atOct26 00:41UTC/"
+                "Oct25 17:41UTC-7;no longer queued. Runtime source checkout/resources/head "
+                "paths/window verified;attached controller applies immutable CPU hybrid after verified scoring. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
             ("khaki_clock_p86ytlrfth", "Behavioral experiment frozen-baseline pass parent,dev26001-31000;hybrid pending", ""),
@@ -315,6 +316,8 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Baseline scoring Running:162432/188821 candidates (86.0%) as ofOct26 00:41UTC/"
+    "Oct25 17:41UTC-7;this is execution progress,not a dev quality result. "
     "MIND-small behavioral TRAINING-only gate passed:AUC0.71224853->0.73622245,"
     "all secondary point metrics improve;not dev,test/leaderboard or SOTA. "
     "Frozen newdev26001-31000/188821candidates;no behavioral dev quality result yet,retain279ef6c4. "

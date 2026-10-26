@@ -189,10 +189,14 @@ CAMPAIGNS = [
                 "worker5c616a1a-bf65-4e2b-bb8f-e6689746b5ca failed08:24UTC "
                 "before the monitor obtained a worker log. Confirmed pre-execution image-pull "
                 "SystemError,missing registry layer,zero recorded compute time;"
-                "75284 rows remain,no replacement submitted and no full-data heads/dev score. "
+                "75284 rows remain. Bounded replacement parentfrosty_spoon_4xzk0mw81z "
+                "submitted;original stage2 deadline2026-10-26 14:11:59UTC unchanged. "
+                "Submitted does not mean its worker is executing. No full-data heads/dev score. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("purple_dress_s2zryf6ck7", "Full-training stage2 failed;service-side diagnosis,no replacement submitted", ""),
+            ("frosty_spoon_4xzk0mw81z", "Stage2 infrastructure replacement;original14:11UTC deadline,no further retry", ""),
+            ("76c17e08-785c-43b4-a7d3-4d6073a6b024", "Replacement stage2 worker;parentRunning is not proof of execution", ""),
+            ("purple_dress_s2zryf6ck7", "Original stage2 failed before execution;image-pull SystemError,zero recorded compute", ""),
             ("5c616a1a-bf65-4e2b-bb8f-e6689746b5ca", "Failed stage2 worker;no monitor-captured worker log", ""),
             ("musing_sprout_blpm5x03ms", "Completed and verified stage1,393980/469264 rows now covered", ""),
             ("30894111-0833-43e8-a6c8-e8319cfee423", "Full-training stage1 worker;not a dev quality score", ""),

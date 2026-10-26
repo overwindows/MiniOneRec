@@ -2156,6 +2156,42 @@ Original state,failed phase,submission receipt and watcher errors remain
 archived. Eight controller fixtures pass,including exact failure eligibility,
 absent-output checks,and deadline preservation;not model-quality evidence.
 
+The infrastructure replacement was registered08:47UTC after fresh terminal
+cloud checks and GETFILESTATUS_HTTP404 for the stage2 directory. Original
+state is archived in
+`jev-full-refit-campaign-before-stage2-infrastructure-replacement.json`.
+Actual replacement parent`frosty_spoon_4xzk0mw81z`;source remains`e44b2e1`.
+Receipt:`jev-full-refit-stage-02-infra-retry-01-submit.log`.
+Controller:`jev-full-refit-controller-infrastructure-recovery`,log of the
+same basename. No second retry is authorized by this amendment.
+The failure-status webpage snapshot deployed successfully,with actual
+393980-row coverage and the zero-compute failure;receipt
+`jev-full-training-stage2-failure-status-only-publication-20261026.log`,
+proof`jev-full-training-stage2-failure-publication-verification.json`.
+An earlier feed-generation attempt was stopped before deployment because
+SDK Studio-URL decoration repeatedly attempted the broken Windows CLI
+credential path. Private publication now reads the same AML RunHistory
+statuses directly with the existing working credential,avoiding URL
+decoration;public authentication/deployment code is unchanged.
+Three publication fixtures pass,including restoration after failure.
+
+Server readback verifies replacement source/cache paths/stage and one
+Standard Ranking A100/21600s. Created2026-10-26 08:48:06UTC;the replacement
+deadline is still14:11:59UTC,not six new hours from this creation.
+Worker`76c17e08-785c-43b4-a7d3-4d6073a6b024` initiallyQueued while the
+parent isRunning;do not claim execution before worker evidence. Controller
+PID83272 and guarded final publisher PID24928 confirmed responsive.
+New watcher state:`jev-full-final-publication-infrastructure-watch.json`,
+shell same basename,log`jev-full-training-final-publication-infrastructure.log`.
+It cannot publish full-training quality before all actual stages and the
+registered official-dev evaluation complete with independent verification.
+Infrastructure-recovery status deployment returned`Status:Succeeded` and
+`Deployment Complete`;receipt
+`jev-full-training-infrastructure-recovery-publication-20261026.log`,
+proof`jev-full-training-infrastructure-recovery-publication-verification.json`,
+which also binds the original stage/aggregate deadlines and archived state.
+No signed-in browser rendering verification claimed.
+
 ### Phase 2: RL Fine-tuning
 
 | Exp ID | Status | Base Model | Config | AUC | MRR | nDCG@5 | nDCG@10 | Notes |

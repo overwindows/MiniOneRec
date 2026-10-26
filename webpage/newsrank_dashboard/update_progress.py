@@ -174,9 +174,19 @@ CAMPAIGNS = [
                 "six-hour parent-creation deadlines,30h aggregate cap,no resets/duplicates. "
                 "Actual full-training stage0 parentshy_celery_p9fd7cc41x submitted;"
                 "server source/cache paths/stage/Ranking allocation verified. "
+                "Stage0 GPU Completed:65536 new features,328444/469264 total rows covered. "
+                "CPU-only metadata recovery resolves WindowsCRLF versus LinuxLF digests;"
+                "original local hashes and exact complete remote bytes/IDs/order/labels checked. "
+                "Completed GPU features preserved,no rerun,model/data/source/window change or "
+                "deadline reset. Same campaign continues at planned stage1. "
+                "Actual stage1 parentmusing_sprout_blpm5x03ms,"
+                "worker30894111-0833-43e8-a6c8-e8319cfee423;source/cache/stage/"
+                "allocation verified. Initial readback parentRunning,workerQueued. "
                 "Submitted does not mean the worker is running;see live status. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("musing_sprout_blpm5x03ms", "Full-training stage1,next65536 missing features;reuse completed stage0", ""),
+            ("30894111-0833-43e8-a6c8-e8319cfee423", "Full-training stage1 worker;not a dev quality score", ""),
             ("shy_celery_p9fd7cc41x", "Full-training stage0,65536 missing features;all469264 rows fit after four stages", ""),
             ("khaki_clock_p86ytlrfth", "Completed GPU baseline pass,dev26001-31000;CPU hybrid0.67411689 in Table22", "0.66104433"),
             ("c33d2b74-0cea-4b9b-b5b5-8029f31dd421", "Completed frozen-baseline worker;hybrid verified separately on CPU", ""),

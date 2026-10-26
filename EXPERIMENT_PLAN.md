@@ -1997,6 +1997,10 @@ from official dev,never training loss or reused training-holdout scores.
 
 Exact uncapped row SHA256:
 `2771ba130ec47c6e27dea318641d25ea671529c03727b59b04e9f563319abcde`;
+this is the original Windows CRLF audit file. The identical preregistered
+row IDs/order/labels serialized with Linux LF have SHA256
+`b4dba4f73cdf5878ba1d67582d8b81899240e13c3670f38b8b26ee04605af254`.
+Both bindings are retained;no training identity or order changes.
 full-population SHA256:
 `993852a23416f436ed1dd0d7f6a8fde75dfb884b69da9c6b3242a1d00e67d06f`.
 Reuse262143 checksum-pinned doubled-cache rows and765 matching former-holdout
@@ -2072,6 +2076,48 @@ existing campaign jobs complete and official-dev verification succeeds.
 Watch state:`jev-full-final-publication-watch.json`;final receipt target:
 `jev-full-training-final-publication-20261026.log`. No new GPU allocation,
 source/head/window change,deadline reset or full-training score claimed.
+
+Stage0 GPU completed2026-10-26 04:47UTC:65536 new features,328444/469264
+total fitting rows now covered. The controller stopped afterward at a
+row-metadata digest assertion,not a GPU/model failure:Windows preregistration
+used CRLF while the unchanged Linux worker wrote LF. CPU-only recovery
+rehashes the original untouched local files,derives their exact LF JSON,
+and requires the entire remote byte payload and worker digest to match;
+all65536 IDs/order/labels verified,not just a semantic/count fallback.
+Stage0 feature SHA256:
+`17a6f84a9ccd6ef51d6935578b1d318dfccec55dbe473dda42db1cff0f5cf31c`.
+Original state,traceback and private verifier sources preserved separately.
+Proof:`jev-full-training-newline-recovery-verification.json`;all five
+Windows/Linux row-file bindings retained. Seven targeted fixtures passed,
+including rejection of changed IDs,labels,order,digests and other formatting.
+The full469264-row offline verifier also passed with Linux remote bytes
+and rejected incomplete coverage;synthetic zero heads,not model quality.
+Proof:`jev-full-verifier-linux-smoke.json`.
+
+The existing campaign resumed at planned stage1;stage0 is not rerun.
+Recovery controller shell:`jev-full-refit-controller-recovery`.
+Actual stage1 parent`musing_sprout_blpm5x03ms`,worker
+`30894111-0833-43e8-a6c8-e8319cfee423`;server source,stage/cache paths
+and one Standard Ranking A100/21600s verified. Created2026-10-26
+05:00:57UTC,fixed deadline11:00:57UTC. Initial parentRunning,workerQueued;
+that is not yet feature extraction. Replacement publisher PID63796
+confirmed responsive,observing this same resumed campaign.
+Original per-parent and aggregate deadlines,immutable source,heads,
+training recipe and fresh-dev window are unchanged. Original publication
+watcher correctly stopped on the controller error;its evidence is retained.
+Replacement watcher uses a new duplicate-protected state:
+`jev-full-final-publication-recovery-watch.json`,shell
+`jev-full-final-publication-recovery-watch`;final log
+`jev-full-training-final-publication-recovery.log`.
+Recovery controller PID61768 and replacement publisher PID63796 confirmed
+responsive. Recovery webpage refresh completed with feed05:05UTC:
+stage0Completed/328444 rows covered,next actual stage1 parentRunning
+(worker initiallyQueued),training quality empty. Full authenticated shared
+snapshot returned`Status:Succeeded`/`Deployment Complete`;receipt
+`jev-full-training-recovery-publication-20261026.log`,binding proof
+`jev-full-training-recovery-publication-verification.json`.
+Original submission publication proof and original failure evidence retained;
+no signed-in browser rendering check claimed.
 
 ### Phase 2: RL Fine-tuning
 

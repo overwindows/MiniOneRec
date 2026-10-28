@@ -274,6 +274,45 @@ compact recipes' synthetic convergence, immutable rich-base preservation,
 validation-excluded whitening,constant-direction removal,and model archive
 prediction replay. No tolerance/iteration/gate relaxation was made.
 
+JEV-LOWRANK-1 completed2026-10-28 14:31:49UTC. All three recipes genuinely
+converged in5/6/7 iterations, but the gate CLOSED:
+
+| Internal sampled-training validation arm | AUC |
+|---|---:|
+| Retained rich text |0.69570720|
+| Retained rich text + safe fresh popularity |0.71339398|
+| Compact balanced binary L2=0.01 |0.71441457|
+| Compact balanced binary L2=0.1 |0.71199909|
+| Compact mixed objective L2=0.01 |0.71504886|
+
+Best gain over the strong control was0.00165488, below the registered0.005.
+Do not lower the threshold or call0.71505 an official-dev result.
+No final all-data refit or GPU/dev evaluation was performed.
+Independent verification at14:36:23UTC replayed all20 metric cells, ALL five
+arms'66042 validation-row predictions, exact original-cohort exclusions,
+entire raw training population excluding all validation impressions, and
+all403222 fitting rows' whitening mean/covariance. Proof
+`jev-lowrank-01-independent-verification.json`. Retain the previous model;
+competition-test AUC>=0.80 remains unmet.
+
+### Read-only negative-sampling coverage audit
+
+Before any further head sweep or GPU allocation, inspect the existing
+training sampler's population support. Source inspection found that the
+legacy1:1 sampler floors the requested hard count; with one positive it
+requests ZERO same-positive-category negatives, and does not backfill from
+hard negatives when the easy stratum is empty. Quantify this on the actual
+official training data and reproduce the checksum-pinned469264 cached rows
+exactly before attributing any effect. This is a potential training-support
+limitation, not a proven cause of the dev regression.
+
+CPU only/four threads/within the same15:38:04.949646UTC cutoff. No model fits,
+dev reads, default sampler changes, or GPU submissions. Count zero-probability
+raw-negative exposures, avoidable single-class sampled impressions, and
+cache reuse/new-feature demand for a fixed seed42 uniform-without-replacement
+alternative. A future corrected sampler/evaluation needs separate registration;
+do not silently reinterpret prior caches as uniformly sampled.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

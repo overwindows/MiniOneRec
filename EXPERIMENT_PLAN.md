@@ -232,6 +232,48 @@ row-weighted binary L2=0.01 objectives. Both are small and similar; this does
 NOT identify numerical convergence as the cause of the dev regression.
 Proof `jev-original-head-stationarity-diagnosis.json`; no fits/dev reads/GPU.
 
+JEV-JOINT-1 stopped after its recovery also hit100 iterations, at14:20:29UTC.
+Loss0.603812956998,maximum gradient1.48788e-5. Increased optimizer history
+did NOT establish convergence; do not retry that control, loosen tolerances,
+evaluate an unconverged head, or describe the stage as a quality result.
+Neither attempt produced candidate validation scores or a final model.
+
+### JEV-LOWRANK-1: fixed rich-text base with a compact whitened residual
+
+Registered before fitting; a NEW statistical model, not another retry or
+acceptance of the failed2564-parameter control. Keep the existing CPU cutoff
+2026-10-28 15:38:04.949646UTC, four threads, no GPU/dev evaluation.
+
+Preserve the exact retained2560-dimensional text head as the BASE margin.
+Add a low-rank learned correction rather than replacing that strong base:
+fixed seed42 Gaussian projection of frozen features into64 dimensions,
+plus the same four popularity features. Fit centering/whitening ONLY on the
+same132977 fitting impressions; discard covariance directions with eigenvalue
+<=max(largest_eigenvalue*1e-6,1e-12). The23988 last-day validation impressions
+still exclude both the retained head's fitting and original selection cohorts.
+Reuse checksum-bound fitting-only population/counts and freshly fitted
+four-feature pairwise control from the stopped stage, not old dev-tuned counts.
+
+Three fixed residual recipes: impression-balanced binary L2=0.01,
+impression-balanced binary L2=0.1, and half balanced-binary/half equal-impression
+pairwise L2=0.01. The unchanged streamed solver must genuinely converge within
+100 iterations/history100/unchanged tolerances. Controls are the fixed retained
+text margin and that retained text plus its training-only fresh popularity
+correction. The best candidate must beat BOTH by>=0.005 internal AUC with no
+MRR/nDCG5/nDCG10 regression. Fixed recipe order breaks ties.
+
+Only if the gate passes, refit whitening and the selected residual on all
+156965 training impressions/all469264 sampled rows/all5843444 raw exposures;
+keep the fixed Gaussian projection and retained base, zero final holdouts.
+All whitening/model/population/selection artifacts are checksum-bound.
+Compact residual rank is at most68; retaining the rich base distinguishes
+this hypothesis from the rejected compact content-only replacement.
+This is train-only selection, not benchmark improvement or AUC0.80 evidence.
+Twenty-eight targeted fixtures passed before launch, including all three
+compact recipes' synthetic convergence, immutable rich-base preservation,
+validation-excluded whitening,constant-direction removal,and model archive
+prediction replay. No tolerance/iteration/gate relaxation was made.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

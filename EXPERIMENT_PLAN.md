@@ -347,6 +347,14 @@ metadata/pending rows/reuse indices/proof. No feature values were fabricated,
 copied, or fitted; no GPU extraction was submitted. The corrected model is
 NOT trained and has no benchmark score. No active CPU/GPU experiment remains.
 
+The shared research page and feed deployed successfully2026-10-28
+14:55:44UTC with the verified sampler defect, corrected-preparation status,
+and closed compact-model gate. Publication receipts
+`jev-sampling-audit-publication-verification.json` and
+`jev-sampling-audit-publication-content-verification.json` bind these proofs.
+All20 prior official-dev table cells and other site assets/auth are unchanged.
+No signed-in browser-rendering verification or new benchmark result is claimed.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

@@ -1,17 +1,69 @@
 # MIND Experiment Plan: Path to SOTA
 
 > Generated: 2026-02-25
-> Updated: 2026-09-27
-> Current Best (submitted): **71.44% AUC on test** / 71.52% dev (E3.A: L1.3 + L1.7 ensemble)
+> Updated: 2026-10-27 (user clarification of the research goal)
+> **Project acceptance target: AUC >= 0.80. This goal has not been achieved.**
+> Autonomous scope decision (2026-10-28 UTC): competition MIND-large test is
+> the ultimate acceptance benchmark; official dev is the development gate.
+> MIND-small screening is separate and cannot establish the competition goal.
+> Training AUC and selected partial-dev windows do not establish this target.
+> The completed full-training JEV campaign is an experiment milestone, not
+> completion of the overall research goal. Its matched partial MIND-small dev
+> AUC was 0.67203545 versus retained 0.67598829; the full candidate was rejected.
+>
+> Recorded Best (submitted): **71.44% AUC on test** / 71.52% dev (E3.A: L1.3 + L1.7 ensemble)
 > **Rank: #14 / 101 on Codabench (MIND News Recommendation, competition 13967)**
 >
-> **Live leaderboard (2026-09-27, private/test):**
-> - #1 SOTA: **zetik 0.7326** AUC (2026-06-23) — target to beat
+> **Recorded leaderboard snapshot (2026-09-27, private/test):**
+> - #1 in that snapshot: **zetik 0.7326** AUC (2026-06-23) — historical reference, not the 0.80 acceptance target
 > - #2: newsbang 0.7316 · #3: i4never 0.7258 · #4: qinzixuan 0.7249 · #5: jianchunyang 0.7226
 > - **overwindows: 0.7144 AUC** (MRR 0.3621, nDCG@5 0.3975, nDCG@10 0.4539), 2026-04-21
 >
-> **Gap to #1 zetik (SOTA): +0.0182 AUC (~1.8%)** · to top-5 (+0.7226): +0.0082 · to top-3: +0.0114
-> Need ~1.8% AUC gain over E3.A to become SOTA → stack multiple independent gains (ensemble + CF + pairwise/constrained-decoding + scaling).
+> **Historical gap to that snapshot's #1: +0.0182 AUC** · to top-5 (0.7226): +0.0082 · to top-3: +0.0114
+> Those historical gaps do not define project success. The user requires
+> AUC >= 0.80; keep dataset/split/candidate coverage explicit and do not infer
+> a valid target gap by comparing results from different benchmarks.
+
+## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
+
+Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.
+The completed full-training campaign is not restarted or its budget extended.
+
+- New hypothesis: a nonlinear ranker can combine the unchanged frozen JEV
+  margin with candidate-aware semantic history, category/subcategory affinity,
+  and cross-fitted popularity, rather than only adding a linear correction.
+- CPU selection: four threads, at most three fixed histogram-boosting recipes
+  and one final refit, no backbone fitting. TF-IDF/SVD is fitted on official
+  training news only. No dev metadata or labels enter recipe selection.
+- Internal selection uses the last calendar day of official training as a
+  temporary chronological validation split. All its impressions are excluded
+  from every target-dependent statistic, including statistics of fitting rows.
+  Fitting-row popularity additionally excludes that row's entire impression
+  fold. Only the original untrained frozen JEV margin is read from the cache;
+  supervised full-data text/hybrid margins must not enter this selection.
+- Fixed recipes: frozen-margin/popularity control (15 leaves,120 iterations),
+  content model (15 leaves,120 iterations), content model (31 leaves,160 iterations).
+  Learning rate0.06,minimum leaf100,L2=10,seed42,no early stopping; each sampled
+  impression has unit total weight. Highest internal impression AUC selects
+  the content recipe, with listed order breaking ties.
+- Allocation gate: selected content model must exceed the control's internal
+  AUC by at least0.005. Internal metrics are sampled-training selection only,
+  never official-dev, competition-test, or SOTA evidence.
+- If the gate opens, refit the selected recipe on all156965 official training
+  impressions/all469264 existing sampled rows. All5843444 raw training
+  exposures contribute to popularity counts. No impression remains held out.
+- Register the next independent official MIND-small dev window as
+  zero-based36000 through40999 (impressions36001-41000),5000 impressions,
+  with every candidate in source order. No tuning/reselection on that window.
+  Candidate scores must be computed using the frozen selected model.
+- At most one new Standard Ranking A100 evaluation parent, one
+  `Singularity.ND12am_A100_v4`,21600-second worker limit and six hours from
+  parent creation. Evaluation only, no GPU training, no infrastructure retry.
+  Submit only after the CPU gate passes and the frozen evaluator is verified.
+  Existing source-bundled frozen controls must be scored on that same window.
+- Do not claim promotion or project completion from train-only metrics,
+  an unmatched previous window, a partial-dev AUC, or merely finishing this
+  stage. Ultimate acceptance remains competition-test AUC >=0.80.
 
 ## 🚀 Azure ML Pipeline Support
 

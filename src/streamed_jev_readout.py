@@ -147,7 +147,28 @@ class StreamedObjective:
         return float(loss), gradient
 
 
-def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, deadline=None):
+def initial_parameters(objective, head=None):
+    parameters = np.zeros(objective.dimension + 1)
+    if head is None:
+        return parameters
+    mean, scale, weight, bias = [
+        np.asarray(head[name], dtype=np.float64) for name in ("mean", "scale", "weight", "bias")
+    ]
+    if (weight.ndim != 1 or not 0 < len(weight) <= objective.dimension
+            or mean.shape != weight.shape or scale.shape != weight.shape or bias.shape != ()
+            or not all(np.isfinite(value).all() for value in (mean, scale, weight, bias))
+            or not (scale > 0).all()):
+        raise ValueError("Warm start requires a finite compatible normalized linear head")
+    dimension = len(weight)
+    parameters[:dimension] = weight * objective.scale[:dimension] / scale
+    parameters[-1] = float(bias) + ((objective.mean[:dimension] - mean) / scale) @ weight
+    return parameters
+
+
+def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, deadline=None,
+                 *, max_iter=100, initial_head=None):
+    if not isinstance(max_iter, int) or isinstance(max_iter, bool) or max_iter < 1:
+        raise ValueError("An explicit positive iteration limit is required")
     objective = StreamedObjective(
         features, extras, margins, labels, groups, fit_mask, recipe, deadline,
     )
@@ -164,9 +185,9 @@ def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, de
             }), flush=True)
 
     result = minimize(
-        objective.value_gradient, np.zeros(objective.dimension + 1), jac=True, method="L-BFGS-B",
+        objective.value_gradient, initial_parameters(objective, initial_head), jac=True, method="L-BFGS-B",
         callback=report,
-        options={"maxiter": 100, "maxcor": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10},
+        options={"maxiter": max_iter, "maxcor": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10},
     )
     if not result.success:
         raise RuntimeError(
@@ -182,6 +203,7 @@ def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, de
         "loss": float(result.fun), "iterations": int(result.nit),
         "evaluations": int(result.nfev), "converged": True,
         "fitting_rows": len(objective.indices), "history_size": 100,
+        "iteration_limit": max_iter, "warm_start": initial_head is not None,
     }
 
 

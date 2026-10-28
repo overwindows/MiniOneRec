@@ -70,7 +70,9 @@ JEV-LOWRANK-1. Neither prior experiment is restarted.
   strict convergence checks; nonconvergence is a failure,not a fitted model.
   Rich candidate initialization is the exact retained linear predictor
   transformed into fitting-only normalization,with zero new-popularity
-  weights. This explicitly new budget/initialization does not authorize
+  weights. Conditional final refit starts from the selected temporary head,
+  transformed into all-training normalization. This explicitly new
+  budget/initialization does not authorize
   another iteration of the stopped legacy-data joint experiment.
 - Highest internal impression AUC selects among the three candidates,
   listed order breaks ties. Require >=.005 AUC over BOTH controls and no

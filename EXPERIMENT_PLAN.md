@@ -95,6 +95,30 @@ JEV-LOWRANK-1. Neither prior experiment is restarted.
   result,cache completion or sampler correction establishes the overall
   competition MIND-large/test AUC>=.80 acceptance goal.
 
+Execution checkpoint2026-10-28 UTC: source
+`15c1c56bb519acd998d737a6b57697f36c84f1fc` is frozen in a detached checkout.
+First parent `nice_diamond_b4qt3rl0df` was created15:18:43.717488UTC;
+its original six-hour deadline is21:18:43.717488UTC. Actual worker
+`cb362a5f-7c92-40ef-9f23-7374958d07c4` was Running in environment setup at
+15:27UTC,with source checkout and the server's one Standard Ranking A100/
+21600-second allocation verified. This is not verified feature completion.
+The existing guarded controller owns the four serial stages; do not relaunch.
+Training/evaluation implementation is separately frozen at
+`2f8b7da8328c4b4dfb6157f16209b9648fe043d6`. Default historical solver
+limits remain100; only the new uniform-data caller requests250 and an
+algebraically prediction-preserving warm start. No corrected-data fit has
+occurred. Independent actual-corpus comparison also checked all51282 training
+articles' text/category/subcategory fields against the original dataset loader.
+
+The shared research page/feed was successfully deployed15:32:57UTC with the
+qualified submission snapshot. Receipt
+`jev-uniform-01-start-publication-verification.json` and companion
+`jev-uniform-01-start-publication-content-verification.json` preserve all
+twenty prior official-dev table cells and other shared assets/auth unchanged.
+The generic publisher receipt's parent/deadline refer to the historical
+content campaign; its companion explicitly records the active uniform parent.
+No browser-rendering verification or new quality score is claimed.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

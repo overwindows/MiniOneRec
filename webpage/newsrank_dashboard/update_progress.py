@@ -399,6 +399,10 @@ CAMPAIGNS = [
 
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
+    "CPU audit:480584 raw-negative exposures had zero sampling support;"
+    "3212 avoidable positive-only groups. Opt-in uniform metadata prepared:"
+    "472626 rows/all156965 impressions;not trained,206274 new feature rows still needed. "
+    "Compact residual converged but failed its preregistered gain gate;no new GPU/dev result. "
     "JEV-CONTENT-1 verified on official MIND-small dev36001-41000:"
     "content_31 AUC0.66352816,retained hybrid0.68333835,frozen0.62876796;"
     "primary delta-0.01981020,95%CI[-0.02608984,-0.01361295]. "

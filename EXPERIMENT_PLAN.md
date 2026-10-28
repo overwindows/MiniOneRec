@@ -333,6 +333,20 @@ is NOT submitted or authorized by this preparation. Preserve all old caches,
 do not change existing training/evaluation defaults, and use the same CPU
 cutoff. Benchmark benefit must still be established by a future controlled run.
 
+Corrective metadata preparation completed2026-10-28 14:48:17UTC, source
+`1e75297d0a72862453e15da4838c455bd0b66a76`. Sixteen targeted tests plus15
+subtests passed, including existing JEV decision/dataset behavior.
+Actual full-data construction reproduced legacy DEFAULT rows/order/LF bytes
+SHA`b4dba4f73cdf5878ba1d67582d8b81899240e13c3670f38b8b26ee04605af254`
+and independently previewed uniform rows
+SHA`fd9f50c2668cd50ae03f918636010f84e43563c73c711997ef721ea30a9a3a84`.
+All472626 corrected identities and266352 reuse mappings were checked;206274
+pending rows are negatives, no new positive extraction is needed.
+Ignored output`Q:\CodeGuru\scratch\jev-uniform-01-preparation` contains only
+metadata/pending rows/reuse indices/proof. No feature values were fabricated,
+copied, or fitted; no GPU extraction was submitted. The corrected model is
+NOT trained and has no benchmark score. No active CPU/GPU experiment remains.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

@@ -74,6 +74,20 @@ output directory are preserved; use a new output directory for the corrected
 attempt. No recipe, selection split, model weights, dev window, or GPU budget
 was changed. Ten targeted ranker/evaluation fixtures pass after the correction.
 
+CPU continuation completed: content_31 selected on the internal training split,
+then refitted on all156965 impressions/469264 sampled rows, zero final holdout
+exclusions. Model SHA256
+`1a26a04bfafc220f99759ed246cf43d8bd26fbf416d3aa1a4bf99fb4e7c187a8`.
+The population archive is byte-identical to the independently verified
+all-exposure training population; training news metadata matches exactly.
+No new official-dev score is available. Internal selection is not quality
+evidence. The single registered frozen-control GPU parent is
+`great_bee_w6zjxd296x`, submitted2026-10-28 07:09:03UTC; its original creation
+deadline is2026-10-28 13:09:03UTC. Server source/one-A100/Standard/21600s/
+dev-start36000 inputs were checked. Guarded controller
+`run_jev_content_stage.py` owns this parent; do not relaunch it or create a
+duplicate. The completed older full-training campaign is unchanged.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.
@@ -153,7 +167,10 @@ See [pipeline/README.md](pipeline/README.md) for detailed pipeline usage.
 | Phase 5: Advanced | 3 | 3 | 0 | 0 | 0 | - |
 | **Total** | **21** | **21** | **0** | **0** | **0** | **-** |
 
-**Progress**: 0/21 (0%) | **Current Best**: 69.69% AUC (Baseline) | **Target**: 72.72% AUC | **Gap**: 3.03%
+**Historical baseline snapshot**: 0/21 (0%) | Baseline: 69.69% AUC | Historical target: 72.72% AUC.
+**Current project acceptance target**: competition-test AUC >=80.00%; not achieved.
+Do not treat the historical baseline or a partial MIND-small dev result as the
+same benchmark when computing the remaining target gap.
 
 ---
 

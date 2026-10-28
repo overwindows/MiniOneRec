@@ -25,10 +25,16 @@ WEB = "$web"
 CAMPAIGNS = [
     {
         "name": "JEV-4B frozen-backbone readout recovery",
-        "motivation": "Full-model decision SFT remains below frozen JEV. Test a small residual readout "
+        "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
+                      "JEV-CONTENT-1 adds nonlinear content/history signals to frozen margins/popularity. "
+                      "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "Pilot source bceaab345e8e116810dc6292b7d8a189d7d1c452. Exact conditional/causal/"
+        "settings": "Current content_31:train-only chronological selection,then all156965 train impressions/"
+                    "469264 sampled rows refitted;four CPU threads,zero final holdout exclusions. "
+                    "Frozen model1a26a04bfafc220f99759ed246cf43d8bd26fbf416d3aa1a4bf99fb4e7c187a8. "
+                    "One new Standard Ranking A100 evaluation,21600s,no retry;no GPU training. "
+                    "Historical settings: Pilot source bceaab345e8e116810dc6292b7d8a189d7d1c452. Exact conditional/causal/"
                     "collated-loss parity on four real prompts. Frozen backbone; 16383 training pairs; "
                     "binary_l2_0.01 selected solely on 256 excluded training impressions. "
                     "Confirmation source a88c920ebc4c232a51df266bbb4dfc44ec477ab5; "
@@ -66,7 +72,9 @@ CAMPAIGNS = [
                     "training-result1670421674adeb8fb41f858d065edd5b276b97e3fcddb7fa0bdde23d761e63fe. "
                     "Frozen evaluation source7c6aa8b3948c7e759125570f732e74dabc148e25;"
                     "one Standard Ranking A100/21600s plus immutable CPU correction.",
-        "data": "MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
+        "data": "Current registered independent window:official MIND-small dev36001-41000,"
+                "5000 impressions/all source candidates;not competition-test acceptance. "
+                "Historical windows: MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
                 "New three-arm comparison: dev11001-16000,5000 impressions/183558 candidates. "
@@ -75,7 +83,10 @@ CAMPAIGNS = [
                 "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
-        "eval": "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
+        "eval": "Current content_31 CPU gate/refit completed;fresh-dev control evaluation submitted as "
+                "great_bee_w6zjxd296x. No new official-dev quality result yet. "
+                "Internal sampled-training AUC is not benchmark evidence. Historical results: "
+                "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
                 "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
                 "MRR/nDCG point values improve but their intervals include zero. "
                 "All raw coverage/hashes/eight metrics/paired intervals independently rebuilt. "
@@ -209,6 +220,7 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("great_bee_w6zjxd296x", "JEV-CONTENT-1 frozen controls:official dev36001-41000;no GPU fitting", ""),
             ("zen_oven_dxw716bx8c", "Completed shared dev31001-36000 pass;full hybrid0.67203545 verified on CPU", ""),
             ("110eab85-3df5-4b7a-947c-9d0b5ba0aa78", "Completed exact-source official-dev worker;all5000 impressions", ""),
             ("tidy_night_p3t3smvnym", "Completed stage3:all469264 rows and full fit;independent CPU verification pending", ""),
@@ -381,8 +393,9 @@ CAMPAIGNS = [
 
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
-    "JEV-CONTENT-1:new train-only nonlinear content/history CPU stage registered;"
-    "no new official-dev result in this snapshot. "
+    "JEV-CONTENT-1:content_31 refitted on all156965 training impressions/469264 sampled rows;"
+    "fresh official dev36001-41000 evaluation great_bee_w6zjxd296x submitted;"
+    "no new official-dev quality result in this snapshot. "
     "Verified full-training MIND-small official dev31001-36000:"
     "full hybrid AUC0.67203545,retained hybrid0.67598829,frozen0.62488338;"
     "primary delta-0.00395284,95%CI[-0.00675987,-0.00115384]. "

@@ -1,9 +1,11 @@
 import time
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from scipy.optimize import check_grad
 
+import streamed_jev_readout
 from probe_jev_readout import fit_head, predict
 from streamed_jev_readout import (
     RECIPES, StreamedObjective, fit_streamed, predict_streamed,
@@ -106,3 +108,30 @@ def test_gate_requires_improvement_over_both_strong_controls():
     assert not select_joint([arm("a", .714)], controls)[1]
     assert not select_joint([arm("a", .72, .39)], controls)[1]
     assert select_joint([arm("first", .72), arm("second", .72)], controls)[0]["name"] == "first"
+
+
+def test_optimizer_history_matches_dense_prior_without_relaxing_limits(monkeypatch):
+    original = streamed_jev_readout.minimize
+    captured = {}
+
+    def optimizer(*args, **kwargs):
+        captured.update(kwargs["options"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(streamed_jev_readout, "minimize", optimizer)
+    _, report = fit_streamed(*fixture(), RECIPES[0])
+    assert captured == {
+        "maxiter": 100, "maxcor": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10,
+    }
+    assert report["history_size"] == 100
+
+
+def test_nonconvergence_is_not_accepted(monkeypatch):
+    monkeypatch.setattr(
+        streamed_jev_readout, "minimize",
+        lambda *args, **kwargs: SimpleNamespace(
+            success=False, message="iteration limit", nit=100, nfev=120, fun=.3, jac=np.ones(6),
+        ),
+    )
+    with pytest.raises(RuntimeError, match="iterations=100.*maximum_gradient=1"):
+        fit_streamed(*fixture(), RECIPES[0])

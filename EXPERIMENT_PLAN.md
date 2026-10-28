@@ -210,6 +210,28 @@ tests passed, including finite-difference gradients for all four objectives,
 dense binary equivalence, excluded-label/feature invariance,and the strict
 two-control allocation gate.
 
+Solver recovery registered2026-10-28 after the first joint binary CONTROL
+hit its100-iteration limit at13:58UTC. No candidate validation score or final
+refit was produced; the one retained-text/fresh-popularity internal control
+score is not benchmark evidence. Preserve the failed state/log/controller.
+The dense prior uses L-BFGS history100 (confirmed from installed PyTorch);
+the streamed solver had inherited SciPy's shorter default history.
+Set the streamed solver's history explicitly to100 and expose iteration/loss
+progress plus numerical nonconvergence diagnostics. This is a solver-memory
+recovery hypothesis, not a proven explanation until convergence is observed.
+Keep100 maximum iterations,identical tolerances/objectives/recipes/split/gate
+and four threads. Do NOT accept unconverged heads. Use a separate recovery
+directory, with a conservative recovery cutoff2026-10-28 15:38:04.949646UTC
+(one minute before the initial state timestamp plus two hours, accounting
+for its observed six-second import startup); do not reset the original
+two-hour budget. No GPU/dev evaluation or original result is overwritten.
+
+Read-only stationarity accounting on the ORIGINAL text heads found maximum
+absolute objective gradients9.3865e-6(full) and1.3586e-5(retained), under their
+row-weighted binary L2=0.01 objectives. Both are small and similar; this does
+NOT identify numerical convergence as the cause of the dev regression.
+Proof `jev-original-head-stationarity-diagnosis.json`; no fits/dev reads/GPU.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

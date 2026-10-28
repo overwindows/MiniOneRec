@@ -1,6 +1,7 @@
 """Memory-bounded joint rich-representation and popularity readout fitting."""
 
 from collections import Counter
+import json
 import time
 
 import numpy as np
@@ -150,12 +151,29 @@ def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, de
     objective = StreamedObjective(
         features, extras, margins, labels, groups, fit_mask, recipe, deadline,
     )
+    iterations = 0
+
+    def report(intermediate_result):
+        nonlocal iterations
+        iterations += 1
+        check_deadline(deadline)
+        if iterations % 10 == 0:
+            print(json.dumps({
+                "stage": "streamed_optimization", "recipe": recipe["name"],
+                "iteration": iterations, "loss": float(intermediate_result.fun),
+            }), flush=True)
+
     result = minimize(
         objective.value_gradient, np.zeros(objective.dimension + 1), jac=True, method="L-BFGS-B",
-        options={"maxiter": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10},
+        callback=report,
+        options={"maxiter": 100, "maxcor": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10},
     )
     if not result.success:
-        raise RuntimeError("Streamed readout failed to converge: " + str(result.message))
+        raise RuntimeError(
+            "Streamed readout failed to converge: " + str(result.message)
+            + f"; iterations={result.nit}, evaluations={result.nfev}, loss={result.fun:.12g},"
+            + f" maximum_gradient={np.abs(result.jac).max():.12g}"
+        )
     head = {
         "mean": objective.mean, "scale": objective.scale,
         "weight": result.x[:-1], "bias": np.asarray(result.x[-1]),
@@ -163,7 +181,7 @@ def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, de
     return head, {
         "loss": float(result.fun), "iterations": int(result.nit),
         "evaluations": int(result.nfev), "converged": True,
-        "fitting_rows": len(objective.indices),
+        "fitting_rows": len(objective.indices), "history_size": 100,
     }
 
 

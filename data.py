@@ -170,6 +170,8 @@ class MINDPointwiseSFTDataset:
 
     Each sample is a (history, single_candidate, label) tuple.
     Model learns to predict Yes/No for relevance.
+    Legacy sampling preserves historical caches. Opt-in uniform sampling
+    ignores hard_neg_ratio and gives every raw negative nonzero support.
     """
 
     def __init__(
@@ -190,12 +192,16 @@ class MINDPointwiseSFTDataset:
         use_profile_summary: bool = False,  # Prepend top-3 category interest summary
         use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
         return_meta: bool = False,  # Also return impression_id/label/answer_len (for pairwise loss)
+        negative_sampling: str = "legacy",
     ):
+        if negative_sampling not in ("legacy", "uniform"):
+            raise ValueError("negative_sampling must be 'legacy' or 'uniform'")
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.max_history = max_history if max_history > 0 else None
         self.neg_ratio = neg_ratio
         self.hard_neg_ratio = hard_neg_ratio
+        self.negative_sampling = negative_sampling
         self.use_abstract = use_abstract
         self.use_chat_template = use_chat_template
         self.use_subcategory = use_subcategory
@@ -313,29 +319,28 @@ class MINDPointwiseSFTDataset:
                 # IMPROVED: Hard negative sampling (50% same category, 50% different)
                 num_neg_to_sample = int(len(positives) * self.neg_ratio)
                 if num_neg_to_sample > 0 and negatives:
-                    # Get categories of positive items
-                    pos_categories = set([self.news[pid].get('category', '') for pid in positives])
+                    if self.negative_sampling == "uniform":
+                        sampled_negs = rng.sample(negatives, min(num_neg_to_sample, len(negatives)))
+                    else:
+                        # Preserve the historical sampler and RNG sequence for existing caches.
+                        pos_categories = set([self.news[pid].get('category', '') for pid in positives])
+                        hard_negs = []
+                        easy_negs = []
+                        for neg_id in negatives:
+                            neg_cat = self.news[neg_id].get('category', '')
+                            if neg_cat in pos_categories:
+                                hard_negs.append(neg_id)
+                            else:
+                                easy_negs.append(neg_id)
 
-                    # Split negatives by category match
-                    hard_negs = []  # Same category
-                    easy_negs = []  # Different category
-                    for neg_id in negatives:
-                        neg_cat = self.news[neg_id].get('category', '')
-                        if neg_cat in pos_categories:
-                            hard_negs.append(neg_id)
-                        else:
-                            easy_negs.append(neg_id)
-
-                    # Sample hard/easy mix controlled by hard_neg_ratio
-                    num_hard = int(num_neg_to_sample * self.hard_neg_ratio)
-                    num_easy = num_neg_to_sample - num_hard
-
-                    sampled_negs = []
-                    if hard_negs:
-                        sampled_negs.extend(rng.sample(hard_negs, min(num_hard, len(hard_negs))))
-                    if easy_negs and len(sampled_negs) < num_neg_to_sample:
-                        remaining = num_neg_to_sample - len(sampled_negs)
-                        sampled_negs.extend(rng.sample(easy_negs, min(remaining, len(easy_negs))))
+                        num_hard = int(num_neg_to_sample * self.hard_neg_ratio)
+                        num_easy = num_neg_to_sample - num_hard
+                        sampled_negs = []
+                        if hard_negs:
+                            sampled_negs.extend(rng.sample(hard_negs, min(num_hard, len(hard_negs))))
+                        if easy_negs and len(sampled_negs) < num_neg_to_sample:
+                            remaining = num_neg_to_sample - len(sampled_negs)
+                            sampled_negs.extend(rng.sample(easy_negs, min(remaining, len(easy_negs))))
 
                     for neg_id in sampled_negs:
                         all_samples.append({

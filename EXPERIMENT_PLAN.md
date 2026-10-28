@@ -313,6 +313,26 @@ cache reuse/new-feature demand for a fixed seed42 uniform-without-replacement
 alternative. A future corrected sampler/evaluation needs separate registration;
 do not silently reinterpret prior caches as uniformly sampled.
 
+Audit completed2026-10-28 14:40:33UTC and reproduced ALL469264 historical
+cached rows in exact order. The legacy sampler gives480584 raw-negative
+exposures (8.57099% of5607100) ZERO inclusion probability, across81033
+impressions. It produces3212 avoidable positive-only sampled impressions
+despite every raw impression containing negatives. These are proven
+sampling-support defects, not a proven causal explanation of model quality.
+
+Register a CPU-only corrective preparation: add an explicit opt-in
+`negative_sampling="uniform"` mode, preserving the legacy DEFAULT and its
+exact row sequence. Uniform sampling is without replacement, size
+min(number_of_positives,number_of_negatives),seed42. Prepare metadata/reuse
+indices only, not a model or GPU job. Reproduce both the legacy metadata SHA
+and independent uniform-preview SHA before accepting it. Expected corrected
+population:472626 rows/all156965 impressions,236344 positive/236282 negative;
+zero sampled single-class groups. Existing verified features can supply266352
+rows;206274 new frozen feature rows would still be needed. That missing work
+is NOT submitted or authorized by this preparation. Preserve all old caches,
+do not change existing training/evaluation defaults, and use the same CPU
+cutoff. Benchmark benefit must still be established by a future controlled run.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

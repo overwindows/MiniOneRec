@@ -74,13 +74,13 @@ output directory are preserved; use a new output directory for the corrected
 attempt. No recipe, selection split, model weights, dev window, or GPU budget
 was changed. Ten targeted ranker/evaluation fixtures pass after the correction.
 
-CPU continuation completed: content_31 selected on the internal training split,
+Historical CPU milestone before dev evaluation: content_31 selected on the internal training split,
 then refitted on all156965 impressions/469264 sampled rows, zero final holdout
 exclusions. Model SHA256
 `1a26a04bfafc220f99759ed246cf43d8bd26fbf416d3aa1a4bf99fb4e7c187a8`.
 The population archive is byte-identical to the independently verified
 all-exposure training population; training news metadata matches exactly.
-No new official-dev score is available. Internal selection is not quality
+At that milestone no new official-dev score was available. Internal selection is not quality
 evidence. The single registered frozen-control GPU parent is
 `great_bee_w6zjxd296x`, submitted2026-10-28 07:09:03UTC; its original creation
 deadline is2026-10-28 13:09:03UTC. Server source/one-A100/Standard/21600s/
@@ -119,6 +119,40 @@ TF-IDF/SVD features, not the retained2560-dimensional text readout. Its failure
 does not causally isolate which architectural/data/objective choice mattered.
 No new GPU allocation or retry is authorized by this completed stage.
 The competition-test AUC>=0.80 goal remains unachieved.
+
+The final negative-result report was deployed successfully on2026-10-28
+at13:08UTC. Publication receipt
+`jev-content-01-final-publication-verification.json` binds the result,
+raw scores,page,and feed; other site assets/auth are unchanged.
+
+### CPU-only full-feature cache audit after the content-stage rejection
+
+Continue without allocating another GPU or tuning on the now-exposed dev
+window. Restore all469264 training rows'2560-dimensional frozen representations
+from the existing checksum-pinned legacy/holdout/four stage caches. Preparation
+is bounded to two hours,four CPU threads,and at most6GB of unique artifact
+payload,with the existing four-attempt identical-read transport policy.
+Use ignored data-drive staging
+`Q:\CodeGuru\scratch\jev-train-cache-20261028`, not the system drive, which had
+only6.5GB free at preflight. Existing artifacts and failures are preserved.
+
+Require whole-source checksums,exact canonical row metadata,unique complete
+candidate/label/order coverage,exact frozen-margin equality for every fitting
+row,existing128 hidden-feature spots,and independent full-matrix text-head
+mean/scale reconstruction. No new fitting,dev labels,model-quality metric,
+GPU parent,or acceptance claim belongs to this cache-preparation stage.
+After the audit, any further model recipe/selection split must be registered
+before fitting; supervised retained-head training cohorts must be excluded
+from that head's internal validation. The feature-family change in
+JEV-CONTENT-1 is an observation,not a proven causal diagnosis.
+
+Preparation started2026-10-28 13:10:46UTC. The four targeted cache-controller
+tests passed, and the six immutable source/row mappings were checked before
+launch. The first artifact downloads were observed progressing on the data
+drive. Controller `prepare_jev_full_feature_cache.py`, shell
+`jev-full-feature-cache-preparation`, log
+`jev-full-feature-cache-preparation.log`; do not launch a duplicate or reset
+its budget. This is running preparation, not a completed audit or new score.
 
 ## 🚀 Azure ML Pipeline Support
 

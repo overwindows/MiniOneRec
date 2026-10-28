@@ -88,6 +88,38 @@ dev-start36000 inputs were checked. Guarded controller
 `run_jev_content_stage.py` owns this parent; do not relaunch it or create a
 duplicate. The completed older full-training campaign is unchanged.
 
+### JEV-CONTENT-1 official-dev outcome: reject the new candidate
+
+Both parent and worker completed within the registered creation deadline.
+Official MIND-small dev36001-41000 contains5000 impressions/189786 candidates.
+These are official-dev metrics, not the sampled internal training selection.
+
+| Arm | AUC | MRR | nDCG@5 | nDCG@10 |
+|---|---:|---:|---:|---:|
+| New content_31 |0.66352816|0.32453836|0.35758897|0.41642992|
+| Retained hybrid |0.68333835|0.32895720|0.36757944|0.42566814|
+| Frozen JEV |0.62876796|0.29765285|0.32437785|0.38393704|
+| Full-training text control |0.66834303|0.32210110|0.35475335|0.41710299|
+| Retained text control |0.67152351|0.32330346|0.35721167|0.41691052|
+
+Primary new-minus-retained AUC=-0.01981019667664715, paired95%CI
+[-0.026089836906870292,-0.01361294879170905],2048 impression resamples,
+seed42,unadjusted. Reject content_31 and retain the prior hybrid. MRR delta
+-0.00441884 has CI crossingzero; nDCG5/10 regress with entirely negative
+intervals. All20 metric cells,exact source coverage,four paired intervals,
+and128 full-impression frozen content/tree and retained-correction predictions
+were replayed. Result SHA
+`5bd0c1bb3de4fb5de7555e63adb21a03bb5ffe8515dedd20f6e89e877d7276b3`;
+raw scores SHA
+`54528c1477c9bb953beb060677ec5c244879609fcda22828c9b0d6e797cecd45`.
+
+The different-window retained value0.68333835 is not an improvement over
+earlier-window0.67598829. The new classifier used frozen margins and compact
+TF-IDF/SVD features, not the retained2560-dimensional text readout. Its failure
+does not causally isolate which architectural/data/objective choice mattered.
+No new GPU allocation or retry is authorized by this completed stage.
+The competition-test AUC>=0.80 goal remains unachieved.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

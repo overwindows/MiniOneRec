@@ -83,8 +83,13 @@ CAMPAIGNS = [
                 "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
-        "eval": "Current content_31 CPU gate/refit completed;fresh-dev control evaluation submitted as "
-                "great_bee_w6zjxd296x. No new official-dev quality result yet. "
+        "eval": "Current content_31 fresh official-dev36001-41000 result verified:"
+                "AUC0.66352816 versus retained hybrid0.68333835 on the same5000 impressions/"
+                "189786 candidates. Primary delta-0.01981020,95%CI[-0.02608984,-0.01361295]. "
+                "Do not promote;retain the prior hybrid. Parentgreat_bee_w6zjxd296x and worker"
+                "45627fbc-8d9b-4f90-b63e-68d348443561 Completed before the registered deadline. "
+                "All20 metrics/four paired intervals/source coverage replayed,plus128 full-impression "
+                "frozen-model predictions. This is partial MIND-small dev,not competition-test success. "
                 "Internal sampled-training AUC is not benchmark evidence. Historical results: "
                 "Verified pilot AUC 0.63367586 versus matched frozen 0.61530684, "
                 "delta +0.01836902; 95% paired CI [+0.00029635,+0.03614217] only narrowly clears zero. "
@@ -220,7 +225,8 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("great_bee_w6zjxd296x", "JEV-CONTENT-1 frozen controls:official dev36001-41000;no GPU fitting", ""),
+            ("great_bee_w6zjxd296x", "Completed JEV-CONTENT-1 dev36001-41000;CPU candidate rejected", ""),
+            ("45627fbc-8d9b-4f90-b63e-68d348443561", "Completed shared frozen-control worker;no GPU fitting", ""),
             ("zen_oven_dxw716bx8c", "Completed shared dev31001-36000 pass;full hybrid0.67203545 verified on CPU", ""),
             ("110eab85-3df5-4b7a-947c-9d0b5ba0aa78", "Completed exact-source official-dev worker;all5000 impressions", ""),
             ("tidy_night_p3t3smvnym", "Completed stage3:all469264 rows and full fit;independent CPU verification pending", ""),
@@ -393,15 +399,13 @@ CAMPAIGNS = [
 
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
-    "JEV-CONTENT-1:content_31 refitted on all156965 training impressions/469264 sampled rows;"
-    "fresh official dev36001-41000 evaluation great_bee_w6zjxd296x submitted;"
-    "no new official-dev quality result in this snapshot. "
-    "Verified full-training MIND-small official dev31001-36000:"
-    "full hybrid AUC0.67203545,retained hybrid0.67598829,frozen0.62488338;"
-    "primary delta-0.00395284,95%CI[-0.00675987,-0.00115384]. "
-    "Do not promote:the primary AUC confidence interval is entirely negative. "
-    "Training used all156965 official impressions/469264 sampled rows,"
-    "zero training-holdout exclusions. Partial official dev,one seed,not MIND-large/test or SOTA."
+    "JEV-CONTENT-1 verified on official MIND-small dev36001-41000:"
+    "content_31 AUC0.66352816,retained hybrid0.68333835,frozen0.62876796;"
+    "primary delta-0.01981020,95%CI[-0.02608984,-0.01361295]. "
+    "Do not promote;retain the prior hybrid. Both jobs Completed."
+    "All156965 training impressions/469264 sampled rows,zero final holdout exclusions."
+    "Partial official dev,one seed;not MIND-large/test or SOTA. "
+    "Do not compare0.68333835 with earlier-window0.67598829 as a model improvement."
 )
 
 

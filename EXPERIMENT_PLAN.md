@@ -154,6 +154,62 @@ drive. Controller `prepare_jev_full_feature_cache.py`, shell
 `jev-full-feature-cache-preparation.log`; do not launch a duplicate or reset
 its budget. This is running preparation, not a completed audit or new score.
 
+Audit completed2026-10-28 13:32:38UTC: all source hashes, exact unique
+coverage/frozen margins,128 feature spots,and full469264-row normalization
+reconstruction passed. Final float32 matrix shape469264x2560, SHA256
+`01b41d83408ddda2d697f83d667f8358fc4015c6fa88f81ae9dab4126017c701`.
+No model-quality result or GPU allocation follows from this audit.
+An additional independent replay matched ALL469264 previously saved full-text
+training scores exactly (maximum absolute error0.0), not just128 spots.
+Proof `jev-full-cache-all-text-replay.json`; this verifies assembly/model
+replay, not an improvement in benchmark quality.
+
+### JEV-JOINT-1: preserve rich features and test impression-balanced objectives
+
+Registered after the cache audit and before fitting. CPU only, four threads,
+two hours including optional final refit, no new GPU/dev evaluation.
+Unlike the rejected content-only model, these heads retain all2560 frozen
+representation dimensions and add the existing four popularity features.
+
+- Temporary validation: official training's last calendar day, excluding
+  every impression in the retained head's original131071-row fitting cohort
+  AND its original256-impression selection holdout. This is cohort-disjoint
+  last-day selection, not a fully chronological split: other last-day
+  impressions may train the models. No official-dev labels are read.
+- All temporary validation impressions are excluded from ALL population
+  counts and normalization fitting. Fitting population features additionally
+  exclude their entire impression hash fold. Validation uses fitting-only
+  population totals. Do not reuse the retained behavioral counts or head.
+- Strong controls: retained text head plus a freshly fitted pairwise
+  popularity correction (L2=0.01), and joint rich-text/popularity binary
+  row-weighted head (L2=0.01). Original retained text SHA279ef6c4 is fixed;
+  its fitting/selection cohorts are bound to their existing exact hashes.
+- Three candidates, fixed order: impression-balanced binary L2=0.01,
+  impression-balanced binary L2=0.1, equal mixture of impression-balanced
+  binary and equal-impression pairwise loss with L2=0.01.
+  Binary components use every fitting row, including single-class groups.
+  Pairwise components omit only groups without a contrast; they never
+  remove those groups from binary training or population statistics.
+- Float64 streamed L-BFGS, maximum100 iterations,2564 train-normalized
+  features, no giant float64 full-matrix copies. No stochastic search.
+  Highest internal impression AUC selects the candidate; fixed order breaks
+  ties. Gate requires >=0.005 AUC over BOTH controls and no MRR/nDCG5/nDCG10
+  regression against either. These are sampled-training selection metrics,
+  not official-dev/competition evidence or an independent confirmation.
+- Only if that gate passes, refit the selected head on all156965 official
+  training impressions/all469264 sampled rows, with all5843444 raw exposures
+  contributing to counts and zero final holdout exclusions. Bind final
+  model/population/selection/inputs by checksum.
+- This stage authorizes no GPU submission. Any later evaluation needs a
+  separately registered protocol; competition-test AUC>=0.80 remains unmet.
+
+Preflight established23988 cohort-disjoint validation impressions and132977
+fitting impressions. The retained head's fitting plus original selection
+cohorts contain31200 impressions. Eighteen targeted streamed-head/population
+tests passed, including finite-difference gradients for all four objectives,
+dense binary equivalence, excluded-label/feature invariance,and the strict
+two-control allocation gate.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

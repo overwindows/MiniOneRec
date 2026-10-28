@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -7,7 +6,7 @@ import numpy as np
 
 from behavior_jev_readout import build_counts
 from jev_content_ranker import (
-    BASE_COLUMNS, FEATURE_NAMES, Content, assembled_features, behavior_records,
+    BASE_COLUMNS, FEATURE_NAMES, Content, align_records, assembled_features, behavior_records,
     category_codes, content_features, fit_model, ranking_metrics, read_news,
 )
 
@@ -60,6 +59,31 @@ class ContentRankerTests(unittest.TestCase):
         self.assertEqual(values[0, 19], 1.)
         np.testing.assert_array_equal(values[3, 5:], np.zeros(15))
         self.assertTrue(np.isfinite(values).all())
+
+    def test_source_groups_are_aligned_to_exact_cached_margin_order(self):
+        records = [
+            {"impression_id": "first-source", "history": ("N3",),
+             "items": [("N1", 1), ("N2", 0)]},
+            {"impression_id": "second-source", "history": ("N4",),
+             "items": [("N1", 0), ("N2", 1)]},
+        ]
+        rows = [
+            {"impression_id": group, "candidate_id": news, "label": label}
+            for group, news, label in (
+                ("second-source", "N2", 1), ("second-source", "N1", 0),
+                ("first-source", "N2", 0), ("first-source", "N1", 1),
+            )
+        ]
+        aligned = align_records(records, rows)
+        actual, _ = content_features(aligned, Content.fit(self.news(), components=4).table(self.news()))
+        self.assertEqual(actual, rows)
+        self.assertEqual(aligned[0]["history"], ("N4",))
+        with self.assertRaises(ValueError):
+            align_records(records, rows[:-2])
+        altered = [dict(row) for row in rows]
+        altered[0]["label"] = 0
+        with self.assertRaises(ValueError):
+            align_records(records, altered)
 
     def test_transforming_new_news_does_not_refit_vocabulary_or_categories(self):
         news = self.news()

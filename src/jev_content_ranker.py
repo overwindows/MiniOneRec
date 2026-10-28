@@ -92,6 +92,26 @@ def category_codes(news, field):
     return {name: index + 1 for index, (name, _) in enumerate(counts.most_common(254))}
 
 
+def align_records(records, rows):
+    indexed = {}
+    for record in records:
+        if record["impression_id"] in indexed:
+            raise ValueError("Duplicate content impression")
+        indexed[record["impression_id"]] = record
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[row["impression_id"]].append((row["candidate_id"], row["label"]))
+    if set(indexed) != set(grouped):
+        raise ValueError("Content and cached impression coverage differ")
+    aligned = []
+    for impression, items in grouped.items():
+        actual = dict(indexed[impression]["items"])
+        if len(dict(items)) != len(items) or any(actual.get(name) != label for name, label in items):
+            raise ValueError("Content candidate identities or labels differ from cached rows")
+        aligned.append({**indexed[impression], "items": items})
+    return aligned
+
+
 def normalize(values):
     return values / np.maximum(np.linalg.norm(values, axis=-1, keepdims=True), 1e-12)
 
@@ -250,6 +270,7 @@ def train(train_news, train_behaviors, sampled_rows, train_margins, output, sour
         days.append(record["day"])
     if sampled or len(rows) != 469264 or len(records) != 156965:
         raise ValueError("Training must cover all 156965 official impressions and 469264 sampled rows")
+    records = align_records(records, rows)
     output.mkdir(parents=True)
     validation_day = max(days)
     excluded = {record["impression_id"] for record in records if record["day"] == validation_day}

@@ -65,6 +65,15 @@ The completed full-training campaign is not restarted or its budget extended.
   an unmatched previous window, a partial-dev AUC, or merely finishing this
   stage. Ultimate acceptance remains competition-test AUC >=0.80.
 
+CPU preprocessing recovery: the first attempt stopped on the exact row-order
+guard before any candidate fit. Cached margins start with impressions18400,
+60823,5864,138636,146239, whereas source behaviors start1,2,3,4,5.
+Align source contexts by impression/candidate/label to the untouched cached
+order; keep the full identity/order equality check. Original protocol/log and
+output directory are preserved; use a new output directory for the corrected
+attempt. No recipe, selection split, model weights, dev window, or GPU budget
+was changed. Ten targeted ranker/evaluation fixtures pass after the correction.
+
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

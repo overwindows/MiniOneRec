@@ -380,6 +380,9 @@ CAMPAIGNS = [
 ]
 
 HEADLINE = (
+    "Project goal:competition-test AUC>=0.80;not achieved. "
+    "JEV-CONTENT-1:new train-only nonlinear content/history CPU stage registered;"
+    "no new official-dev result in this snapshot. "
     "Verified full-training MIND-small official dev31001-36000:"
     "full hybrid AUC0.67203545,retained hybrid0.67598829,frozen0.62488338;"
     "primary delta-0.00395284,95%CI[-0.00675987,-0.00115384]. "

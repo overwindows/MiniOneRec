@@ -226,6 +226,8 @@ def main():
     parser.add_argument("--readout-holdout-cache", default="")
     parser.add_argument("--readout-cache-root", default="")
     parser.add_argument("--full-training-stage", type=int, default=0)
+    parser.add_argument("--uniform-parity-cache", default="")
+    parser.add_argument("--uniform-parity-sha256", default="")
 
     args = parser.parse_args()
 
@@ -253,6 +255,8 @@ def main():
         'readout_holdout_cache': f"{args.mount_dir}/{args.readout_holdout_cache}" if args.mount_dir and args.readout_holdout_cache else args.readout_holdout_cache,
         'readout_cache_root': f"{args.mount_dir}/{args.readout_cache_root}" if args.mount_dir and args.readout_cache_root else args.readout_cache_root,
         'full_training_stage': args.full_training_stage,
+        'uniform_parity_cache': args.uniform_parity_cache,
+        'uniform_parity_sha256': args.uniform_parity_sha256,
     }
 
     # 合成完整路径

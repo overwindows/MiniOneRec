@@ -1,0 +1,27 @@
+{
+  "pipeline_name": "Corrected uniform training/fresh-dev frozen features, bounded one-A100 stage",
+  "commands": [
+    {
+      "name": "Clone source",
+      "command": "git clone https://github.com/overwindows/MiniOneRec.git {code_dir}/MiniOneRec",
+      "working_dir": "{code_dir}"
+    },
+    {
+      "name": "Checkout exact source revision",
+      "command": "git fetch {code_dir}/source.bundle HEAD && git checkout --detach {source_revision} && git rev-parse HEAD",
+      "working_dir": "{code_dir}/MiniOneRec"
+    },
+    {
+      "name": "Prepare environment",
+      "command": "bash scripts/setup_multi_node.sh",
+      "working_dir": "{code_dir}/MiniOneRec"
+    },
+    {
+      "name": "Verify exact frozen parity and extract only the registered feature population",
+      "command": "CUDA_VISIBLE_DEVICES=0 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True /home/aiscuser/.conda/envs/MiniOneRec/bin/python -u src/uniform_jev_features.py --model-path {model_path} --data-root {data_root} --output-root {output_root} --stage {full_training_stage} --source-revision {source_revision} --parity-cache {uniform_parity_cache} --parity-sha256 {uniform_parity_sha256}",
+      "working_dir": "{code_dir}/MiniOneRec"
+    }
+  ],
+  "error_handling": {"stop_on_error": true, "retry_failed_commands": false, "max_retries": 1},
+  "logging": {"log_level": "INFO", "save_command_outputs": true}
+}

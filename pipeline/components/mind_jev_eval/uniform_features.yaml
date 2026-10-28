@@ -1,0 +1,39 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: jev_uniform_frozen_features
+display_name: Corrected Uniform MIND Frozen Features
+version: "1"
+type: command
+description: Frozen features only; four missing-training shards or the separately gated fresh-dev window
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+  model_path:
+    type: string
+  data_root:
+    type: string
+  output_root:
+    type: string
+  source_revision:
+    type: string
+  full_training_stage:
+    type: integer
+  parity_cache:
+    type: uri_folder
+    mode: download
+  parity_sha256:
+    type: string
+command: >-
+  python pipeline_executor.py
+  --config config_jev_uniform_features.json
+  --mount-dir ${{inputs.msndni}}
+  --model-path ${{inputs.model_path}}
+  --data-root ${{inputs.data_root}}
+  --output-root ${{inputs.output_root}}
+  --source-revision ${{inputs.source_revision}}
+  --full-training-stage ${{inputs.full_training_stage}}
+  --uniform-parity-cache ${{inputs.parity_cache}}
+  --uniform-parity-sha256 ${{inputs.parity_sha256}}
+  --debug-mode false
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5

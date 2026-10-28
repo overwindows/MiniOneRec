@@ -24,6 +24,75 @@
 > AUC >= 0.80; keep dataset/split/candidate coverage explicit and do not infer
 > a valid target gap by comparing results from different benchmarks.
 
+## JEV-UNIFORM-1: corrected full-support training campaign
+
+Registered2026-10-28 UTC before its first allocation or model fit. This is a
+new data-support hypothesis, not a retry or budget reset of JEV-JOINT-1 or
+JEV-LOWRANK-1. Neither prior experiment is restarted.
+
+- Use the opt-in uniform sampler,seed42,1:1 negative budget,history30 and
+  title+abstract, covering all156965 official MIND-small training impressions
+  and all236344 positives. Corrected sampled population:472626 rows,
+  236282 negatives,zero single-class impressions. Canonical row SHA256:
+  `fd9f50c2668cd50ae03f918636010f84e43563c73c711997ef721ea30a9a3a84`.
+- Reuse266352 exact identity/label-matched frozen cache rows; extract only
+  the206274 missing negatives in four serial shards of65536/65536/65536/9666.
+  Keep the frozen APUS OpenJev4B,legacy prompt,max_prompt_tokens4095 and
+  2560-dimensional normalized decision representation unchanged.
+- Before each extraction, require bitwise feature AND margin equality on
+  the first16 rows of the original doubled cache, reconstructed in their
+  original contiguous16-row batch. Upload only this checksum-pinned private
+  parity package as an AML downloaded-folder input; never commit features.
+  A parity failure stops the campaign; do not lower comparison precision.
+- Feature budget: at most four new parents,one Standard Ranking A100 per
+  parent,21600-second worker cap AND six hours from parent creation including
+  queue/setup. Serial allocation,no blind retry or infrastructure replacement.
+  Feature extraction/download/assembly aggregate ceiling26 hours from the
+  controller's first start; unresolved submission intent stops rather than
+  creating a duplicate. Whole campaign including CPU and conditional dev
+  ceiling34 hours from that start. Explicit cancellation at deadline.
+- Download immutable feature shards with bounded32MB ranges and SHA256
+  chunk ledgers; verify whole files,all row identities/order/labels,finite
+  float32 features/margins and exactly-once complete target coverage before
+  exposing the assembled matrix. Keep large files on the Q data drive.
+- CPU protocol,registered before fitting: at most two hours/four CPU threads
+  for selection and final refit,within the campaign aggregate ceiling.
+  Temporary validation is the last official training day,excluding both
+  original retained-head fitting and selection cohorts. Exclude ALL
+  validation impressions from counts; fitting-row counts additionally omit
+  the row's entire impression fold. Never use dev for model selection.
+- Controls: fixed retained rich-text head, and that same fixed head with a
+  freshly fitted safe four-column popularity correction,L2=.01,pairwise.
+  Three corrected-data candidates use the full rich representation plus
+  safe popularity:L2=.01 row-weighted binary,impression-balanced binary,
+  and half balanced-binary/half impression-balanced pairwise.
+  All use streamed float64 L-BFGS,history100,at most250 iterations,unchanged
+  strict convergence checks; nonconvergence is a failure,not a fitted model.
+  Rich candidate initialization is the exact retained linear predictor
+  transformed into fitting-only normalization,with zero new-popularity
+  weights. This explicitly new budget/initialization does not authorize
+  another iteration of the stopped legacy-data joint experiment.
+- Highest internal impression AUC selects among the three candidates,
+  listed order breaks ties. Require >=.005 AUC over BOTH controls and no
+  MRR/nDCG@5/nDCG@10 regression against either. Gate-closed means no final
+  refit and no dev GPU allocation. Internal scores remain sampled-training
+  selection metrics,not official-dev quality claims.
+- Only if the gate opens,refit the selected fixed recipe using ALL472626
+  rows/all156965 impressions,zero final holdout exclusions; final popularity
+  counts use all5843444 raw official-training exposures. Freeze/checksum
+  the final head,population and evaluator before reading new dev scores.
+- Conditional fresh official MIND-small dev window: zero-based41000-45999
+  (impressions41001-46000),5000 impressions,every candidate in source order.
+  At most one additional Standard Ranking A100 parent,same six-hour bounds,
+  no retries. Save ALL frozen dev features for CPU model/control replay.
+  Score the frozen uniform candidate and retained hybrid on identical
+  candidates; independently reconstruct metrics and paired bootstrap.
+  Never tune or reselect on this window.
+- Keep the prior matched official-dev retained model as reference until a
+  valid new comparison exists. No train-only result,partial MIND-small dev
+  result,cache completion or sampler correction establishes the overall
+  competition MIND-large/test AUC>=.80 acceptance goal.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

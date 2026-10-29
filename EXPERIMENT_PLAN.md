@@ -1051,6 +1051,60 @@ Actual training-only start page/feed deployed2026-10-29 20:58:04.696194UTC,
 receipt `jev-large-collaborative-01-start-publication.json`:all52 benchmark
 cells and other shared assets/auth unchanged;no browser-rendering claim.
 
+Terminal collaborative result2026-10-29 21:50:23.428321UTC:
+`training_independently_verified_gate_rejected`,proof
+`9ae9f16133dd7089846806f1e00bc7e7e14afb1721d9e33a40728abe4647b564`,
+result`d3a4051b887b858a28f4c44f630b23ae907797389ce63fdc100a222a4f26de41`.
+All three earlier-training epochs retained1801231/66107268/2712612,8111 steps
+each. Independent replay covered all431517 internal impressions/17400106
+scores/671044 positives;maximum score error2.86102294921875e-6.
+Internal AUC0.6259374637613295 versus original0.6831950387658544,
+gain-0.057257575004524885;MRR0.29137338581222844,
+nDCG5/10=0.31054544178357174/0.3709819494019717 also regressed.
+No final all-training refit,dev/test reads,GPU or retry. This is a verified
+negative internal result,NOT a new accepted final model or dev/test result.
+Earlier basis proof was reused transparently;optimizer was not independently
+rerun. All original cutoffs remain unchanged. Official-dev AUC0.6814457842
+and unmet competition-test0.80 target remain unchanged.
+
+Preregistered follow-up ONLY:one read-only CPU4/600s OS-hard-capped diagnostic,
+internal570s,inside the original aggregate. Reuse ONLY independently verified
+original/collaborative internal metric arrays and the complete original
+training source. Compare fixed per-impression metric differences stratified
+by positive-article earlier-training exposure/click support;report exact
+source coverage and additive AUC-gap decomposition. No fitting,new scorer,
+feature changes,recipe/threshold selection,dev/test reads or gate reopening.
+Purpose:characterize generalization failure without claiming a causal
+ablation or converting training metrics into benchmark performance.
+
+Read-only diagnostic completed2026-10-29 21:53:55.978365UTC in38.74s:
+`jev-large-collaborative-01-generalization-diagnostic.json`,
+SHA`56c1af7849f6b66099f994f33e7c8d13a3cf844c081973bf943ebc3d916d914b`.
+All431517/17400106/671044 validation rows/candidates/positives and earlier
+1801231/66107268/2712612 fitting population checked. Pinned old/new internal
+metric arrays unchanged;both fixed three-way strata exactly decompose the
+overall-.0572575750 AUC gap within1e-12:
+- No positive article had an earlier fitting labeled click:129570 impressions
+  (30.0266%),original AUC0.6827666856 versus collaborative0.5221370965;
+  additive overall AUC contribution-.0482316476.
+- All positive articles had earlier labeled clicks:244466(56.6527%),
+  original0.6834025842 versus collaborative0.6914372104;
+  additive contribution+.0045518321. Mixed support57481(13.3207%)
+  contributed-.0135777595.
+- Merely lacking prior candidate exposure is NOT where the loss concentrates:
+  no positive had earlier exposure27045(6.2674%),original0.7214231697 versus
+  collaborative0.7786884334;all-positive-earlier-exposed387176(89.7244%),
+  original0.6799135683 versus collaborative0.6138347821.
+Support means earlier candidate exposures/labeled clicks,not history-only
+encounters. These post-hoc strata use held-out clicked labels:they are NOT a
+deployable routing rule,achieved overall score or causal ablation. The result
+characterizes a support-related generalization failure;it does not isolate
+the cause among learned biases,residuals,pooling and training choices.
+Zero fitting,new scoring,dev/test reads,GPU or gate reopening.
+Terminal rejection page/feed deployed2026-10-29 21:54:31.881439UTC,receipt
+`jev-large-collaborative-01-rejection-publication.json`:all52 benchmark cells
+and other shared assets/auth unchanged;no browser-rendering claim.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

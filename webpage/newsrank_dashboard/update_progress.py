@@ -26,7 +26,9 @@ CAMPAIGNS = [
     {
         "name": "JEV-4B frozen-backbone readout recovery",
         "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
-                      "New JEV-LARGE-SEMANTIC-1 tests frozen article representations plus learned masked "
+                      "JEV-LARGE-SEMANTIC-1 failed during model-class import before frozen parity, "
+                      "new feature extraction or fitting;parent/worker Failed observed2026-10-29 09:29:58UTC. "
+                      "No retry or new allocation. Its planned hypothesis tests frozen article representations plus learned masked "
                       "history scoring over every full MIND-large training impression/candidate/click. "
                       "Complete large-data source-origin replay is verified;no new large-data quality result exists. "
                       "JEV-UNIFORM-1 corrects negative-sampling support;its independently verified all-data "
@@ -36,7 +38,10 @@ CAMPAIGNS = [
                       "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "Registered JEV-LARGE-SEMANTIC-1 source083d63a:one Standard Ranking A100,"
+        "settings": "FAILED JEV-LARGE-SEMANTIC-1 source083d63a:Transformers Qwen3_5 import entered "
+                    "FLA simple_gla and Triton JIT source extraction raised AttributeError NoneType.start. "
+                    "Environment compatibility remains unresolved;no model/head/gate result exists. "
+                    "One Standard Ranking A100,"
                     "21600s/six hours including queue/setup,no retries,unchanged aggregate cutoff2026-10-30 "
                     "01:17:07UTC. Frozen101527 article representations,exact original16-row parity required. "
                     "Two fixed128-dimensional masked-history recipes,all-positive/all-negative normalized "
@@ -439,8 +444,8 @@ HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
     "Full MIND-large training inputs verified:2232748 impressions/83507374 exposures/"
     "3383656 positives/80123718 negatives;every source candidate/history replayed. "
-    "New JEV-LARGE-SEMANTIC-1 source083d63a:single bounded A100 training-only phase,"
-    "two fixed masked-history recipes,all-positive/full-candidate loss;no new large-data AUC result. "
+    "JEV-LARGE-SEMANTIC-1 source083d63a FAILED before model loading/parity/features/fitting: "
+    "FLA/Triton import error;no retry or new allocation;no new large-data AUC result. "
     "CPU audit:480584 raw-negative exposures had zero sampling support;"
     "3212 avoidable positive-only groups. JEV-UNIFORM-1 official-dev comparison verified:"
     "uniform AUC0.67541344 vs matched retained0.67653934;"

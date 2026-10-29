@@ -38,6 +38,17 @@ def main():
     env.update(CUDA_VISIBLE_DEVICES="0", TRANSFORMERS_OFFLINE="1", HF_DATASETS_OFFLINE="1",
                OMP_NUM_THREADS="4", MKL_NUM_THREADS="4", OPENBLAS_NUM_THREADS="4",
                PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True")
+    subprocess.run([str(python), "-m", "pip", "check"], check=True, env=env)
+    subprocess.run([
+        str(python), "-u", "-c",
+        "import json, sys; from importlib.metadata import version; "
+        "print(json.dumps({'stage': 'runtime_import_preflight', 'python': sys.version, "
+        "'versions': {name: version(name) for name in "
+        "('torch', 'torchvision', 'transformers', 'tokenizers', 'flash-linear-attention', "
+        "'fla-core', 'triton')}}), flush=True); "
+        "from transformers import Qwen3_5ForConditionalGeneration; "
+        "print('Qwen3_5ForConditionalGeneration import verified', flush=True)",
+    ], check=True, env=env)
     subprocess.run([
         str(python), "-u", str(source / "src" / "full_impression_training.py"),
         "--contract", str(args.contract), "--parity-cache", str(args.parity_cache),

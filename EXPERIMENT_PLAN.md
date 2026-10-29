@@ -378,6 +378,28 @@ Outputs`shares/users/wuc/output_dir/jev_readout_recovery_20261028/large_semantic
 bounded complete readback to`Q:\CodeGuru\scratch\jev-large-semantic-01`.
 No model/head/gate result exists at submission;no new dev/test evaluation.
 
+Parent and worker FAILED observed2026-10-29 09:29:58UTC. Immutable source checkout
+was verified in the worker. Failure occurred before original16 parity,new article
+features or fitting:importing`Qwen3_5ForConditionalGeneration` entered
+`fla.ops.simple_gla.parallel` and Triton JIT source extraction raised
+`AttributeError: 'NoneType' object has no attribute 'start'`;Transformers wrapped
+it as a model-class import error. This is an environment/import failure,NOT a
+failed quality gate. No new model/head/gate/dev/test result exists. Controller
+preserved the known parent and failed receipt;no retry/new allocation. Complete
+verified large-training inputs and prior results remain valid.
+
+Follow-up source hardening records Python and actual Torch/Transformers/FLA/
+Triton versions and requires both `pip check` and the real model-class import
+before the training driver reads inputs/hashes model weights. This is an
+early-detection guard,NOT a verified dependency compatibility fix. Exact Linux
+runtime reproduction remains required before any separately approved allocation;
+do not change kernels,relax original16 parity or silently relaunch this campaign.
+Terminal-failure page/feed deployed2026-10-29 09:34:58UTC. Receipt
+`ROOT\jev-large-semantic-01-failure-publication-verification.json` binds the
+preserved failed campaign and worker log,confirms Failed from a fresh cloud read,
+and preserves all36 previous official-dev metric cells/shared assets/auth.
+There is no new score or dependency-fix claim.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

@@ -1039,6 +1039,18 @@ is unchanged,and no quality improvement is promised.
   Before execution:62 targeted source fixtures and4 CPU deadline/failure/
   no-retry guardian fixtures passed in the pinned Linux runtime.
 
+Actual unique attached launch2026-10-29 20:55:32.896168UTC,source
+`94529222fd016816b114d69afd3ea63fc0673d02`,self-contained Windows/WSL-clean
+checkout `Q:\CodeGuru\scratch\jev-large-collaborative-01-source`.
+Exact `/proc` child command and output directory confirmed;controller
+`run_jev_large_collaborative.py`,state `jev-large-collaborative-01-campaign.json`,
+shell `jev-large-collaborative-01`. Absolute CPU cutoff23:55:32.896168UTC;
+guardian SHA`d784563e304d083d4a919801bd18d9c9dc5d2fac1a3cd38da1eb3768bb5031ca`.
+No accepted model/metric/proof or dev/test result exists at this launch snapshot.
+Actual training-only start page/feed deployed2026-10-29 20:58:04.696194UTC,
+receipt `jev-large-collaborative-01-start-publication.json`:all52 benchmark
+cells and other shared assets/auth unchanged;no browser-rendering claim.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

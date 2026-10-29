@@ -74,10 +74,11 @@ def verify_basis(raw, directory, deadline, dimension=128):
             "top_eigensystem_replayed": True, "maximum_eigen_equation_residual": residual}
 
 
-def verify_epochs(record, indices, arrays, counts, deadline, expected_mode="candidate_attention"):
-    require(record["mode"] == expected_mode and len(record["epochs"]) == 3,
-            "Exactly three epochs of the registered mode required")
-    for seed, row in zip((42, 43, 44), record["epochs"]):
+def verify_epochs(record, indices, arrays, counts, deadline, expected_mode="candidate_attention",
+                  seeds=(42, 43, 44)):
+    require(record["mode"] == expected_mode and len(record["epochs"]) == len(seeds),
+            "Exactly the registered fixed epochs and mode required")
+    for seed, row in zip(seeds, record["epochs"]):
         check_deadline(deadline)
         order = np.random.default_rng(seed).permutation(indices)
         steps = sum(1 for _ in batches(order, arrays))

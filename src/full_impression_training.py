@@ -362,11 +362,14 @@ def article_features(contract, model_path, small_data, parity_cache, parity_sha,
     return result
 
 
-def fit(features, indices, arrays, mode, output, deadline, *, model_factory=FrozenArticleRanker):
+def fit(features, indices, arrays, mode, output, deadline, *, model_factory=FrozenArticleRanker,
+        epoch_count=EPOCHS):
+    if type(epoch_count) is not int or epoch_count < 1:
+        raise ValueError("A positive fixed epoch count is required")
     torch.manual_seed(42)
     model = model_factory(features, mode).to(features.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    epochs = [epoch(model, indices, arrays, optimizer, 42 + number, deadline) for number in range(EPOCHS)]
+    epochs = [epoch(model, indices, arrays, optimizer, 42 + number, deadline) for number in range(epoch_count)]
     if not all(torch.isfinite(parameter).all() for parameter in model.parameters()):
         raise FloatingPointError("Trained history parameters are nonfinite")
     torch.save({name: value.detach().cpu() for name, value in model.state_dict().items()}, output)

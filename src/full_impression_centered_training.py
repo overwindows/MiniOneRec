@@ -98,8 +98,8 @@ def transform(raw, parameters, output, deadline):
     del result
 
 
-def epoch_coverage(record, impressions, exposures, positives):
-    return len(record["epochs"]) == 3 and all(
+def epoch_coverage(record, impressions, exposures, positives, epochs=3):
+    return len(record["epochs"]) == epochs and all(
         row["impressions"] == impressions and row["exposures"] == exposures
         and row["positives"] == positives and np.isfinite(row["mean_loss"])
         and row["optimizer_steps"] > 0 for row in record["epochs"])

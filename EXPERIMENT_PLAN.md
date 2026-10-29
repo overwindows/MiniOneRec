@@ -1187,6 +1187,67 @@ competition-test target. Source fixture set68 passed;closed-gate tests explicitl
 reject worker-only success without complete independent ALL-training proof.
 No new dev/test contents have been read and no evaluation allocation started.
 
+Shared-text terminal result2026-10-29 22:31:25.829627UTC:
+`training_independently_verified_gate_rejected`,proof
+`f679cee8e25a8f6c211c64a266299225c11ba67486de79e7699cb2aa797afa75`,
+result`76577be4f709e4ee6a26678f3065a97ad86609f01d2d295006d44775eb6f42a0`.
+All101527 source lexical vocabulary/IDF/LSA/capped-CSR bits reproduced;
+all3 earlier-training epochs1801231/66107268/2712612 and all431517 internal
+impressions/17400106 scores/671044 positives verified. Maximum score error
+2.86102294921875e-6. Internal AUC0.6497106762950852 versus original0.6831950387658544,
+gain-.03348436247076925;MRR.30419377244415563,
+nDCG5/10=.329452889188954/.3899688860008843 also regress.
+No fresh final refit,dev/test reads,GPU or retry. Prepared shared-text full-dev
+transport stays BLOCKED by the verified rejected gate;do not run it.
+This rejects the fixed title-only recipe,not every possible shared-text model.
+Original full-dev.6814457842 and unmet competition-test.80 target unchanged.
+
+### JEV-LARGE-MULTIVIEW-1: distinct preregistered joint semantic/text learning
+
+Registered before real joint-model fitting. This is NOT a retry,extension,
+ensemble/routing of rejected supervised heads or promotion of old gates.
+Hypothesis:joint semantic/text views can be complementary even when a fixed
+title-only model loses;no quality improvement or0.80 guarantee is asserted.
+
+- Use ONLY two proven UNSUPERVISED initializers:training-only PCA128 cache
+  under basis proofdf35c50e and training-only capped-title TF-IDF/LSA64 under
+  complete source/lexical-bit prooff679cee8. Pin old proofs/results and all
+  raw/basis/CSR/vocabulary/initial-term hashes before/after. Do NOT load any
+  old learned words,attention parameters or supervised heads. Existing old
+  negative quality gates remain terminal.
+- One fresh model:trainable shared title vectors64 and a bias-free global
+  semantic projection128->64;L2 each view,concatenate and L2 to128;four learned
+  interest queries/recency pooling/logmeanexp10cosine. No article-ID parameters,
+  candidate bias or held-out-positive-label routing. All candidates/clicks kept.
+- Fixed TWO epochs for both earlier selection and conditional final refit,
+  chosen solely by CPU qualification BEFORE new fitting. Same complete-impression
+  objective,AdamW.001/WD.0001/clip1,batch8192/256,seeds42/43. No epoch/checkpoint
+  search or convergence claim. Existing default three-epoch behavior remains
+  unchanged through optional fixed epoch-count/coverage/seeds parameters.
+- Selection population1801231/66107268/2712612 every epoch;all431517/17400106/
+  671044 internal validation. Same stronger gate:+.005 over originalattention
+  AUC.6831950387658544,no MRR/nDCG5/nDCG10 regression. Only then fresh fit on
+  ALL2232748/83507374/3383656 every epoch,zero final holdout.
+- Complete source/epoch coverage and every score/metric replay required.
+  Separate inference uses NumPy semantic projection+SciPy CSR term vectors+
+  NumPy multi-interest pooling,not the training PyTorch/EmbeddingBag path.
+  Old UNSUPERVISED proofs are reused,NOT claimed newly recomputed;optimizer
+  trajectories are not independently reproduced. Same score1e-4/1e-5 and
+  metric1e-12 tolerances. No old supervised model output enters new scoring.
+- CPU4 only,no CUDA or dev/test reads;one unique attached8100s OS hard cap,
+  trainer6600s/verifier1200s,no retry. Start needs8100s+600s margin within
+  original aggregate2026-10-30 01:17:07.923179UTC. Expired GPU cutoff unchanged.
+- Full-size SYNTHETIC-only qualification:101528 articles,32768 terms,maximum
+  32/article,128 semantic/64 per view,8192 candidates/256 histories of30,
+  denseAdamW/backprop/global clipping,2105886 parameters. Seven warmed steps
+  averaged.1372958689s. Two+two epoch36710-step simple estimate5040.13s excludes
+  source loading/batching,validation,serialization and proof. Three+three
+  estimate7560.20s does NOT fit trainer6600s and was resource-rejected before
+  real fitting. No runtime,quality or general0.80 guarantee is implied.
+  Before execution:70 targeted source fixtures(default three-epoch behavior,
+  fixed two-epoch fusion,source/gate/corruption and independent scoring) and
+  4 deadline/failure/no-retry guardian fixtures passed in pinned Linux.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

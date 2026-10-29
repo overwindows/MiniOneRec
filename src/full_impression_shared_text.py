@@ -24,18 +24,22 @@ class SharedTextRanker(FrozenArticleRanker):
         self.register_buffer("features", features, persistent=False)
         self.mode, self.history_limit, self.terms = mode, 30, terms
         self.words = nn.Parameter(torch.from_numpy(initial.copy()))
+        self.dimension = 64
         self.queries = nn.Parameter(torch.randn(4, 64) * .1)
         self.recency = nn.Parameter(torch.zeros(30))
 
-    def forward(self, histories, candidates, groups):
-        self._validate_inputs(histories, candidates, groups)
-        identities, inverse = torch.unique(torch.cat((histories.flatten(), candidates)), return_inverse=True)
+    def encode(self, identities):
         block = self.terms[identities.numpy()]
         encoded = F.embedding_bag(torch.from_numpy(block.indices.astype(np.int64)), self.words,
                                   torch.from_numpy(block.indptr.astype(np.int64)), mode="sum",
                                   per_sample_weights=torch.from_numpy(block.data), include_last_offset=True)
-        encoded = F.normalize(encoded, dim=-1)
-        history = encoded[inverse[:histories.numel()]].reshape(*histories.shape, 64)
+        return F.normalize(encoded, dim=-1)
+
+    def forward(self, histories, candidates, groups):
+        self._validate_inputs(histories, candidates, groups)
+        identities, inverse = torch.unique(torch.cat((histories.flatten(), candidates)), return_inverse=True)
+        encoded = self.encode(identities)
+        history = encoded[inverse[:histories.numel()]].reshape(*histories.shape, self.dimension)
         candidate = encoded[inverse[histories.numel():]]
         mask = histories != 0
         safe = mask.clone()

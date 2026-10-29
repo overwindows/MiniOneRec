@@ -845,6 +845,30 @@ no accepted new result at launch. Source recipe and independent replay were
 validated on the pinned CPU runtime before freezing;no fitting/dev/test reads
 occurred in those synthetic fixtures.
 
+**Completed2026-10-29 18:00:42UTC:independently verified GATE REJECTED.**
+The centered/whitened recipe achieved last-training-day AUC0.6796696887 versus
+originalattention0.6831950388,gain-0.0035253501 rather than required+0.005.
+MRR0.3166867020,nDCG5/10=0.3421814776/0.4030550474;the last metric also regressed.
+These are INTERNAL training-day selection metrics,NOT official-dev/test results.
+Allthree selection epochs retained1801231 impressions/66107268 exposures/
+2712612 positives each,8111 optimizer steps per epoch. Independent replay checked
+all101527 transformed article bits,the top128 training-only eigensystem,
+all431517 validation impressions/17400106 exposures/671044 positives and every
+per-impression/aggregate metric. Maximum score replay error9.5367431641e-7;
+all original tolerances unchanged. Optimizer trajectories were NOT retrained.
+The retained128 directions explain85.0038% of training covariance variance;
+this recipe's rejection does NOT isolate centering,compression or whitening as
+the cause. Source/output bytes and the original frozen feature cache are intact.
+Proof`jev-large-centered-01-independent-verification.json`,
+SHAdf35c50ec29523daa53451c7b5db15f17452f2d68802a8b2b1c1a0bcd71a9fe8;
+resultSHA7c7a7da72cf140f318f2f0c754a23a3cd34f4c5df68dd8e57120109eef70f2bc.
+No final all-training refit,selected-full.pt,dev/test reads/scoring,new GPU
+allocation or automatic retry occurred. This experiment is terminal,not running.
+Original full-dev AUC0.6814457842 remains unchanged;competition-test0.80 unmet.
+Rejected internal recipe published2026-10-29 18:04:57UTC,receipt
+`jev-large-centered-01-rejection-publication.json`:all52 benchmark metric cells
+unchanged,other shared assets/auth unchanged;no browser-rendering claim.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

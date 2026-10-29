@@ -1281,6 +1281,29 @@ Default shared-text bounds1200s/OS1500s/reserve1620s stay unchanged.
 71 source fixtures pass,including family-specific closed gates/defaults.
 No new dev/test contents read and no evaluation allocation started.
 
+Joint-view terminal result2026-10-29 23:06:51.660985UTC:
+`training_independently_verified_gate_rejected`,proof
+`9a4a7299940cf58fe0dc359d31775d1f97d2cf7f00314edfa3903ccdc903226b`,
+result`69de180c8564de01a8ed140d4b3168ce5ab9dc313156999015e9f32f7ee130a8`.
+Both fixed earlier-training epochs each verified1801231 impressions/66107268
+exposures/2712612 positives and8111 optimizer steps. Every431517 internal
+validation impression/17400106 score/671044 positive replayed independently;
+maximum score error3.814697265625e-6. Previously proven UNSUPERVISED initializers
+are reused transparently,not claimed newly recomputed;optimizer trajectories
+are not independently reproduced. Internal AUC0.6668401504879304 versus
+original0.6831950387658544,gain-.016354888277923973;
+MRR.3100939338218809,nDCG5/10=.339362341491009/.4004625232484546 also regress.
+No fresh final refit,dev/test reads,GPU or retry. Separately registered
+conditional joint full-dev transport remains BLOCKED;do not execute it.
+No model training is now running. Keep frozen output/guardian/source unchanged;
+all original cutoffs remain unchanged. No additional trial registered here.
+Strongest complete official-large-dev AUC.6814457842 and unmet competition-test
+.80 target remain unchanged. This rejects the fixed joint recipe,not every
+possible semantic/text model.
+Terminal rejection page/feed published2026-10-29 23:09:38.506973UTC,receipt
+`jev-large-multiview-01-rejection-publication.json`:all52 benchmark cells and
+other assets/auth unchanged;no browser-rendering claim. No new dev/test result.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

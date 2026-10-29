@@ -869,6 +869,71 @@ Rejected internal recipe published2026-10-29 18:04:57UTC,receipt
 `jev-large-centered-01-rejection-publication.json`:all52 benchmark metric cells
 unchanged,other shared assets/auth unchanged;no browser-rendering claim.
 
+#### JEV-LARGE-TEMPORAL-1:distinct full-support causal behavioral/content booster
+
+Registered2026-10-29 after the explicit18:05UTC request to continue. The centered
+experiment is terminal and is NOT restarted,retuned or granted another recipe.
+This is a distinct CPU model family/data contract,not a retry or budget reset.
+No new GPU allocation is authorized;the original expired GPU cutoff and original
+aggregate2026-10-30 01:17:07.923179UTC remain unchanged.
+
+- One fixed numeric histogram-boosting classifier:31 leaves,160 rounds,lr0.06,
+  minimum leaf100,L2=10,255 bins,seed42,no early stopping or recipe/checkpoint
+  search. Every full fitting exposure contributes binary logistic loss with
+  weight1/(candidates in its complete impression). ALL clicks and negatives
+  remain,unit objective weight per impression. Quantile-bin threshold estimation
+  uses sklearn's fixed subsampling default;this does NOT subsample the loss rows.
+- Reuse the existing training-news-only TF-IDF/SVD64 Content encoder and its
+  tested content/history statistics. The original unsupervised frozen-JEV
+  article margin remains checksum/bit exact. Do NOT use any supervised attention,
+  text or hybrid head's in-sample predictions as fitting features.
+- Fixed27 numeric features:the existing25 margin/content/popularity features
+  WITHOUT nominal category/subcategory ID columns,plus four recent-day
+  population features. Retain all category/subcategory affinity fractions and
+  recency/semantic/history signals. No identity-code-as-continuous shortcut.
+  Numeric-only input avoids bulk categorical preprocessing copies on83m rows.
+- All target-dependent features for any impression use STRICTLY EARLIER calendar
+  days only. Cumulative exposure/click/CTR and most-recent-available-earlier-day
+  exposure/click/CTR use all eligible previous exposures,never the row's own day
+  or a future day. The first training day has explicit cold-start statistics:
+  no exposures/clicks,known0,prior0.04,smoothing20. No labels enter lexical,
+  semantic,category/history or candidate-identity features.
+- Selection population counts contain ONLY earlier1801231 impressions/
+  66107268 exposures/2712612 positives;last-training-day labels are excluded from
+  EVERY selection statistic. Last day431517 impressions/17400106 exposures/
+  671044 positives is scored only after fitting. Reuse the stronger original
+  attention baseline AUC0.6831950388;gate remains>=0.005 AUC gain AND no
+  MRR/nDCG5/nDCG10 regression. A rejected gate produces no final model/dev score.
+- A passing gate permits one fresh160-round final fit on ALL2232748 impressions/
+  83507374 exposures/3383656 positives with zero final holdout exclusions.
+  Causal training-row features remain unchanged;the all-training population
+  including the final day is built ONLY after a passing gate for future frozen
+  inference. No negative sampling,first-click reduction,group truncation or
+  dropped impressions. Every design row,label,weight and source identity/order
+  is replayable through the pinned lossless original training contract.
+- Four CPU threads,CUDA disabled,one hard21600-second attached process group.
+  Trainer max17400s;complete verification max3600s;600s margin within the six
+  hours. No automatic retry. Start only if the entire six hours plus600s margin
+  fit before the ORIGINAL aggregate deadline. All large matrices are FP64
+  memory maps onQ:,not the low-free-space system drive.
+- Synthetic-only500000-row/27-feature qualification of this exact160-round
+  recipe took6.58s at330164KiB peak RSS,with no categorical preprocessor;
+  simple selection+final row scaling estimates1968s,EXCLUDING feature generation,
+  binning scale effects,prediction and verification. This is NOT a guarantee or
+  quality measurement. No real-data fitting preceded registration.
+- Freeze source and test causal label exclusion,padding/history behavior,all
+  candidate/positive/weight coverage and independent numeric-tree traversal.
+  Complete verifier independently rebuilds causal counts,checks every source
+  feature and fitting-design row,replays every raw selection score via separate
+  numeric-tree traversal,and all per-impression/aggregate metrics at1e-12.
+  The established content-feature implementation is reused for full source
+  feature replay;do not claim an algorithmically independent lexical-feature
+  implementation or independently retrained SVD/booster optimization.
+- No official dev/test reads or tuning in this campaign. A passing independently
+  verified final fit may be followed only by a separately frozen CPU evaluation
+  of the complete already-inspected official-dev population,with reuse disclosed.
+  Current actual official-dev AUC remains0.6814457842;competition-test0.80 unmet.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

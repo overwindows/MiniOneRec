@@ -39,3 +39,17 @@ def test_text_cap_never_changes_candidate_population_and_has_exact_stable_ties()
     expected = vectorizer.transform([text]).tocsr()
     chosen = sorted(zip(expected.indices, expected.data), key=lambda item: (-item[1], item[0]))[:32]
     assert matrix.indices[:32].tolist() == sorted(int(column) for column, _ in chosen)
+
+
+def test_joint_worker_success_cannot_bypass_complete_independent_two_epoch_fit(tmp_path):
+    proof = tmp_path / "proof.json"
+    (tmp_path / "result.json").write_text(json.dumps({
+        "source_revision": evaluation.MULTIVIEW_SOURCE, "opens_dev_gate": True}))
+    proof.write_text(json.dumps({
+        "result_sha256": digest(tmp_path / "result.json"),
+        "source_revision": evaluation.MULTIVIEW_SOURCE, "opens_dev_gate": True,
+        "full_training_epoch_source_and_coverage_verified": False}))
+    with pytest.raises(ValueError, match="BEFORE dev"):
+        evaluation.load_multiview_gate(tmp_path, proof, digest(proof), digest(tmp_path / "result.json"))
+    with pytest.raises(ValueError, match="BEFORE dev"):
+        evaluation.load_shared_gate(tmp_path, proof, digest(proof), digest(tmp_path / "result.json"))

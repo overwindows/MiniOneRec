@@ -1248,6 +1248,39 @@ title-only model loses;no quality improvement or0.80 guarantee is asserted.
   fixed two-epoch fusion,source/gate/corruption and independent scoring) and
   4 deadline/failure/no-retry guardian fixtures passed in pinned Linux.
 
+Actual unique joint-view launch2026-10-29 22:37:58.764042UTC,source
+`616c90d61e1dcb3712976f36097daf3a58a3d893`,self-contained Windows/WSL-clean
+checkout`Q:\CodeGuru\scratch\jev-large-multiview-01-source`,attached shell
+`jev-large-multiview-01`. Exact child command and actual first-epoch progress
+verified;by22:43:41UTC977107 impressions/35866077 candidates/1471552 positives.
+Progress counts are NOT accepted epoch coverage or quality. Absolute CPU cutoff
+2026-10-30 00:52:58.764042UTC;guardian
+`1e0dc494dbd09418206f8c0f2ce8ac3ec98a211bba5dbcf0c34a282ddcaf460a`.
+Combined old shared-text rejection/new joint-view actual-start page/feed
+published2026-10-29 22:40:20.430046UTC,receipt
+`jev-large-multiview-01-start-publication.json`:all52 benchmark cells and
+other shared assets/auth unchanged;no browser-rendering claim.
+
+Joint-view conditional full-dev transport PREPARED ONLY,NOT executed:
+`full_impression_shared_text_dev.py --model-family multiview --max-seconds900`.
+Separate strict gate requires exact source616c90d,accepted complete independent
+joint proof and fresh TWO-epoch ALL-training refit. It does NOT weaken the
+original shared-text three-epoch gate. Check all lexical/basis/training-semantic
+bytes BEFORE any dev access. Prior full-dev proof9d0aa61e/manifest9b138c23 and
+result3c065784 pin raw source and frozen complete article union. Reuse unchanged
+training PCA prefix and transform ONLY2624 new raw dev article vectors through
+the prior proven training basis;no new JEV extraction/GPU. Preserve trained
+vocabulary/IDF and check every new title-term bit. Full raw source identity/
+target/history and every376471-impression/14085557-score/574845-positive metric
+must replay through separate NumPy/SciPy joint inference. Prior unsupervised
+semantic transform implementation is reused,not claimed newly proved.
+One unique CPU-only evaluation,worker900s/OS1200s,requires1320s reserve inside
+unchanged aggregate;no fitting,retuning,selection or retry. This fits even near
+the joint training cap if started promptly;otherwise refuse rather than extend.
+Default shared-text bounds1200s/OS1500s/reserve1620s stay unchanged.
+71 source fixtures pass,including family-specific closed gates/defaults.
+No new dev/test contents read and no evaluation allocation started.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

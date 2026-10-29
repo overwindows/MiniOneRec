@@ -43,7 +43,7 @@ class FrozenArticleRanker(nn.Module):
         self.article_bias = nn.Linear(features.shape[1], 1)
         self.recency = nn.Parameter(torch.zeros(history_limit)) if mode == "candidate_attention" else None
 
-    def forward(self, histories, candidates, groups):
+    def _validate_inputs(self, histories, candidates, groups):
         if (histories.ndim != 2 or histories.shape[1] != self.history_limit
                 or candidates.ndim != 1 or groups.shape != candidates.shape or not len(candidates)
                 or any(value.dtype != torch.long for value in (histories, candidates, groups))
@@ -54,6 +54,10 @@ class FrozenArticleRanker(nn.Module):
         mask = histories != 0
         if torch.any(mask[:, :-1] & ~mask[:, 1:]):
             raise ValueError("History padding must be on the left")
+
+    def forward(self, histories, candidates, groups):
+        self._validate_inputs(histories, candidates, groups)
+        mask = histories != 0
         candidate_features = F.embedding(candidates, self.features)
         candidate = F.normalize(self.project(candidate_features), dim=-1)
         history = F.normalize(self.project(F.embedding(histories, self.features)), dim=-1)

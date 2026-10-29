@@ -362,9 +362,9 @@ def article_features(contract, model_path, small_data, parity_cache, parity_sha,
     return result
 
 
-def fit(features, indices, arrays, mode, output, deadline):
+def fit(features, indices, arrays, mode, output, deadline, *, model_factory=FrozenArticleRanker):
     torch.manual_seed(42)
-    model = FrozenArticleRanker(features, mode).to(features.device)
+    model = model_factory(features, mode).to(features.device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     epochs = [epoch(model, indices, arrays, optimizer, 42 + number, deadline) for number in range(EPOCHS)]
     if not all(torch.isfinite(parameter).all() for parameter in model.parameters()):

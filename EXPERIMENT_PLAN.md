@@ -988,6 +988,57 @@ Failure/limited-diagnostic page/feed published2026-10-29 20:49:15UTC,receipt
 `jev-large-temporal-01-failure-publication.json`:all52 benchmark cells and
 other shared assets/auth unchanged;no complete-model or browser-rendering claim.
 
+### JEV-LARGE-COLLABORATIVE-1: distinct preregistered CPU article-learning recipe
+
+Registered2026-10-29 before real-data execution. This is NOT a retry,extension,
+or acceptance of either terminated centered/temporal campaign. Both previous
+recipes kept article representations fixed;this recipe learns per-article
+collaborative residuals and biases from complete impression choices.
+The competition-test AUC0.80 target remains unmet;official-dev AUC0.6814457842
+is unchanged,and no quality improvement is promised.
+
+- Frozen semantic128 cache is reused ONLY as an unsupervised initializer:
+  completed independent basis proof
+  `df35c50ec29523daa53451c7b5db15f17452f2d68802a8b2b1c1a0bcd71a9fe8`
+  verified every article bit and training-only top eigensystem. Raw article,
+  basis,transformed cache,old result and proof hashes are rechecked before/after.
+  No rejected supervised centered head is loaded. As in that cache's original
+  protocol,all official-training article TEXT,not held-out labels,entered PCA.
+- One fixed architecture:L2(semantic+zero-initialized trainable128 article
+  residual);trainable zero-initialized item bias;masked learned30-position
+  recency mean;L2 user;10cosine+item bias. Padding residual/bias stayzero;
+  never-observed items retain semantic initialization rather than random IDs.
+- Reuse original proven complete-impression batching/loss/optimizer machinery:
+  all candidates and all clicks,equal impression weight,three epochs,
+  AdamW.001/WD.0001/clip1,seeds42/43/44,8192-candidate/256-impression limits.
+  Default original ranker behavior is preserved by an optional model factory;
+  strict left-padding/input checks are shared rather than weakened.
+- Selection:all1801231 earlier impressions/66107268 exposures/2712612 positives,
+  internal validation:all431517 last-training-day impressions/17400106 exposures/
+  671044 positives. Fitting and validation reports have separate scopes.
+  Fixed gate:at least+.005 AUC over original attention0.6831950387658544
+  and no MRR/nDCG5/nDCG10 regression. No recipe,epoch or threshold search.
+- Only a passing worker gate permits a fresh zero-residual/bias three-epoch
+  final refit on ALL2232748/83507374/3383656. Only a COMPLETE independent
+  source/coverage/checkpoint/raw-score/metric proof may accept that gate.
+  Independent scorer precomputes all normalized semantic+residual vectors and
+  separately evaluates recency pooling/cosine;every selection score and metric
+  is replayed with unchanged score1e-4/1e-5 and metric1e-12 tolerances.
+  The prior basis proof is explicitly reused,not claimed newly recomputed;
+  optimizer trajectories are not independently reproduced.
+- CPU4 only,no GPU and no dev/test reads. One unique attached three-hour
+  OS/process-group cap;trainer9000s,independent verifier1500s,no retry.
+  Original GPU cutoff and aggregate2026-10-30 01:17:07.923179UTC are unchanged.
+  Start requires three hours plus600s margin within that original aggregate.
+- Full-size SYNTHETIC-only qualification:101528x128 embeddings,8192 candidates,
+  256 impressions/history30,actual denseAdamW/backprop/global clipping,
+  13097142 parameters;five warmed measured steps averaged0.1055066468s.
+  Simple55065-step selection+conditional-final estimate5809.72s excludes
+  source loading/batching,validation,serialization and complete verification;
+  it is a feasibility estimate,not a completion or quality guarantee.
+  Before execution:62 targeted source fixtures and4 CPU deadline/failure/
+  no-retry guardian fixtures passed in the pinned Linux runtime.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

@@ -228,7 +228,7 @@ configs;config availability is NOT weight/provenance or benchmark verification.
 The three exact cached-test export paths named by the existing waiter are
 absent. Historical0.7144 remains recorded,not newly reproduced.
 Audit `jev-competition-data-readiness.json`;no test scores/labels read,no GPU.
-Next operational step: exclusive full TRAINING-only source intake on Q,
+Registered/now-completed step: exclusive full TRAINING-only source intake on Q,
 at most30 minutes within the unchanged original aggregate deadline;zero
 GPU allocations,zero model fitting,no dev/test contents read. Pin observed
 server lengths/modification versions before and after bounded32MB ranges,
@@ -237,10 +237,49 @@ EVERY training impression/exposure/news identity. Record first-observed
 content hashes without pretending official external provenance was verified.
 Source intake is preparation,not a new model or quality result. Do not
 silently restart/overwrite partial output or weaken source-version checks.
-Attached intake shell `jev-large-training-intake`;controller
+Completed attached intake shell `jev-large-training-intake`;controller
 `prepare_jev_large_training.py`;state `jev-mind-large-train-source-state.json`;
 output `Q:\CodeGuru\scratch\jev-mind-large-train-source`. It is operational
 preparation only;no large-data model has been fitted or evaluated.
+
+### JEV-LARGE-INPUT-1: completed source intake and lossless training contract
+
+Source intake completed2026-10-29 08:20:15UTC within its original30-minute
+allocation. Entire configured MIND-large TRAINING source:2232748 impressions,
+101527 news,83507374 candidate exposures,3383656 positives and80123718 negatives;
+zero unresolved candidate/history articles and zero single-class impressions.
+Training source report SHA256
+`542b4d659fb4ab84b7bfbdb7e4d15af4650797737aa334520396df95e3ec0d29`.
+Whole news SHA256
+`8d16f3e4df6ac8d8943c5f29e9155d0daf73047f1e41d37133013fe0e19953e9`;
+whole behaviors SHA256
+`886505b6e8b753fe6bc2d8988d959c2cb5865d85832829d0ad91fdfb54e17548`.
+These bind the configured training source,not independently verified public
+canonical archive bytes. No dev/test contents were read and no model was fitted.
+
+Registered before actual full-contract encoding: `src/full_impression_contract.py`
+retains EVERY positive and negative in original impression/candidate order;
+no negative sampling and no first-positive-only reduction. Flat int32 news
+indices,uint8 labels,uint64 impression offsets,source impression identities,
+int32 last30 histories with left-zero padding,and int32 training-date ordinals.
+Article identities are sorted lexicographically,indexed from1;0 means padding.
+Article category/subcategory/title/abstract are retained in the same index order.
+The source report and complete raw news/behaviors bytes must match pinned hashes.
+An independent full source-origin replay checks all encoded candidates/labels,
+histories/dates/identities/article metadata,file inventories and daily totals;
+only its separate verified marker permits use of this prepared training input.
+
+Execution: a new immutable source checkout,exclusive Q output
+`Q:\CodeGuru\scratch\jev-mind-large-full-contract`,four CPU threads,zero GPU
+allocations/model fits/dev-or-test contents. Encoding AND complete replay share
+one hard30-minute ceiling within the UNCHANGED aggregate cutoff
+2026-10-30 01:17:07.923179UTC,including controller startup. Preserve partial
+outputs and explicit failure receipts;never blindly restart or overwrite.
+The last training calendar day is marked for TEMPORARY train-only selection;
+final fitting still requires all2232748 impressions/all83507374 exposures.
+This input-integrity milestone is not an AUC result,a model improvement,a
+competition submission,or proof of the0.80 goal. A new model hypothesis,
+train-only gate and genuinely held-out official-dev readout remain necessary.
 
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 

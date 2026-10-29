@@ -119,6 +119,35 @@ The generic publisher receipt's parent/deadline refer to the historical
 content campaign; its companion explicitly records the active uniform parent.
 No browser-rendering verification or new quality score is claimed.
 
+Full corrected cache completed2026-10-29 00:37:50UTC. All four actual
+workers completed within their original bounds: `nice_diamond_b4qt3rl0df`,
+`tender_frog_s3n13z5cs2`, `bold_animal_qc9376sybl`, `wheat_rain_mvrkst8p69`.
+Complete matrix SHA256
+`9d4384d27392334945be007c4e2aa400528129d7b69e54e358e026876fe1cc72`;
+frozen-margin array SHA256
+`760adae3aa4694406f20ec369e11fdbede7fca37e1e2ad6ddaa175da8db787d1`.
+Independent proof `jev-uniform-01-complete-cache-independent-verification.json`
+reconstructed every row's origin without using the assembly reuse map:
+all266352 reused feature/margin rows and206274 new rows match bit-for-bit.
+All472626 identities/labels occur exactly once,all values are finite and
+all156965 impressions have both sampled classes. This is data-integrity
+evidence,not a benchmark improvement.
+
+The frozen CPU protocol started2026-10-29 00:38:34UTC from source2f8b7da,
+four threads,two-hour maximum including preflight. Conservative numerical
+cutoff02:37:34UTC; the original whole-campaign cutoff remains unchanged.
+Output `Q:\CodeGuru\scratch\jev-uniform-01-training`,attached shell
+`jev-uniform-01-training`. No dev allocation or new official-dev score.
+
+Complete-cache/fitting snapshot published2026-10-29 00:46:15UTC.
+Receipts `jev-uniform-01-cache-publication-verification.json` and
+`jev-uniform-01-cache-publication-content-verification.json` bind the
+independent all-row origin proof and preserve all twenty prior official-dev
+table cells,other shared assets and auth. No browser-rendering check.
+Internal corrected-data validation contains66350 sampled rows across the
+same23988 cohort-disjoint impressions;406276 rows fit the temporary heads.
+These are not the legacy66042/403222 sampled-row counts and are not dev scores.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

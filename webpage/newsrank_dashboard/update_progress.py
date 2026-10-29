@@ -30,9 +30,11 @@ CAMPAIGNS = [
                       "sourcece4a8e6,within the ORIGINAL training GPU cutoff. "
                       "Original16 BIT-EXACT features AND margins PASSED;all101527 articles extracted. "
                       "A fresh three-epoch final attention refit used ALL2232748 training impressions/"
-                      "83507374 exposures per epoch,zero final exclusions. Complete independent verification is running; "
-                      "local NumPy SIMD tie-order mismatch is isolated;no tolerance or recorded score changed. "
-                      "Official large-dev evaluation is separately preregistered,not submitted. "
+                      "83507374 exposures per epoch,zero final exclusions. Complete independent verification PASSED: "
+                      "all five arms/all431517 internal impressions/all20 metric cells and exact original16 bits. "
+                      "NumPy SIMD tie-order dispatch matched;no tolerance or recorded score changed. "
+                      "Full official MIND-large dev actually submitted2026-10-29 13:21:58UTC,source89b3784,"
+                      "one Standard A100/21600s,frozen final head,no fitting or retuning. "
                       "Fresh02 process/platform terminal logs were authenticated before04 submission;"
                       "stale Jobs/RunHistory Running values remain disclosed,not relabeled. "
                       "Managed Python3.11.9 passed real Qwen3_5 import on the actual recovery02 GPU worker, "
@@ -58,10 +60,11 @@ CAMPAIGNS = [
         "settings": "Completed04 sourcece4a8e6,one Standard A100/14400s,unique outputlarge_semantic_04. "
                     "Original GPU cutoff2026-10-29 15:06:23UTC honored. Managed Python3.11.9,PyPI Torch2.6.0,"
                     "Transformers5.21.0/tokenizers0.23.3/Hub2.3.0/FLA0.4.2,complete dependency lock. "
-                    "Original16 BIT-EXACT features AND margins passed;complete independent score/metric replay running. "
-                    "Final headc9523970 is frozen. No official-dev allocation or quality promotion yet. "
-                    "Separate full-dev protocol:one Standard A100/21600s,no fitting/retuning/retry,"
+                    "Original16 BIT-EXACT features AND margins and complete independent score/metric replay PASSED. "
+                    "Final headc9523970 is frozen. Separate full-dev parentjev_large_frozen_dev_20261029_01,"
+                    "actually submitted13:21:58UTC,source89b3784. One Standard A100/21600s,no fitting/retuning/retry,"
                     "all four arms/all candidates;unchanged aggregate2026-10-30 01:17:07UTC cutoff. "
+                    "Earlier intent-based evaluation cutoff2026-10-29 19:21:15UTC includes submission/queue/setup. "
                     "Historical recovery02 sourcea64561f,one Standard A100/18000s;actual worker start "
                     "2026-10-29 09:53:48UTC,service timeout14:53:48UTC within the ORIGINAL15:06:23UTC GPU cutoff. "
                     "Managed Python3.11.9/uv0.6.14,complete Linux dependency lock;original16 BIT-EXACT parity "
@@ -127,7 +130,7 @@ CAMPAIGNS = [
                     "training-result1670421674adeb8fb41f858d065edd5b276b97e3fcddb7fa0bdde23d761e63fe. "
                     "Frozen evaluation source7c6aa8b3948c7e759125570f732e74dabc148e25;"
                     "one Standard Ranking A100/21600s plus immutable CPU correction.",
-        "data": "Prepared configured MIND-large TRAINING:all2232748 impressions/101527 news/"
+        "data": "Fitted ALL configured MIND-large TRAINING:2232748 impressions/101527 news/"
                 "83507374 exposures/3383656 positives/80123718 negatives. Every candidate/history/date/"
                 "identity/article replayed from raw training source2026-10-29 08:42:49UTC. "
                 "Manifest4daa3377b4601aca4ae5b72e45ed2931becb8dd648dd23998f17fb3e1342a5f4;"
@@ -145,11 +148,16 @@ CAMPAIGNS = [
                 "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
-        "eval": "JEV-LARGE-SEMANTIC-1:no new official MIND-large dev/test score. "
+        "eval": "Frozen final head evaluation on ALL official MIND-large dev actually submitted13:21:58UTC:"
+                "all candidates/all positives,four prespecified arms,no fitting/retuning. No result yet. "
+                "Complete independent training gate PASSED;internal last-training-day AUC0.68319504 "
+                "versus popularity0.60820081 is NOT official-dev/test quality. "
+                "No matched retained-hybrid full-dev comparison is available;do not compare partial-small-dev numbers. "
+                "JEV-LARGE-SEMANTIC-1:no new official MIND-large dev/test score. "
                 "Recovery02 model import passed but original16 representation parity failed;no neural fit "
                 "or large-data quality result. Large training-source preparation and complete source-origin replay "
                 "finished;not an AUC result. "
-                "Future internal last-training-day metrics are allocation gates only,not benchmark scores. "
+                "Verified internal last-training-day metrics are allocation gates only,not benchmark scores. "
                 "Previous corrected uniform official MIND-small dev41001-46000 independently verified2026-10-29 07:56UTC:"
                 "AUC0.67541344 vs matched retained0.67653934,frozen0.63083724,retained text0.66675783. "
                 "Primary delta-0.00112590,95%CI[-0.00705701,+0.00463615];all four intervals include0. "
@@ -298,7 +306,8 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("jev_large_semantic_20261029_04", "Reconstructed numerical runtime;original16 bit-exact parity pending;no score", ""),
+            ("jev_large_frozen_dev_20261029_01", "ALL official MIND-large dev;frozen all-training head;no fitting/retuning", ""),
+            ("jev_large_semantic_20261029_04", "Completed full-large refit;exact parity and independent training replay passed", ""),
             ("jev_large_semantic_20261029_02", "GPU import passed;original16 parity failed;platform Failed,parent Canceled", ""),
             ("jev_large_semantic_20261029_01", "Original model import failed before parity/features/fitting;no quality result", ""),
             ("plum_arm_rs8wvtxmmy", "Completed JEV-UNIFORM-1 dev41001-46000;no demonstrated gain,not promoted", ""),
@@ -481,8 +490,9 @@ HEADLINE = (
     "Reconstructed-runtime04 parent AND worker Completed12:56:34UTC,sourcece4a8e6; "
     "original16 BIT-EXACT features AND margins PASSED;all101527 articles extracted. "
     "Fresh three-epoch final refit used ALL2232748 training impressions/83507374 exposures per epoch. "
-    "Complete independent verification running with matched NumPy tie-order dispatch;no tolerance relaxed. "
-    "Full official MIND-large dev separately preregistered,not submitted;no new official-dev/test score. "
+    "Complete independent verification PASSED:all five arms/all431517 internal impressions/all20 cells;no tolerance relaxed. "
+    "ALL official MIND-large dev actually submitted13:21:58UTC,source89b3784,one Standard A100/21600s;"
+    "frozen final head,no fitting/retuning;earlier cutoff19:21:15UTC. No new official-dev/test score yet. "
     "Fresh02 terminal process/platform logs authenticated before submission;no overlap or budget reset. "
     "Recovery02 sourcea64561f:actual GPU model import passed,but original16 BIT-EXACT parity FAILED "
     "(35236/40960 feature bit patterns). User process exited1 at10:10:46UTC;platform Failed10:13:53UTC; "

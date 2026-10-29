@@ -660,6 +660,50 @@ proof accepting the unchanged internal gate and final all-training head above.
   partial-small-dev numbers as a matched improvement. Official-dev results
   cannot satisfy the competition-test AUC>=0.80 target.
 
+Complete independent04 replay PASSED2026-10-29 UTC,receipt
+`jev-large-semantic-04-training-independent-verification.json`,SHA256
+`305808f97e4dc08f7d0b88fc690db655919052fc60a74fd68f15b90e3a30b128`.
+All five arms cover all431517 internal last-training-day impressions/
+17400106 exposures/671044 positives,all20 aggregate metric cells reproduce,
+and original16 features AND margins are bit-exact. Maximum neural CPU/GPU
+score errors are1.96e-5(mean) and1.79e-5(attention),inside the previously
+registered FP32 tolerance. No metric/parity tolerance was relaxed.
+The internal attention AUC0.6831950388 versus popularity0.6082008107 opens
+the unchanged gate;these are NOT official-dev/test metrics. The frozen final
+all-training head and all-three-epoch full-source coverage are verified;
+optimizer trajectories were not independently retrained.
+
+Frozen official-dev source/protocol commit:
+`89b3784f1d2cc8c2345c3b6645990cbf1b31d06a`. CPU evaluator/training/replay
+fixtures33 passed;runtime/training/evaluation graph fixtures10 passed;
+additional source-corruption/runtime fixtures27 passed;private allocation
+guard mutation fixtures15 passed. Counts overlap across targeted commands.
+Guarded controller`run_jev_large_frozen_dev.py`,attached shell
+`jev-large-frozen-dev-01`,was launched after the complete proof passed.
+This launch is NOT confirmation of an actual cloud parent:consult the unique
+`jev-large-frozen-dev-01-campaign.json` before describing submission/status.
+The page/feed completion snapshot was deployed13:13:33UTC before the full
+replay ended,receipt`jev-large-semantic-04-completed-publication.json`;
+all36 previous official-dev metric cells and shared assets/auth preserved.
+
+Actual separately registered full-dev parent
+`jev_large_frozen_dev_20261029_01` created2026-10-29 13:21:58.227354UTC,
+source`89b3784f1d2cc8c2345c3b6645990cbf1b31d06a`. Server allocation
+revalidated:one Standard Ranking A100/21600s,canonical max_seconds`"21600"`,
+downloaded complete training contract,original16 parity archive and the
+accepted independent training proof305808f9. Worker
+`2cccde90-0c83-48da-ab54-fc2b3bd007ac` Preparing at13:22:10UTC.
+The guardian's earlier submission-intent-based cutoff19:21:15.711445UTC
+is stricter than parent-creation-plus-six-hours and is not reset.
+No new official-dev/test AUC exists at submission. Fresh02 terminal log hashes
+again matched;its previously stale Jobs/RunHistory values now read Canceled,
+while preserved actual process/platform terminal evidence still records failure.
+No earlier snapshot is relabeled.
+Accepted-training/full-dev-submission page/feed deployed2026-10-29 13:26:48UTC,
+receipt`jev-large-frozen-dev-01-start-publication.json`:parent Running,actual
+worker Queued at the snapshot. All36 previous official-dev metric cells,
+shared assets and auth were preserved;no browser-rendering claim is made.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

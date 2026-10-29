@@ -934,6 +934,22 @@ aggregate2026-10-30 01:17:07.923179UTC remain unchanged.
   of the complete already-inspected official-dev population,with reuse disclosed.
   Current actual official-dev AUC remains0.6814457842;competition-test0.80 unmet.
 
+Actual distinct CPU campaign started2026-10-29 18:21:37.511255UTC,source
+631d096e2de457c6cd7d2f4c8723c9f7106d185c,clean portable clone onQ:.
+Attached shell`jev-large-temporal-01`;state`jev-large-temporal-01-campaign.json`;
+guardian`run_jev_large_temporal.py`,
+SHA1ef45ee6de272a3a653f1e743c9e90236385b1d204e621339656cdf8e9212725.
+Hard CPU cutoff2026-10-30 00:21:37.511255UTC,original aggregate unchanged.
+Exact CPU child checked alive;lexical encoder/causal counts saved,feature
+generation passed50020 source impressions/1866801 exposures. This is preprocessing
+progress,NOT a completed fit,accepted gate or new benchmark result. No dev reads
+or GPU allocation. Source/causal isolation/tree traversal and guardian fixtures
+passed before freezing. Complete proof pending at
+`jev-large-temporal-01-independent-verification.json`.
+Actual-start page/feed deployed2026-10-29 18:26:53UTC,receipt
+`jev-large-temporal-01-start-publication.json`:all52 benchmark cells and other
+shared assets/auth unchanged. No completed-model or browser-rendering claim.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

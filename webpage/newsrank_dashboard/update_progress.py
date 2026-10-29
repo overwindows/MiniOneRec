@@ -26,11 +26,17 @@ CAMPAIGNS = [
     {
         "name": "JEV-4B frozen-backbone readout recovery",
         "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
+                      "Reconstructed-runtime04 actually submitted2026-10-29 10:45:27UTC,sourcece4a8e6,"
+                      "one Standard Ranking A100/14400s within the ORIGINAL15:06:23UTC GPU cutoff. "
+                      "PyPI Torch2.6.0/Transformers5.21.0 passed isolated CPU import/pip check; "
+                      "actual04 original16 BIT-EXACT parity is still pending,not a demonstrated fix. "
+                      "Fresh02 process/platform terminal logs were authenticated before04 submission;"
+                      "stale Jobs/RunHistory Running values remain disclosed,not relabeled. "
                       "Managed Python3.11.9 passed real Qwen3_5 import on the actual recovery02 GPU worker, "
                       "but mandatory original16 BIT-EXACT representation parity FAILED:35236/40960 feature "
                       "bit patterns differ. User process exited1 at2026-10-29 10:10:46UTC;platform activity "
                       "reports Failed10:13:53UTC despite stale RunHistory Running/parent Canceled. "
-                      "No new article extraction or neural fitting occurred. No03 parent was submitted. "
+                      "No02 new article extraction or neural fitting occurred. No03 parent was submitted. "
                       "Legacy requirements resolution failed before its requested Transformers5.2 pin applied; "
                       "the subsequent FLA installer has an unpinned Transformers dependency. Reconstruct the "
                       "actual numerical runtime;do not relax parity or claim this is an AUC improvement. "
@@ -46,7 +52,13 @@ CAMPAIGNS = [
                       "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "Existing recovery02 sourcea64561f,one Standard A100/18000s;actual worker start "
+        "settings": "Current04 sourcece4a8e6,one Standard A100/14400s,unique outputlarge_semantic_04. "
+                    "Original GPU cutoff2026-10-29 15:06:23UTC unchanged;cancel a delayed worker if its "
+                    "start+14400s exceeds that cutoff. Managed Python3.11.9,PyPI Torch2.6.0,"
+                    "Transformers5.21.0/tokenizers0.23.3/Hub2.3.0/FLA0.4.2,complete dependency lock. "
+                    "Original16 BIT-EXACT features AND margins remain mandatory before new extraction/fitting. "
+                    "No automatic retry,dev allocation or quality promotion. "
+                    "Historical recovery02 sourcea64561f,one Standard A100/18000s;actual worker start "
                     "2026-10-29 09:53:48UTC,service timeout14:53:48UTC within the ORIGINAL15:06:23UTC GPU cutoff. "
                     "Managed Python3.11.9/uv0.6.14,complete Linux dependency lock;original16 BIT-EXACT parity "
                     "FAILED before new features/fitting and remains mandatory. The observer submits/allocates nothing. "
@@ -282,7 +294,8 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("jev_large_semantic_20261029_02", "Existing recovery02;parent canceled,execution separately observed;no score claimed", ""),
+            ("jev_large_semantic_20261029_04", "Reconstructed numerical runtime;original16 bit-exact parity pending;no score", ""),
+            ("jev_large_semantic_20261029_02", "GPU import passed;original16 parity failed;platform Failed,parent Canceled", ""),
             ("jev_large_semantic_20261029_01", "Original model import failed before parity/features/fitting;no quality result", ""),
             ("plum_arm_rs8wvtxmmy", "Completed JEV-UNIFORM-1 dev41001-46000;no demonstrated gain,not promoted", ""),
             ("great_bee_w6zjxd296x", "Completed JEV-CONTENT-1 dev36001-41000;CPU candidate rejected", ""),
@@ -461,9 +474,12 @@ HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
     "Full MIND-large training inputs verified:2232748 impressions/83507374 exposures/"
     "3383656 positives/80123718 negatives;every source candidate/history replayed. "
+    "Reconstructed-runtime04 actually submitted10:45:27UTC,sourcece4a8e6,one Standard A100/14400s; "
+    "CPU import/pip check passed with PyPI Torch2.6.0/Transformers5.21.0;actual04 BIT-EXACT parity pending. "
+    "Fresh02 terminal process/platform logs authenticated before submission;no overlap or budget reset. "
     "Recovery02 sourcea64561f:actual GPU model import passed,but original16 BIT-EXACT parity FAILED "
     "(35236/40960 feature bit patterns). User process exited1 at10:10:46UTC;platform Failed10:13:53UTC; "
-    "parent canceled/stale execution metadata disclosed. No new article extraction or neural training. "
+    "parent canceled/stale execution metadata disclosed. No02 new article extraction or neural training. "
     "Legacy requested Transformers5.2 pin was not applied after resolver failure;reconstruct its unpinned "
     "FLA-installed runtime without relaxing parity. No03 submitted;original GPU cutoff unchanged;"
     "no new large-data AUC result. "

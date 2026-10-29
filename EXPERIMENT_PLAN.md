@@ -561,6 +561,26 @@ Only a genuinely Completed worker with independently verified complete output
 can establish an internal gate. Official dev requires separate registration;
 competition-test AUC>=0.80 remains unmet.
 
+Actual04 submission confirmed2026-10-29 10:45:27.767650UTC,parent
+`jev_large_semantic_20261029_04`,source
+`ce4a8e6939eccaecefc37603e72dfc90fa0fcfdd`. Server allocation revalidated:
+one Standard Ranking A100/14400s,canonical max_seconds`"14400"`,complete
+downloaded contract/original16 archive and exact unique output. Worker
+`389888ac-193e-4133-84e6-94514d4b29f2` Starting at10:45:38UTC.
+Fresh02 wrapper/platform hashes matched the preserved failure receipt before
+submission despite Jobs and RunHistory now both stale Running. No03 parent
+exists. Controller`run_jev_large_semantic_reconstructed.py`,attached shell
+`jev-large-semantic-04`;state`jev-large-semantic-04-campaign.json`.
+No actual04 parity or new feature/training/quality result yet exists at this
+submission snapshot. The absolute GPU and aggregate cutoffs are unchanged.
+The qualified04 page/feed was deployed10:48:13UTC,receipt
+`jev-large-semantic-04-start-publication.json`;all36 previous official-dev
+metric cells and other shared assets/auth preserved. Actual worker Queued at
+10:48:53UTC;no worker start,parity pass or training/quality result claimed.
+The prepared complete independent verifier now additionally rereads the
+original16 artifact and verifies every feature AND margin bit;five fixtures
+cover exact data,signed zero,one ULP,dtype,reference and inventory changes.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

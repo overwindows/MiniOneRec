@@ -82,3 +82,27 @@ def test_failed_preflight_cannot_start_training(monkeypatch, tmp_path, failure):
     with pytest.raises(subprocess.CalledProcessError):
         entry.main()
     assert not any("full_impression_training.py" in arg for call in calls for arg in call)
+
+
+def test_official_dev_has_fixed_data_head_proof_and_reproducible_metric_dispatch(monkeypatch, tmp_path):
+    calls = invoke(monkeypatch, tmp_path)
+    monkeypatch.setattr(sys, "argv", sys.argv + [
+        "--task", "official-dev", "--training-proof", str(tmp_path),
+        "--training-proof-sha256", "c" * 64, "--training-result-sha256", "d" * 64,
+    ])
+    original = entry.subprocess.run
+
+    def run(command, **kwargs):
+        if any("full_impression_evaluation.py" in arg for arg in command):
+            assert kwargs["env"]["NPY_DISABLE_CPU_FEATURES"] == (
+                "AVX512F,AVX512_SKX,AVX512_CLX,AVX512_CNL,AVX512_ICL")
+        original(command, **kwargs)
+
+    monkeypatch.setattr(entry.subprocess, "run", run)
+    entry.main()
+    final = calls[-1]
+    assert "full_impression_evaluation.py" in final[2]
+    assert final[final.index("--dev-data") + 1].endswith(str(Path("MIND_large") / "dev"))
+    assert final[final.index("--training-artifacts") + 1].endswith("large_semantic_04")
+    assert final[final.index("--training-proof-sha256") + 1] == "c" * 64
+    assert not any("full_impression_training.py" in arg for call in calls for arg in call)

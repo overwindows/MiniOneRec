@@ -581,6 +581,85 @@ The prepared complete independent verifier now additionally rereads the
 original16 artifact and verifies every feature AND margin bit;five fixtures
 cover exact data,signed zero,one ULP,dtype,reference and inventory changes.
 
+#### Actual04 completion and independent numerical-dispatch diagnosis
+
+Parent04 and worker`389888ac-193e-4133-84e6-94514d4b29f2` both Completed,
+observed2026-10-29 12:56:34UTC,inside the original training GPU cutoff.
+Original16 feature AND margin bit-exact parity passed. The worker extracted
+all101527 training article representations and reports a passing train-only
+gate,then a fresh three-epoch candidate-attention fit on all2232748 training
+impressions/83507374 exposures/3383656 positives per epoch,zero final exclusions.
+Frozen final head SHA256:
+`c9523970501838fa165e7995400608cbc34527c5ed37a82035f81acd7bc35c6d`.
+Frozen result SHA256:
+`5c5169a84b3a092762694a32b12b6c927dd99780d660a4db3cde99b0240d2432`.
+These are not official-dev/test quality results or evidence of AUC>=0.80.
+
+The first independent replay failed per-impression metric equality on the
+popularity arm. Actual raw scores/AUC matched,but local NumPy1.26.4 AVX512
+argsort ordered equal scores differently:the first impression's MRR was
+1/31 locally versus1/28 on the worker. Calling the original official metric
+helpers locally produced the same discrepancy,isolating numerical dispatch
+rather than an independent metric formula error. With AVX512 NumPy dispatch
+disabled,the first10000 complete impressions/all40000 metric cells reproduce
+worker metrics to maximum1.1102230246251565e-16. The complete all-five-arm replay
+is rerunning with this worker-compatible dispatch. Keep the failed log.
+No score/metric/parity tolerance,recipe,gate or recorded worker metric changes.
+The training gate is NOT independently accepted until the whole replay passes.
+
+#### Separately bounded complete official MIND-large dev evaluation
+
+Registered2026-10-29 UTC before reading the actual new large-dev contents or
+allocating this evaluation. Conditional on the complete independent training
+proof accepting the unchanged internal gate and final all-training head above.
+
+- Unique parent`jev_large_frozen_dev_20261029_01`,output`large_frozen_dev_01`.
+  One Standard Ranking A100,one worker21600s maximum,no automatic retry,no
+  concurrent training allocation. Six hours from parent creation includes
+  queue/bootstrap/worker;the guardian cancels the parent at that deadline.
+  This is a separate conditional evaluation,NOT a training retry or reset:
+  the old training GPU cutoff remains unchanged,and the ORIGINAL aggregate
+  ceiling2026-10-30 01:17:07.923179UTC remains binding. Only submit when a full
+  six hours plus600s margin fit before that ceiling.
+- Primary population:EVERY configured official MIND-large dev impression,
+  every candidate in raw order,all positive targets,no subsampling or skipped
+  impressions. Verify configured complete source bytes/identities/metadata;
+  do not newly assert independently established canonical public provenance.
+  Retain the fixed last30 history with explicit left-zero padding.
+- Freeze the final candidate-attention head and complete all-training feature
+  prefix bit-for-bit. Reuse training article identities only if consumed
+  article metadata agrees exactly. Append sorted new dev article identities
+  under the same article-only fixed512-token prompt contract and unchanged
+  original16 BIT-EXACT feature AND margin gate. Rehash frozen model bytes
+  before/after extraction and require exact training model fingerprint equality.
+- No optimizer,model fitting,recipe selection,early stopping or dev-driven
+  calibration/tuning. Four prespecified arms:the frozen final candidate_attention,
+  popularity from ALL official training impressions,untrained semantic_mean,
+  and frozen_article_margin. New article popularity uses the all-training
+  global click prior,not a statistic from dev labels.
+- Compute equal-impression AUC,official multi-positive MRR,nDCG5,nDCG10.
+  Freeze NumPy1.26.4 default argsort-reversed tie semantics with non-AVX512
+  dispatch;set NPY_DISABLE_CPU_FEATURES=AVX512F,AVX512_SKX,AVX512_CLX,
+  AVX512_CNL,AVX512_ICL before import and record effective CPU dispatch.
+- Conservative overlap disclosure treats ALL official MIND-small dev as
+  previously exposed. Signature=SHA256 of compact JSON containing last30
+  ordered history news IDs and the sorted candidate-news multiset,excluding
+  labels,impression IDs,users and time. Report overlap counts and a prespecified
+  signature-unmatched secondary cohort in addition to the complete primary.
+  Unmatched does NOT guarantee pristine or never inspected. Do not select
+  a favorable window after seeing results.
+- Full raw-source/encoded-identity/history/label/overlap replay,original16 bits,
+  exact article-prefix/new-article union,all four raw score vectors,every
+  per-impression/aggregate metric cell and frozen-head fingerprint must be
+  independently verified before quality claims. Derived CPU/GPU score tolerance
+  remains atol1e-4/rtol1e-5;raw-score metric replay remains atol1e-12/rtol0;
+  original16 remains BIT-EXACT. The independent verifier does not reproduce
+  historical optimizer trajectories.
+- A matched retained-hybrid evaluation on this complete population is not
+  available in this bounded design. Do not compare this result to historical
+  partial-small-dev numbers as a matched improvement. Official-dev results
+  cannot satisfy the competition-test AUC>=0.80 target.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

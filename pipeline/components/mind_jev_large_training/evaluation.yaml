@@ -1,0 +1,49 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: jev_large_frozen_official_dev
+display_name: Frozen all-training JEV head on complete MIND-large dev
+version: "1"
+type: command
+description: Complete official dev with immutable all-training head and no fitting or selection
+inputs:
+  msndni:
+    type: uri_folder
+    mode: rw_mount
+  contract:
+    type: uri_folder
+    mode: download
+  parity_cache:
+    type: uri_folder
+    mode: download
+  training_proof:
+    type: uri_folder
+    mode: download
+  training_proof_sha256:
+    type: string
+  training_result_sha256:
+    type: string
+  source_revision:
+    type: string
+  output_root:
+    type: string
+  parity_sha256:
+    type: string
+  max_seconds:
+    type: integer
+    default: 21600
+    min: 1
+    max: 21600
+command: >-
+  python -u entry.py
+  --task official-dev
+  --mount ${{inputs.msndni}}
+  --contract ${{inputs.contract}}
+  --parity-cache ${{inputs.parity_cache}}
+  --source-revision ${{inputs.source_revision}}
+  --output-root ${{inputs.output_root}}
+  --parity-sha256 ${{inputs.parity_sha256}}
+  --training-proof ${{inputs.training_proof}}
+  --training-proof-sha256 ${{inputs.training_proof_sha256}}
+  --training-result-sha256 ${{inputs.training_result_sha256}}
+  --max-seconds ${{inputs.max_seconds}}
+code: .
+environment: azureml:torch251-cuda124-deepspeed-flashattn-training:5

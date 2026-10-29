@@ -365,6 +365,19 @@ overwindows(2026-04-21). Our0.80 criterion is an explicit stretch target,not
 the current listed official score. Primary source:`https://msnews.github.io/`.
 That listing does NOT reproduce our historical checkpoint/submission artifacts.
 
+Actual single parent`jev_large_semantic_20261029_01` submitted2026-10-29
+09:06:23.720214UTC from immutable source
+`083d63aceee48e99468b59637394da7f74cb88cd`. Server-verified one Standard Ranking
+A100,worker21600s;parent/controller deadline2026-10-29 15:06:23.720214UTC,
+including queue/setup. Worker`896345fd-6a9b-455f-8b9d-6c1137c892d2` Queued
+at09:06:48UTC,parent Running. Contract/proof/parity input hashes and source
+revision match the registration. Controller`ROOT\run_jev_large_semantic.py`,
+attached shell`jev-large-semantic-01`,state
+`ROOT\jev-large-semantic-01-campaign.json`;do not duplicate or resubmit.
+Outputs`shares/users/wuc/output_dir/jev_readout_recovery_20261028/large_semantic_01`;
+bounded complete readback to`Q:\CodeGuru\scratch\jev-large-semantic-01`.
+No model/head/gate result exists at submission;no new dev/test evaluation.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

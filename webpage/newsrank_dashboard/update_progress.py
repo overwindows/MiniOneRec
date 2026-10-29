@@ -26,6 +26,9 @@ CAMPAIGNS = [
     {
         "name": "JEV-4B frozen-backbone readout recovery",
         "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
+                      "New JEV-LARGE-SEMANTIC-1 tests frozen article representations plus learned masked "
+                      "history scoring over every full MIND-large training impression/candidate/click. "
+                      "Complete large-data source-origin replay is verified;no new large-data quality result exists. "
                       "JEV-UNIFORM-1 corrects negative-sampling support;its independently verified all-data "
                       "final refit passed the train-only allocation gate but did not beat the retained hybrid "
                       "on independently verified official dev. Do not promote;retain the prior hybrid. "
@@ -33,7 +36,15 @@ CAMPAIGNS = [
                       "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "Current uniform_binary:all472626 corrected rows/all156965 training impressions,"
+        "settings": "Registered JEV-LARGE-SEMANTIC-1 source083d63a:one Standard Ranking A100,"
+                    "21600s/six hours including queue/setup,no retries,unchanged aggregate cutoff2026-10-30 "
+                    "01:17:07UTC. Frozen101527 article representations,exact original16-row parity required. "
+                    "Two fixed128-dimensional masked-history recipes,all-positive/all-negative normalized "
+                    "impression loss,three full epochs per selection/final fit. Temporary last training day "
+                    "2019-11-14:431517 impressions/17400106 exposures;earlier1801231 impressions for fitting. "
+                    "Only if the train-only gate passes,reinitialize/refit all2232748 training impressions/"
+                    "83507374 exposures with zero final holdout exclusions. No new dev/test inputs. "
+                    "Previous uniform_binary:all472626 corrected rows/all156965 training impressions,"
                     "zero final holdout exclusions;all5843444 raw exposures in final population. "
                     "Final headb03bd7b568ae1c59c608d1fca094d6eff17fde76980881526b831eb36427280b;"
                     "final refit genuinely converged89 iterations,independently replayed. "
@@ -81,7 +92,13 @@ CAMPAIGNS = [
                     "training-result1670421674adeb8fb41f858d065edd5b276b97e3fcddb7fa0bdde23d761e63fe. "
                     "Frozen evaluation source7c6aa8b3948c7e759125570f732e74dabc148e25;"
                     "one Standard Ranking A100/21600s plus immutable CPU correction.",
-        "data": "Current registered independent window:official MIND-small dev41001-46000,"
+        "data": "Prepared configured MIND-large TRAINING:all2232748 impressions/101527 news/"
+                "83507374 exposures/3383656 positives/80123718 negatives. Every candidate/history/date/"
+                "identity/article replayed from raw training source2026-10-29 08:42:49UTC. "
+                "Manifest4daa3377b4601aca4ae5b72e45ed2931becb8dd648dd23998f17fb3e1342a5f4;"
+                "proofde60c130dcd7ea853ce8d2b7fbe81b02b83d6b604fbbba99b96bbfa1ec841b25. "
+                "These are configured-source completeness facts,not newly verified external canonical bytes. "
+                "Previous independent window:official MIND-small dev41001-46000,"
                 "5000 impressions/all189068 source candidates;not competition-test acceptance. "
                 "Historical content window:official dev36001-41000,5000 impressions/189786 candidates. "
                 "Historical windows: MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
@@ -93,7 +110,10 @@ CAMPAIGNS = [
                 "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
-        "eval": "Corrected uniform official MIND-small dev41001-46000 independently verified2026-10-29 07:56UTC:"
+        "eval": "JEV-LARGE-SEMANTIC-1:no new official MIND-large dev/test score. "
+                "Large training-source preparation and complete source-origin replay finished;not an AUC result. "
+                "Future internal last-training-day metrics are allocation gates only,not benchmark scores. "
+                "Previous corrected uniform official MIND-small dev41001-46000 independently verified2026-10-29 07:56UTC:"
                 "AUC0.67541344 vs matched retained0.67653934,frozen0.63083724,retained text0.66675783. "
                 "Primary delta-0.00112590,95%CI[-0.00705701,+0.00463615];all four intervals include0. "
                 "No demonstrated gain;not statistically established degradation. Do not promote;retain prior hybrid. "
@@ -241,6 +261,7 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("jev_large_semantic_20261029_01", "JEV-LARGE-SEMANTIC-1 training-only;full-impression gate and conditional all-data refit", ""),
             ("plum_arm_rs8wvtxmmy", "Completed JEV-UNIFORM-1 dev41001-46000;no demonstrated gain,not promoted", ""),
             ("great_bee_w6zjxd296x", "Completed JEV-CONTENT-1 dev36001-41000;CPU candidate rejected", ""),
             ("45627fbc-8d9b-4f90-b63e-68d348443561", "Completed shared frozen-control worker;no GPU fitting", ""),
@@ -416,6 +437,10 @@ CAMPAIGNS = [
 
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
+    "Full MIND-large training inputs verified:2232748 impressions/83507374 exposures/"
+    "3383656 positives/80123718 negatives;every source candidate/history replayed. "
+    "New JEV-LARGE-SEMANTIC-1 source083d63a:single bounded A100 training-only phase,"
+    "two fixed masked-history recipes,all-positive/full-candidate loss;no new large-data AUC result. "
     "CPU audit:480584 raw-negative exposures had zero sampling support;"
     "3212 avoidable positive-only groups. JEV-UNIFORM-1 official-dev comparison verified:"
     "uniform AUC0.67541344 vs matched retained0.67653934;"

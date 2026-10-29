@@ -704,6 +704,69 @@ receipt`jev-large-frozen-dev-01-start-publication.json`:parent Running,actual
 worker Queued at the snapshot. All36 previous official-dev metric cells,
 shared assets and auth were preserved;no browser-rendering claim is made.
 
+#### Complete official-dev result:verified,not SOTA
+
+Parent and worker both Completed. Full raw-source/feature/head/score/metric
+verification finished2026-10-29 15:07:19UTC,well before the evaluation and
+aggregate ceilings. Receipt`jev-large-frozen-dev-01-independent-verification.json`,
+SHA256`9d0aa61ea8adefb637fc83f9ed481d32ac2f44c067add4e6672e3a246f425153`.
+Result SHA256`3c065784bac743d59a5966c3ceabf2de259f4a1aef2565f4523f70871ca4f8bc`.
+
+Primary scope is ALL376471 configured official MIND-large dev impressions/
+14085557 candidate exposures/574845 positives/13510712 negatives.
+Every raw impression identity,history,candidate ordering and label was
+replayed,as were every raw score,per-impression metric and all16 aggregate
+cells. The all-training head remained unchanged;zero fitting/retuning.
+
+| Complete official MIND-large dev arm | AUC | MRR | nDCG5 | nDCG10 |
+|---|---:|---:|---:|---:|
+| Final candidate_attention | 0.6814457842 | 0.3303058215 | 0.3663023601 | 0.4294087359 |
+| All-training popularity | 0.6289141345 | 0.2847502638 | 0.3103212467 | 0.3702154391 |
+| semantic_mean | 0.5808988233 | 0.2764735472 | 0.2918830709 | 0.3539156589 |
+| frozen_article_margin | 0.4749928442 | 0.1946372722 | 0.1995391121 | 0.2630504324 |
+
+This is NOT competition-test AUC,NOT a SOTA result,and does not reach0.80.
+No matched retained-hybrid full-dev result exists. No statistically significant
+gain or comparison against historical partial-small-dev windows is claimed.
+The prespecified full-small-dev signature comparison found0 matches against
+all73152 source impressions;the unmatched secondary cohort equals the primary,
+but absence of exact signatures does NOT establish pristine/uninspected data.
+Configured complete-source integrity is verified;canonical public provenance
+has not newly been independently established.
+
+All101527 training article features/margins were reused bit-for-bit;only2624
+new article representations were appended (104151 total union articles,72023
+dev-news records). One new article's text prefix was clipped under the fixed
+512-token contract. Original16 feature AND margin bits remained exact and the
+frozen model fingerprints matched training. Maximum independent attention
+CPU/GPU score error2.9325485229492188e-5 remains inside the registered bound;
+metric tolerances remain unchanged.
+Verified-result page/feed deployed2026-10-29 15:13:43UTC,receipt
+`jev-large-frozen-dev-01-result-publication.json`:all16 new large-dev metric
+cells verified against the complete independent proof,all36 older dev cells
+and shared assets/auth unchanged. No browser-rendering claim is made.
+
+#### Bounded training-only bottleneck audit,not another allocation
+
+Preregistered2026-10-29 after accepting the full-dev result,before running
+the diagnostic. At most four CPU threads/600s,CUDA disabled,no model fitting,
+no new GPU allocation and no budget reset. The original training GPU cutoff
+has passed and remains binding;the original aggregate ceiling is unchanged.
+Read ONLY the verified official-training contract,training article features,
+fixed training-only selection heads/results and their431517 last-training-day
+metric vectors. Do not read any dev/test contents or optimize any dev metric.
+Report prespecified history-length/candidate-count cohorts,earlier-fitting
+article cold-start cohorts,training-article representation anisotropy,and
+the nondeployable per-impression best-of-existing-arms oracle. The oracle is
+only a diagnostic of that finite arm-selection class,not a general ceiling,
+deployable model or benchmark-quality result. No new recipe may be fitted
+without a separate frozen training-only registration and bounded validation.
+Diagnostic script`diagnose_jev_large_training.py`,attached shell
+`jev-large-train-only-bottleneck-audit`,unique output
+`jev-large-train-only-bottleneck-diagnostic.json`;two cohort-boundary and
+coverage-rejection fixtures passed before launch. The diagnostic is not
+a new model,fit,quality result or permission to restart GPU training.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

@@ -833,6 +833,18 @@ has passed and is NOT extended or reset. No new GPU allocation is authorized.
   a competition-test result. Current verified dev AUC remains0.6814457842;
   competition-test0.80 remains unmet.
 
+Actual CPU campaign started2026-10-29 15:34:01.840804UTC at frozen source
+00a191e057aa7c4feaf05c04bcb81f8d3dfa5dae. Attached shell`jev-large-centered-01`,
+state`jev-large-centered-01-campaign.json`,private guardian`run_jev_large_centered.py`
+SHAb1f1d49ef21824817bd710342bc20461b6802c8f8025952b98a7111b68d1d789.
+Hard CPU cutoff21:34:01.840804UTC;original aggregate unchanged. The exact
+training child was checked alive and new basis/transformed files exist.
+These are execution evidence ONLY,not a complete fit,accepted gate or AUC gain.
+Independent proof path`jev-large-centered-01-independent-verification.json`;
+no accepted new result at launch. Source recipe and independent replay were
+validated on the pinned CPU runtime before freezing;no fitting/dev/test reads
+occurred in those synthetic fixtures.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

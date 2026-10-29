@@ -400,6 +400,40 @@ preserved failed campaign and worker log,confirms Failed from a fresh cloud read
 and preserves all36 previous official-dev metric cells/shared assets/auth.
 There is no new score or dependency-fix claim.
 
+### JEV-LARGE-SEMANTIC-1R: qualified interpreter recovery, no scientific retuning
+
+Autonomous continuation after the initialization failure:local isolated WSL
+managed CPython3.11.9,uv0.6.14,with CUDA disabled,installed the original framework
+pins and successfully imported the real`Qwen3_5ForConditionalGeneration`.
+`pip check` passed;actual FLA kernel source inspection retained its definition.
+Diagnostic`ROOT\jev-large-linux-runtime-original.json` SHA256
+`2fdb94ba8b15852c5a495b8255bdf5c87d9561c77f574ab3d1a6635d53a9c6b3`.
+No model weights were loaded,no model was fitted,no local CUDA execution.
+This establishes a qualified alternative,NOT the exact image-specific root cause.
+
+The worker now requires managed Python3.11.9 from pinned uv0.6.14,clears inherited
+Python path/home overrides,and applies the complete version-only Linux
+`requirements.lock.txt` generated from that successful environment. The original
+direct dependency manifest and all scientific recipes/data/metrics/gates remain
+unchanged. Real import/pip preflights remain mandatory;original16 float32-bit
+parity is still required BEFORE any new article extraction or training.
+
+One explicitly registered environment-only recovery parent
+`jev_large_semantic_20261029_02`,unique output suffix`large_semantic_02`.
+The original failed parent/receipt/outputs remain untouched. Only submit after
+freshly confirming both original parent and worker Failed,CPU qualification
+hash/contents,immutable source and complete input contract. No inspected new
+feature,training,selection,dev or test result informed this recovery.
+
+One serial Standard Ranking A100,worker18000s maximum,no automatic recovery
+retry. Crucially the controller's GPU cutoff remains the FIRST parent's
+**2026-10-29 15:06:23.720214UTC**,not a fresh six-hour window;queue/bootstrap/
+installation consume that remaining allowance. Existing aggregate cutoff
+**2026-10-30 01:17:07.923179UTC** is unchanged. All-data fixed3-epoch refit remains
+conditional on the original gate;incomplete work is a failure,not a shortcut.
+No automatic official-dev allocation. Complete artifacts and independent
+verification remain prerequisites for a separately frozen official-dev readout.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

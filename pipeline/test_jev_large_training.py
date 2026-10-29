@@ -3,10 +3,13 @@ import json
 import sys
 from types import SimpleNamespace
 
+import pytest
+
 import run_jev_large_training as subject
 
 
-def test_registered_graph_has_exactly_one_bounded_training_only_worker(tmp_path, monkeypatch):
+@pytest.mark.parametrize("recovery", [False, True])
+def test_registered_graph_has_exactly_one_bounded_training_only_worker(tmp_path, monkeypatch, recovery):
     contract, parity = tmp_path / "contract", tmp_path / "parity"
     contract.mkdir()
     parity.mkdir()
@@ -22,7 +25,7 @@ def test_registered_graph_has_exactly_one_bounded_training_only_worker(tmp_path,
         "run_jev_large_training", "--contract", str(contract), "--parity-cache", str(parity),
         "--parity-sha256", hashlib.sha256(parity_bytes).hexdigest(),
         "--source-revision", "a" * 40, "--output-root", "fixture_not_submitted",
-    ])
+    ] + (["--runtime-recovery"] if recovery else []))
     jobs = []
 
     def capture(job):
@@ -33,13 +36,14 @@ def test_registered_graph_has_exactly_one_bounded_training_only_worker(tmp_path,
     subject.main()
     assert len(jobs) == 1 and len(jobs[0].jobs) == 1
     job = jobs[0]
-    assert job.name == subject.RUN_NAME
+    assert job.name == (subject.RECOVERY_RUN_NAME if recovery else subject.RUN_NAME)
     node = next(iter(job.jobs.values()))
     assert job.tags["jev_experiment"] == "large_semantic_training"
     assert node.resources.instance_count == 1
     assert node.resources.instance_type == "Singularity.ND12am_A100_v4"
-    assert node.limits.timeout == 21600
+    assert node.limits.timeout == (18000 if recovery else 21600)
     inputs = node._to_dict()["inputs"]
     assert inputs["source_revision"] == "a" * 40
+    assert inputs["max_seconds"] == node.limits.timeout
     assert inputs["contract"]["mode"] == inputs["parity_cache"]["mode"] == "download"
     assert not any("dev" in name or "test" in name for name in inputs)

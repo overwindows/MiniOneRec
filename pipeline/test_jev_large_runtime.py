@@ -28,7 +28,7 @@ def invoke(monkeypatch, tmp_path, failure=None):
         calls.append(command)
         if failure == "dependencies" and command[-3:] == ["-m", "pip", "check"]:
             raise subprocess.CalledProcessError(1, command)
-        if failure == "import" and "-c" in command:
+        if failure == "import" and command[1:3] == ["-u", "-c"]:
             raise subprocess.CalledProcessError(1, command)
 
     monkeypatch.setattr(entry.subprocess, "run", run)
@@ -40,12 +40,24 @@ def test_dependency_and_real_model_import_checks_precede_training(monkeypatch, t
     calls = invoke(monkeypatch, tmp_path)
     entry.main()
     dependency = next(i for i, call in enumerate(calls) if call[-3:] == ["-m", "pip", "check"])
-    probe = next(i for i, call in enumerate(calls) if "-c" in call)
+    probe = next(i for i, call in enumerate(calls) if call[1:3] == ["-u", "-c"])
     training = next(i for i, call in enumerate(calls) if any("full_impression_training.py" in arg for arg in call))
     assert dependency < probe < training
     assert "from transformers import Qwen3_5ForConditionalGeneration" in calls[probe][-1]
     assert "'fla-core', 'triton'" in calls[probe][-1]
     compile(calls[probe][-1], "<runtime-preflight>", "exec")
+
+
+def test_qualified_managed_python_is_selected(monkeypatch, tmp_path):
+    calls = invoke(monkeypatch, tmp_path)
+    entry.main()
+    creation = next(call for call in calls if "--managed-python" in call)
+    assert creation[creation.index("--python") + 1] == "3.11.9"
+    assert any("uv==0.6.14" in call for call in calls)
+    probe = next(call for call in calls if call[1:3] == ["-u", "-c"])
+    assert "platform.python_version() != '3.11.9'" in probe[-1]
+    install = next(call for call in calls if "-r" in call)
+    assert install[install.index("-c") + 1].endswith("requirements.lock.txt")
 
 
 @pytest.mark.parametrize("failure", ["dependencies", "import"])

@@ -434,6 +434,28 @@ conditional on the original gate;incomplete work is a failure,not a shortcut.
 No automatic official-dev allocation. Complete artifacts and independent
 verification remain prerequisites for a separately frozen official-dev readout.
 
+Recovery02 was submitted09:51:39UTC but its controller correctly failed closed
+before accepting the allocation:the Azure service serializes integer input
+`max_seconds` as the canonical STRING`"18000"`,whereas the mocked SDK graph used
+integer18000. Parent cancellation was requested09:51:56UTC;the known queued
+worker had no start time or user-code log. Preserve this failed control-plane
+receipt;do not describe it as a new model/runtime failure or a completed GPU fit.
+
+The corrected continuation name is`jev_large_semantic_20261029_03`,unique output
+`large_semantic_03`,only after FRESH terminal cancellation of both02 parent and
+worker and confirmation of no02 worker start/user-code log. Accept the exact
+canonical server literal`"18000"` as equivalent to integer18000,but reject
+other limits/strings. All other source/allocation/input checks remain unchanged.
+This does NOT reset the first parent's15:06:23.720214UTC cutoff or aggregate
+cutoff. No overlapping workers,no scientific retuning,no automatic03 retry.
+
+Independent post-training verification is prepared before any selection result:
+all five arms'raw scores/complete source order/all per-impression and aggregate
+metrics must be replayed. Derived neural CPU/GPU FP32 score replay has fixed
+atol1e-4/rtol1e-5;ranking metrics are recomputed from the ORIGINAL stored raw
+scores with atol1e-12 and the same NumPy1.26.4 tie ordering. This does not alter
+the mandatory BIT-EXACT original16 frozen-JEV feature/margin parity gate.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

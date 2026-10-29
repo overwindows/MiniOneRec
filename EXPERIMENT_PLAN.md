@@ -187,6 +187,61 @@ for post-completion use;metric tie/multiple-positive fixtures and both frozen
 populations' feature mathematics on every189068 candidate passed. No dev
 prediction replay or quality result is claimed before actual completion.
 
+**Final corrected-uniform decision2026-10-29 07:56UTC: do not promote;
+retain the previous hybrid.** The one registered dev parent/actual worker
+both Completed within the original bound. Every189068x2560 dev feature and
+margin was saved and whole-file verified. Frozen evaluator finished07:55:22UTC;
+independent full4-arm prediction replay/all16 metrics/paired2048-resample
+intervals completed07:56:02UTC,with exact official candidate IDs/order/labels.
+
+| Model on identical official MIND-small dev41001-46000 | AUC | MRR | nDCG5 | nDCG10 |
+|---|---:|---:|---:|---:|
+| Corrected uniform binary,not promoted |0.67541344|0.32684045|0.36128404|0.42226587|
+| Retained hybrid |0.67653934|0.32564648|0.35958556|0.42124512|
+| Retained text |0.66675783|0.31765986|0.34902490|0.41208096|
+| Frozen JEV |0.63083724|0.30081776|0.32475281|0.38632547|
+
+Primary uniform-minus-retained AUC delta-0.0011259018,95%CI
+[-0.0070570115,+0.0046361550]. All four metric-difference intervals include
+zero;this is no demonstrated gain,not a statistically established loss.
+The internal train-only gain did not establish official-dev improvement.
+Sampler full-support correctness remains verified,but its causal quality
+benefit is not demonstrated by this combined training/population change.
+Do not tune or reselect on this already inspected window and do not retry
+this closed allocation. All caches/failed recipes are retained for audit.
+Proof `jev-uniform-01-dev-independent-verification.json`;
+result SHA256 `5c7e272218bbbc22befb6b31320e204180dac50635a1dc0ae413590e60c41bab`;
+full-dev archive SHA256
+`b74de94c657f30593023c4948832cf37db52c3cebbb237dc61da12c6101fdb9f`.
+This is partial MIND-small dev,not full dev,MIND-large or competition-test
+success. Overall AUC>=0.80 remains unmet;the research task is not complete.
+Verified negative-result page/feed published2026-10-29 08:01:54UTC.
+Receipt `jev-uniform-01-result-publication-verification.json` binds the
+actual completed parent/worker and independent result/score hashes;all16
+new metric cells match the independent proof,all20 prior official-dev
+cells and other shared assets/auth remain unchanged. No browser check.
+
+Continuation registered2026-10-29 UTC: no retry of the closed small-data
+candidate. Read-only competition-readiness audit found all configured
+MIND_large train/dev/test news/behaviors files and both recorded E3.A model
+configs;config availability is NOT weight/provenance or benchmark verification.
+The three exact cached-test export paths named by the existing waiter are
+absent. Historical0.7144 remains recorded,not newly reproduced.
+Audit `jev-competition-data-readiness.json`;no test scores/labels read,no GPU.
+Next operational step: exclusive full TRAINING-only source intake on Q,
+at most30 minutes within the unchanged original aggregate deadline;zero
+GPU allocations,zero model fitting,no dev/test contents read. Pin observed
+server lengths/modification versions before and after bounded32MB ranges,
+retain chunk ledgers,independently rehash whole local files,and enumerate
+EVERY training impression/exposure/news identity. Record first-observed
+content hashes without pretending official external provenance was verified.
+Source intake is preparation,not a new model or quality result. Do not
+silently restart/overwrite partial output or weaken source-version checks.
+Attached intake shell `jev-large-training-intake`;controller
+`prepare_jev_large_training.py`;state `jev-mind-large-train-source-state.json`;
+output `Q:\CodeGuru\scratch\jev-mind-large-train-source`. It is operational
+preparation only;no large-data model has been fitted or evaluated.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

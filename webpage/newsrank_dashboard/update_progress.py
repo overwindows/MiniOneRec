@@ -27,7 +27,8 @@ CAMPAIGNS = [
         "name": "JEV-4B frozen-backbone readout recovery",
         "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
                       "JEV-UNIFORM-1 corrects negative-sampling support;its independently verified all-data "
-                      "final refit passed the train-only allocation gate. Fresh official-dev evaluation submitted. "
+                      "final refit passed the train-only allocation gate but did not beat the retained hybrid "
+                      "on independently verified official dev. Do not promote;retain the prior hybrid. "
                       "Historical JEV-CONTENT-1 added nonlinear content/history signals to frozen margins/popularity. "
                       "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
@@ -92,10 +93,12 @@ CAMPAIGNS = [
                 "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
-        "eval": "Current uniform candidate:official-dev score pending. Internal train-only gate passed,"
-                "all20 cells/all5 arms independently replayed;not benchmark evidence. "
-                "Parentplum_arm_rs8wvtxmmy submitted2026-10-29 02:37:38UTC;actual worker Queued at02:37:56UTC. "
-                "No promotion before independent full-candidate dev model/metric/bootstrap replay. "
+        "eval": "Corrected uniform official MIND-small dev41001-46000 independently verified2026-10-29 07:56UTC:"
+                "AUC0.67541344 vs matched retained0.67653934,frozen0.63083724,retained text0.66675783. "
+                "Primary delta-0.00112590,95%CI[-0.00705701,+0.00463615];all four intervals include0. "
+                "No demonstrated gain;not statistically established degradation. Do not promote;retain prior hybrid. "
+                "All4 arms'189068 candidate predictions/all16 metric cells/paired bootstrap replayed. "
+                "Parentplum_arm_rs8wvtxmmy and actual worker Completed within their original cap. "
                 "Historical content_31 fresh official-dev36001-41000 result verified:"
                 "AUC0.66352816 versus retained hybrid0.68333835 on the same5000 impressions/"
                 "189786 candidates. Primary delta-0.01981020,95%CI[-0.02608984,-0.01361295]. "
@@ -238,7 +241,7 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("plum_arm_rs8wvtxmmy", "JEV-UNIFORM-1 frozen full-data binary;fresh official-dev41001-46000", ""),
+            ("plum_arm_rs8wvtxmmy", "Completed JEV-UNIFORM-1 dev41001-46000;no demonstrated gain,not promoted", ""),
             ("great_bee_w6zjxd296x", "Completed JEV-CONTENT-1 dev36001-41000;CPU candidate rejected", ""),
             ("45627fbc-8d9b-4f90-b63e-68d348443561", "Completed shared frozen-control worker;no GPU fitting", ""),
             ("zen_oven_dxw716bx8c", "Completed shared dev31001-36000 pass;full hybrid0.67203545 verified on CPU", ""),
@@ -414,12 +417,14 @@ CAMPAIGNS = [
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
     "CPU audit:480584 raw-negative exposures had zero sampling support;"
-    "3212 avoidable positive-only groups. JEV-UNIFORM-1 internal gate passed;"
-    "all20 train-only metric cells/all5 arms independently replayed. Final refit converged89 iterations,"
+    "3212 avoidable positive-only groups. JEV-UNIFORM-1 official-dev comparison verified:"
+    "uniform AUC0.67541344 vs matched retained0.67653934;"
+    "delta-0.00112590,95%CI[-0.00705701,+0.00463615]. "
+    "All4 arms'189068 predictions/all16 metrics/bootstrap independently replayed. "
+    "No demonstrated gain;do not promote;retain prior hybrid. Final refit converged89 iterations,"
     "all472626 corrected rows/all156965 impressions,zero final holdout exclusions. "
-    "Fresh official MIND-small dev41001-46000 submitted:5000 impressions/all189068 candidates;"
-    "parentplum_arm_rs8wvtxmmy,worker Queued at2026-10-29 02:37:56UTC. "
-    "No new official-dev score or promotion yet. "
+    "Official MIND-small dev41001-46000:5000 impressions/all189068 candidates;"
+    "parentplum_arm_rs8wvtxmmy and actual worker Completed. "
     "Compact residual converged but failed its preregistered gain gate. "
     "JEV-CONTENT-1 verified on official MIND-small dev36001-41000:"
     "content_31 AUC0.66352816,retained hybrid0.68333835,frozen0.62876796;"

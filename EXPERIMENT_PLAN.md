@@ -767,6 +767,72 @@ Diagnostic script`diagnose_jev_large_training.py`,attached shell
 coverage-rejection fixtures passed before launch. The diagnostic is not
 a new model,fit,quality result or permission to restart GPU training.
 
+The audit completed without fitting,allocation or dev/test reads. Across all
+101527 normalized training article vectors,the mean off-diagonal cosine is
+0.9847024213 and the mean-vector norm is0.9923218087. A deterministic1024-article
+centered spectrum sample puts21.43% of variance in its first direction and
+62.25% in its first16. This suggests testing readout conditioning,but does NOT
+prove that anisotropy causes the quality gap. The per-impression best-existing-arm
+oracle is nondeployable and must never be reported as achieved AUC or a general
+ceiling. Empty-history and cold-start cohort diagnostics are training-only.
+
+#### JEV-LARGE-CENTERED-1:one bounded CPU-only conditioning recipe
+
+Registered2026-10-29 before fitting this recipe. The old GPU training cutoff
+has passed and is NOT extended or reset. No new GPU allocation is authorized.
+
+- Use the exact independently verified original frozen training feature bytes,
+  complete lossless training contract and prior training proof305808f9.
+  Normalize each of all101527 article vectors,compute its training-only
+  mean/covariance,retain the top128 PCA directions,canonicalize each direction's
+  largest-absolute loading to positive,and ridge-whiten with ridge=
+  0.01*mean(retained eigenvalues). Fit this unsupervised basis ONLY on official
+  training news,without labels or dev/test metadata. Leave padding exactly zero.
+  L2-normalize the transformed article rows before the neural readout.
+- One fixed candidate-attention recipe only. Reuse the same128-hidden
+  GELU/LayerNorm masked-history head,recency,score scale,full-impression
+  all-positive/all-negative objective,three epochs,AdamW lr0.001/WD0.0001,
+  clip1,seeds42/43/44,8192-candidate/256-impression batch maxima. No warm start,
+  early stopping,checkpoint search,extra recipe or convergence claim.
+  This jointly tests centering,low-rank compression and whitening;do not
+  attribute any result to one component without a separate ablation.
+- Selection fits every earlier1801231 impression/66107268 exposure/2712612
+  positive in allthree epochs,then scores every431517 last-training-day
+  impression/17400106 exposure/671044 positive. The unchanged original
+  attention baseline is internal AUC0.6831950387658544. The gate requires
+  >=0.005 AUC gain over that STRONGER baseline and no MRR/nDCG5/nDCG10 regression.
+  A rejected gate stops without final refit,dev scoring or another recipe.
+- Only a passing gate permits a fresh three-epoch final reinitialization/refit
+  on ALL2232748 training impressions/83507374 exposures/3383656 positives per
+  epoch,zero final holdout exclusions. Retain all source identities/candidates/
+  clicks and exactly-once epoch counts. Raw frozen article bytes remain
+  untouched;the new basis is a declared head-side transformation,not a
+  relaxation of original16 bit parity.
+- Four CPU threads,CUDA explicitly disabled,one local six-hour campaign
+  including basis,selection,conditional final refit and independent replay.
+  Trainer max21000s reserves600s inside the hard21600s process cap. No automatic
+  retry. Require the complete six hours plus600s margin to fit before ORIGINAL
+  aggregate2026-10-30 01:17:07.923179UTC. Synthetic-only feasibility qualification
+  measured0.29455s per full8192-candidate batch over five steps after warmup,
+  roughly16220s for55065 selection+final steps;this is an estimate,not a promise.
+  The exact NumPy1.26.4/Torch2.6.0 CPU runtime also completed a synthetic2560x2560
+  eigensystem in2.12s;no real-data PCA or new recipe fitting occurred in that probe.
+  An independent GNU timeout process-group SIGKILL is required at21600s.
+- Freeze source before launching. Independently rehash original features,
+  replay the training-only basis mean/covariance/orthogonality/eigen equations,
+  every transformed article row,all complete raw selection scores/per-impression
+  metrics,unchanged gate and conditional all-training epoch coverage/head bytes.
+  Raw original feature provenance remains checksum/bit exact. Derived score
+  tolerance remains atol1e-4/rtol1e-5;metric tolerance1e-12/rtol0 and NumPy1.26.4
+  non-AVX512 tie dispatch stay fixed. Do not independently retrain optimizer
+  trajectories or claim to have done so.
+- NO dev/test contents may be read by this training campaign. Any subsequent
+  frozen-head official-dev evaluation needs a separately registered CPU-only
+  check and complete independent verification. The full official-dev benchmark
+  is already inspected:future reuse must be disclosed,not called pristine or
+  a competition-test result. Current verified dev AUC remains0.6814457842;
+  competition-test0.80 remains unmet.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

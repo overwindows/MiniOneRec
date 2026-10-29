@@ -1105,6 +1105,60 @@ Terminal rejection page/feed deployed2026-10-29 21:54:31.881439UTC,receipt
 `jev-large-collaborative-01-rejection-publication.json`:all52 benchmark cells
 and other shared assets/auth unchanged;no browser-rendering claim.
 
+### JEV-LARGE-SHARED-TEXT-1: distinct preregistered shared-term multi-interest model
+
+Registered2026-10-29 before real-data lexical fitting or supervised execution.
+This is NOT a retry,extension or promotion of the rejected collaborative model.
+The preceding support diagnosis is descriptive,not a causal ablation or an
+inference-time oracle. New hypothesis:shared text-level updates,without item-ID
+parameters or candidate biases,may transfer better than item-specific corrections.
+No AUC improvement or0.80 guarantee is asserted;official-dev0.6814457842 remains.
+
+- New trainable representation family,NOT fixed JEV vectors:all official
+  TRAINING titles only;fresh Content TF-IDF(max32768,min_df2,sublinear,English
+  stopwords,unigrams+bigrams) and fresh randomized LSA64(seed42). No labels,
+  dev/test,failed supervised heads or old unverified lexical artifacts enter
+  initialization. Candidate/history article identity/order comes from the
+  unchanged complete source contract.
+- Fixed article-text feature budget:retain top32 TF-IDF terms by descending
+  weight,stable term-index ties. This caps TEXT features,NOT candidates,
+  impressions,clicks or negatives. Empty encoded articles remain present.
+- Train shared64-dimensional term vectors initialized from training-only LSA.
+  Weighted term sums/L2 encode titles;four trainable interest queries
+  (seedednormal std.1),masked30-position learned recency attention,normalized
+  interest vectors,logmeanexp over four10cosine scores. No per-item embeddings,
+  biases or frozen-JEV margin input. Padding/empty-history scores remainzero.
+- Original full-impression objective/batching/optimizer are unchanged:
+  three fixed epochs,AdamW.001/WD.0001/clip1,seeds42/43/44,all candidates,
+  all clicks normalized and equal impression weight,8192/256 batch limits.
+  All1801231/66107268/2712612 earlier-fitting rows/exposures/positives per epoch;
+  internal validation all431517/17400106/671044 last-training-day population.
+  Fitting and validation reporting scopes remain separate.
+- Gate unchanged:at least+.005 AUC over originalattention0.6831950387658544
+  and no MRR/nDCG5/nDCG10 regression. Only then a FRESH three-epoch fit on
+  ALL2232748/83507374/3383656,zero final holdout. No checkpoint/recipe search.
+- Complete verifier reconstructs vocabulary/IDF/LSA initialization and every
+  capped CSR article-term bit from unchanged training text. Lexical-building
+  implementation is reused and disclosed;optimizer is not independently
+  rerun. Inference is separate:SciPy CSR times learned term vectors and NumPy
+  four-interest attention/logmeanexp,versus training EmbeddingBag/PyTorch.
+  Replay every held-out raw score and metric and exact three-epoch source/
+  batch coverage. Unchanged score1e-4/1e-5 and metric1e-12 tolerances.
+- CPU4 only,no CUDA,new dev/test reads or retry. Unique attached9900s OS hard
+  cap;trainer8100s,independent verifier1500s. Start requires9900s+600s margin
+  within ORIGINAL aggregate2026-10-30 01:17:07.923179UTC. Original expired
+  GPU cutoff remains unchanged. Failed prior campaigns are not restarted.
+- Full-size SYNTHETIC-only qualification:101528 articles,32768 terms,maximum
+  32 terms/article,64 dimensions,8192 candidates/256 histories of30,actual
+  denseAdamW/backprop/global clipping,2097438 parameters. Seven warmed steps
+  averaged0.0950988907s;simple55065-step selection+conditional-final estimate
+  5236.62s excludes lexical construction,source batching,validation,serialization
+  and complete verification. It is not a completion/quality guarantee.
+  Preliminary unfrozen candidate-dependent attention was resource-rejected
+  (0.37599s/step,three-epoch estimate20703.94s) without real-data fitting.
+  Before execution:65 targeted source fixtures and4 hard deadline/failure/
+  no-retry guardian fixtures passed in the pinned Linux runtime.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

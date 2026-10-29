@@ -3,7 +3,9 @@ import time
 import numpy as np
 import pytest
 
-from full_impression_temporal_training import behavior, design, feature_batch, fit, population, score, NAMES
+from full_impression_temporal_training import (
+    behavior, design, feature_batch, fit, population, score, selection_report, NAMES,
+)
 from jev_content_ranker import content_features
 from full_impression_temporal_verification import independent_population, numeric_tree_scores
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -97,13 +99,18 @@ def test_fixed_recipe_design_fit_score_and_raw_tree_replay(tmp_path):
     deadline = time.monotonic() + 60
     days, counts = population(np.arange(2), arrays, 3, deadline)
     features = feature_batch(np.arange(3), arrays, names, table, margins, days, counts)
-    inputs = design(np.arange(3), arrays, features, tmp_path / "design", deadline)
+    inputs = design(np.arange(2), arrays, features, tmp_path / "design", deadline)
     model, report = fit(inputs, tmp_path / "head.joblib", deadline)
-    measured = score(model, np.arange(3), arrays, features, tmp_path / "scores.f64", deadline)
-    assert report["impressions"] == 3 and report["exposures"] == 8 and report["iterations"] == 160
-    assert measured["impressions"] == 3 and measured["exposures"] == 8
+    measured = score(model, np.asarray([2]), arrays, features, tmp_path / "scores.f64", deadline)
+    assert report["impressions"] == 2 and report["exposures"] == 5 and report["positives"] == 2
+    assert measured["impressions"] == 1 and measured["exposures"] == 3 and measured["positives"] == 1
+    selected = selection_report(report, measured)
+    assert selected["fitting"]["impressions"] == 2 and selected["fitting"]["exposures"] == 5
+    assert selected["fitting"]["positives"] == 2 and selected["positives"] == 1
+    assert selected["impressions"] == 1 and selected["exposures"] == 3 and selected["iterations"] == 160
+    assert report["positives"] == 2
     raw = np.fromfile(tmp_path / "scores.f64", dtype=np.float64)
-    np.testing.assert_allclose(raw, numeric_tree_scores(model, features), atol=1e-12, rtol=0)
+    np.testing.assert_allclose(raw, numeric_tree_scores(model, features[5:]), atol=1e-12, rtol=0)
 
 
 @pytest.mark.parametrize("seconds", [0, -1, 17401])

@@ -161,7 +161,7 @@ def fit(design_arrays, path, deadline):
 
 def score(model, indices, arrays, features, path, deadline):
     values = np.empty((len(indices), 4), dtype=np.float64)
-    offsets, row, exposure = arrays["candidate_offsets.npy"], 0, 0
+    offsets, row, exposure, positives = arrays["candidate_offsets.npy"], 0, 0, 0
     with path.open("xb") as handle:
         for batch in batches(indices, arrays, candidate_limit=1000000, impression_limit=32768):
             check_deadline(deadline)
@@ -178,13 +178,19 @@ def score(model, indices, arrays, features, path, deadline):
                     raise ValueError("Never drop any single-class impression")
                 s = scores[position:position + count]
                 values[row] = auc_score(labels, s), mrr_score(labels, s), ndcg_score(labels, s, 5), ndcg_score(labels, s, 10)
+                positives += int(labels.sum())
                 position += count
                 row += 1
             exposure += len(scores)
     np.save(path.with_suffix(".metrics.npy"), values)
     return {"metrics": dict(zip(("auc", "mrr", "ndcg5", "ndcg10"), values.mean(axis=0).tolist())),
-            "impressions": row, "exposures": exposure, "scores_sha256": digest(path),
+            "impressions": row, "exposures": exposure, "positives": positives, "scores_sha256": digest(path),
             "per_impression_metrics_sha256": digest(path.with_suffix(".metrics.npy"))}
+
+
+def selection_report(fitting, validation):
+    return {**validation, "fitting": dict(fitting), "head_sha256": fitting["head_sha256"],
+            "iterations": fitting["iterations"]}
 
 
 def run(args):
@@ -243,7 +249,8 @@ def run(args):
     model, selected = fit(design_arrays, args.output / "selection.joblib", deadline)
     del design_arrays
     gc.collect()
-    selected.update(score(model, validation, arrays, features, args.output / "validation.scores.f64", deadline))
+    selected = selection_report(
+        selected, score(model, validation, arrays, features, args.output / "validation.scores.f64", deadline))
     baseline = prior["recipes"]["candidate_attention"]["metrics"]
     gain = selected["metrics"]["auc"] - baseline["auc"]
     opens = gain >= .005 and all(selected["metrics"][key] >= baseline[key] for key in ("mrr", "ndcg5", "ndcg10"))

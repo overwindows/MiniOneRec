@@ -154,6 +154,10 @@ def run(args):
     verify_design(args.artifacts / "selection.design", fitting, arrays, features,
                   (1801231, 66107268, 2712612), deadline)
     selected = result["selection"]
+    require(tuple(selected["fitting"][key] for key in ("impressions", "exposures", "positives")) ==
+            (1801231, 66107268, 2712612)
+            and tuple(selected[key] for key in ("impressions", "exposures", "positives")) ==
+            (431517, 17400106, 671044), "Separate complete fitting and validation coverage required")
     head = args.artifacts / "selection.joblib"
     require(digest(head) == selected["head_sha256"], "Selection head changed")
     model = joblib.load(head)

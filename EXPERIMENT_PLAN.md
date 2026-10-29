@@ -950,6 +950,44 @@ Actual-start page/feed deployed2026-10-29 18:26:53UTC,receipt
 `jev-large-temporal-01-start-publication.json`:all52 benchmark cells and other
 shared assets/auth unchanged. No completed-model or browser-rendering claim.
 
+**Temporal campaign FAILED2026-10-29 20:39:34UTC:complete independent verification
+exceeded its3600s cap;NO accepted proof.** Fitting completed160 rounds and the
+worker reported training-only AUC0.6162795226 versus original0.6831950388
+(reported gain-0.0669155162),so its own gate was closed. This is NOT a verified
+official-dev/test result and must not be presented as complete source/score
+verification. Feature replay logged2200085 of2232748 impressions before the
+timeout;that log does NOT prove completion of the remaining checks.
+No final refit,dev allocation or GPU allocation occurred. Preserve the failed
+controller/log/source/result byte-for-byte;no automatic restart or extended cap.
+
+A separate bounded READ-ONLY failure diagnostic is registered before running:
+four CPU threads,internal570s/OS hard600s,no model fitting,feature regeneration,
+dev/test reads or allocation-gate reopening. Replay all431517 last-training-day
+raw-score metric rows/17400106 exposures/671044 positives against original
+labels and existing per-impression metrics at unchanged1e-12 tolerance. This
+can validate raw-score metrics ONLY;it cannot replace the failed complete
+feature/design/tree verification or authorize a model/dev promotion.
+
+Code inspection also found a separate metadata bug:merging the scoring report
+over the fitting report overwrote impression/exposure counts but left fitting
+positives at the selection top level. Future source now separates nested
+fitting coverage from validation coverage and explicitly records validation
+positives;the verifier checks both. The old immutable artifacts are not
+rewritten,and this metadata fix is NOT claimed to fix quality or the timeout.
+The bounded diagnostic completed2026-10-29 20:43:29UTC in92.31s. It replayed
+ALL431517 raw-score metric rows/17400106 exposures/671044 positives at1e-12:
+AUC0.6162795226,MRR0.2723939166,nDCG5/10=0.2888728583/0.3525179503.
+Receipt`jev-large-temporal-01-metric-diagnostic.json`,unchanged original
+resultSHA527e9a414c44325b5ebcbcc1a439f3c4664149bcf20abedf5d07f20ffe330e31.
+This confirms raw-score metrics ONLY;complete source/design/tree verification
+remains failed and no allocation gate is reopened. The nominal selection
+positives2712612 in the old result were fitting positives;actual validation
+positives671044 were independently counted. Regression coverage now protects
+the separate fitting/validation report fields without rewriting old artifacts.
+Failure/limited-diagnostic page/feed published2026-10-29 20:49:15UTC,receipt
+`jev-large-temporal-01-failure-publication.json`:all52 benchmark cells and
+other shared assets/auth unchanged;no complete-model or browser-rendering claim.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

@@ -18,6 +18,7 @@ CONTRACT_MANIFEST = "4daa3377b4601aca4ae5b72e45ed2931becb8dd648dd23998f17fb3e134
 CONTRACT_PROOF = "de60c130dcd7ea853ce8d2b7fbe81b02b83d6b604fbbba99b96bbfa1ec841b25"
 RUN_NAME = "jev_large_semantic_20261029_01"
 RECOVERY_RUN_NAME = "jev_large_semantic_20261029_03"
+RECONSTRUCTED_RUN_NAME = "jev_large_semantic_20261029_04"
 
 
 def main():
@@ -28,7 +29,9 @@ def main():
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--output-root", required=True)
     parser.add_argument("--bundle-source", action="store_true")
-    parser.add_argument("--runtime-recovery", action="store_true")
+    runtime = parser.add_mutually_exclusive_group()
+    runtime.add_argument("--runtime-recovery", action="store_true")
+    runtime.add_argument("--reconstructed-runtime", action="store_true")
     args = parser.parse_args()
     if not re.fullmatch("[0-9a-f]{64}", args.parity_sha256):
         parser.error("The original exact parity archive requires its registered SHA256")
@@ -46,7 +49,7 @@ def main():
         Path(__file__).parent / "components" / "mind_jev_large_training" / "component.yaml",
         args.source_revision, args.bundle_source,
     )
-    worker_seconds = 18000 if args.runtime_recovery else 21600
+    worker_seconds = 14400 if args.reconstructed_runtime else (18000 if args.runtime_recovery else 21600)
     @dsl.pipeline(description="JEV-LARGE-SEMANTIC-1; full training impressions; no dev/test contents")
     def pipeline():
         node = component(
@@ -66,14 +69,17 @@ def main():
         node.environment_variables = {"_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID}
 
     job = pipeline()
-    job.name = RECOVERY_RUN_NAME if args.runtime_recovery else RUN_NAME
+    job.name = (RECONSTRUCTED_RUN_NAME if args.reconstructed_runtime
+                else (RECOVERY_RUN_NAME if args.runtime_recovery else RUN_NAME))
     job.settings.default_compute = VC_ARM_ID
     job.settings.force_rerun = True
     job.experiment_name = "jev_large_semantic_training"
     job.display_name = f"JEV full-impression semantic training;one Standard A100;{worker_seconds}s"
     job.tags = {
         "source_revision": revision, "jev_experiment": "large_semantic_training",
-        "budget": "qualified_recovery_one_A100_18000s" if args.runtime_recovery else "one_A100_six_hours_no_retry",
+        "budget": ("reconstructed_legacy_runtime_one_A100_14400s" if args.reconstructed_runtime
+                   else ("qualified_recovery_one_A100_18000s" if args.runtime_recovery
+                         else "one_A100_six_hours_no_retry")),
         "contract_manifest_sha256": CONTRACT_MANIFEST,
         "contract_proof_sha256": CONTRACT_PROOF, "parity_sha256": args.parity_sha256,
         "training_impressions": "2232748", "training_exposures": "83507374",

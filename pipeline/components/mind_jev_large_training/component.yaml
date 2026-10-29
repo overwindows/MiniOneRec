@@ -1,7 +1,7 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: jev_large_semantic_training
 display_name: Full-impression MIND-large semantic training
-version: "2"
+version: "3"
 type: command
 description: Frozen article features and complete training-only fixed recipes; no dev/test inputs
 inputs:

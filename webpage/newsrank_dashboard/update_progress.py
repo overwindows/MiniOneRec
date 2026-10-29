@@ -26,7 +26,15 @@ CAMPAIGNS = [
     {
         "name": "JEV-4B frozen-backbone readout recovery",
         "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
-                      "JEV-LARGE-SEMANTIC-1 failed during model-class import before frozen parity, "
+                      "Managed Python3.11.9 passed real Qwen3_5 import on the actual recovery02 GPU worker, "
+                      "but mandatory original16 BIT-EXACT representation parity FAILED:35236/40960 feature "
+                      "bit patterns differ. User process exited1 at2026-10-29 10:10:46UTC;platform activity "
+                      "reports Failed10:13:53UTC despite stale RunHistory Running/parent Canceled. "
+                      "No new article extraction or neural fitting occurred. No03 parent was submitted. "
+                      "Legacy requirements resolution failed before its requested Transformers5.2 pin applied; "
+                      "the subsequent FLA installer has an unpinned Transformers dependency. Reconstruct the "
+                      "actual numerical runtime;do not relax parity or claim this is an AUC improvement. "
+                      "Original JEV-LARGE-SEMANTIC-1 failed during model-class import before frozen parity, "
                       "new feature extraction or fitting;parent/worker Failed observed2026-10-29 09:29:58UTC. "
                       "No retry or new allocation. Its planned hypothesis tests frozen article representations plus learned masked "
                       "history scoring over every full MIND-large training impression/candidate/click. "
@@ -38,9 +46,15 @@ CAMPAIGNS = [
                       "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "FAILED JEV-LARGE-SEMANTIC-1 source083d63a:Transformers Qwen3_5 import entered "
+        "settings": "Existing recovery02 sourcea64561f,one Standard A100/18000s;actual worker start "
+                    "2026-10-29 09:53:48UTC,service timeout14:53:48UTC within the ORIGINAL15:06:23UTC GPU cutoff. "
+                    "Managed Python3.11.9/uv0.6.14,complete Linux dependency lock;original16 BIT-EXACT parity "
+                    "FAILED before new features/fitting and remains mandatory. The observer submits/allocates nothing. "
+                    "Parent cancellation is disclosed;only an actual Completed worker plus complete "
+                    "independently replayed artifacts can establish an internal gate. No new dev/test result. "
+                    "FAILED original JEV-LARGE-SEMANTIC-1 source083d63a:Transformers Qwen3_5 import entered "
                     "FLA simple_gla and Triton JIT source extraction raised AttributeError NoneType.start. "
-                    "Environment compatibility remains unresolved;no model/head/gate result exists. "
+                    "Original image-specific failure is not isolated;no original01 model/head/gate result exists. "
                     "One Standard Ranking A100,"
                     "21600s/six hours including queue/setup,no retries,unchanged aggregate cutoff2026-10-30 "
                     "01:17:07UTC. Frozen101527 article representations,exact original16-row parity required. "
@@ -116,7 +130,9 @@ CAMPAIGNS = [
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
         "eval": "JEV-LARGE-SEMANTIC-1:no new official MIND-large dev/test score. "
-                "Large training-source preparation and complete source-origin replay finished;not an AUC result. "
+                "Recovery02 model import passed but original16 representation parity failed;no neural fit "
+                "or large-data quality result. Large training-source preparation and complete source-origin replay "
+                "finished;not an AUC result. "
                 "Future internal last-training-day metrics are allocation gates only,not benchmark scores. "
                 "Previous corrected uniform official MIND-small dev41001-46000 independently verified2026-10-29 07:56UTC:"
                 "AUC0.67541344 vs matched retained0.67653934,frozen0.63083724,retained text0.66675783. "
@@ -266,7 +282,8 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
-            ("jev_large_semantic_20261029_01", "JEV-LARGE-SEMANTIC-1 training-only;full-impression gate and conditional all-data refit", ""),
+            ("jev_large_semantic_20261029_02", "Existing recovery02;parent canceled,execution separately observed;no score claimed", ""),
+            ("jev_large_semantic_20261029_01", "Original model import failed before parity/features/fitting;no quality result", ""),
             ("plum_arm_rs8wvtxmmy", "Completed JEV-UNIFORM-1 dev41001-46000;no demonstrated gain,not promoted", ""),
             ("great_bee_w6zjxd296x", "Completed JEV-CONTENT-1 dev36001-41000;CPU candidate rejected", ""),
             ("45627fbc-8d9b-4f90-b63e-68d348443561", "Completed shared frozen-control worker;no GPU fitting", ""),
@@ -444,8 +461,13 @@ HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
     "Full MIND-large training inputs verified:2232748 impressions/83507374 exposures/"
     "3383656 positives/80123718 negatives;every source candidate/history replayed. "
-    "JEV-LARGE-SEMANTIC-1 source083d63a FAILED before model loading/parity/features/fitting: "
-    "FLA/Triton import error;no retry or new allocation;no new large-data AUC result. "
+    "Recovery02 sourcea64561f:actual GPU model import passed,but original16 BIT-EXACT parity FAILED "
+    "(35236/40960 feature bit patterns). User process exited1 at10:10:46UTC;platform Failed10:13:53UTC; "
+    "parent canceled/stale execution metadata disclosed. No new article extraction or neural training. "
+    "Legacy requested Transformers5.2 pin was not applied after resolver failure;reconstruct its unpinned "
+    "FLA-installed runtime without relaxing parity. No03 submitted;original GPU cutoff unchanged;"
+    "no new large-data AUC result. "
+    "Original01 failed model import before parity/features/fitting. "
     "CPU audit:480584 raw-negative exposures had zero sampling support;"
     "3212 avoidable positive-only groups. JEV-UNIFORM-1 official-dev comparison verified:"
     "uniform AUC0.67541344 vs matched retained0.67653934;"

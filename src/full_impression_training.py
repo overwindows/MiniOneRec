@@ -3,9 +3,12 @@
 import argparse
 from datetime import datetime
 import gc
-from importlib.metadata import version
+import hashlib
+from importlib.metadata import PackageNotFoundError, version
+import inspect
 import json
 from pathlib import Path
+import sys
 import time
 
 import numpy as np
@@ -213,6 +216,52 @@ def clipped_article_state(scorer, article, maximum=512):
     return result, True
 
 
+def parity_runtime(scorer):
+    packages = {}
+    for name in ("torch", "transformers", "tokenizers", "flash-linear-attention",
+                 "fla-core", "triton", "flash-attn", "causal-conv1d"):
+        try:
+            packages[name] = version(name)
+        except PackageNotFoundError:
+            packages[name] = None
+    sources = {}
+    for module in scorer.model.modules():
+        name = type(module).__module__
+        if name.startswith(("transformers.models.qwen3_5", "fla.")) and name not in sources:
+            path = inspect.getsourcefile(type(module))
+            sources[name] = digest(Path(path)) if path is not None else None
+    return {
+        "python": sys.version, "packages": packages, "model_module_source_sha256": sources,
+        "cuda": torch.version.cuda, "cudnn": torch.backends.cudnn.version(),
+        "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "matmul_allow_tf32": torch.backends.cuda.matmul.allow_tf32,
+        "cudnn_allow_tf32": torch.backends.cudnn.allow_tf32,
+        "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+        "missing_optional_packages_are_explicit_null": True,
+    }
+
+
+def parity_differences(actual, expected):
+    valid = actual.dtype == expected.dtype == np.float32 and actual.shape == expected.shape
+    result = {
+        "actual_shape": list(actual.shape), "expected_shape": list(expected.shape),
+        "actual_dtype": str(actual.dtype), "expected_dtype": str(expected.dtype),
+        "shape_and_dtype_match": valid,
+    }
+    if valid:
+        finite = bool(np.isfinite(actual).all() and np.isfinite(expected).all())
+        result.update(
+            compared_elements=actual.size,
+            different_bit_patterns=int(np.count_nonzero(actual.view(np.uint32) != expected.view(np.uint32))),
+            all_values_finite=finite,
+            maximum_float_absolute_error=(
+                float(np.max(np.abs(actual.astype(np.float64) - expected.astype(np.float64))))
+                if finite and actual.size else None
+            ),
+        )
+    return result
+
+
 def article_features(contract, model_path, small_data, parity_cache, parity_sha, output, deadline):
     from evaluate_mind_jev import JevScorer
     from full_jev_readout import DATA_SHA256
@@ -231,6 +280,7 @@ def article_features(contract, model_path, small_data, parity_cache, parity_sha,
     for path in model_files:
         check_deadline(deadline)
         fingerprints[path.name] = digest(path)
+    write_json(output / "model.first-observed-sha256.json", fingerprints)
     for name, expected in DATA_SHA256.items():
         if digest(small_data / name) != expected:
             raise ValueError("Original frozen-parity source changed")
@@ -239,8 +289,29 @@ def article_features(contract, model_path, small_data, parity_cache, parity_sha,
     scorer = JevScorer(model_path, prompt_contract="legacy", max_prompt_tokens=4095)
     for parameter in scorer.model.parameters():
         parameter.requires_grad_(False)
-    x, base = extract(scorer, training_states(rows, small_data / "train" / "behaviors.tsv", news),
-                      None, "original_exact16_parity", report_progress=False)
+    states = training_states(rows, small_data / "train" / "behaviors.tsv", news)
+    tokens = [scorer._encode(row["state"]) for row in states]
+    write_json(output / "parity.runtime.json", parity_runtime(scorer))
+    write_json(output / "parity.input-tokens.json", [
+        {"tokens": len(ids), "sha256": hashlib.sha256(
+            json.dumps(ids, separators=(",", ":")).encode("utf-8")).hexdigest()}
+        for ids in tokens
+    ])
+    x, base = extract(scorer, states, None, "original_exact16_parity", report_progress=False)
+    np.savez(output / "parity.observed.npz", features=x, margins=base)
+    comparison = {
+        "stage": "original16_bit_exact_parity_observed",
+        "parity_manifest_sha256": parity_sha,
+        "observed_sha256": digest(output / "parity.observed.npz"),
+        "runtime_sha256": digest(output / "parity.runtime.json"),
+        "input_tokens_sha256": digest(output / "parity.input-tokens.json"),
+        "model_fingerprints_sha256": digest(output / "model.first-observed-sha256.json"),
+        "features": parity_differences(x, expected_x),
+        "margins": parity_differences(base, expected_base),
+        "float_error_is_diagnostic_only_bit_exact_guard_unchanged": True,
+    }
+    write_json(output / "parity.comparison.json", comparison)
+    print(json.dumps(comparison, allow_nan=False), flush=True)
     check_parity(x, base, expected_x, expected_base)
     scorer.max_prompt_tokens = 0
     records = [json.loads(line) for line in (contract / "news.metadata.jsonl").read_text(encoding="utf-8").splitlines()]
@@ -276,7 +347,6 @@ def article_features(contract, model_path, small_data, parity_cache, parity_sha,
         check_deadline(deadline)
         if digest(path) != fingerprints[path.name]:
             raise ValueError("Frozen model bytes changed during article extraction")
-    write_json(output / "model.first-observed-sha256.json", fingerprints)
     np.save(output / "article.margins.npy", margins)
     result = {"articles": len(records), "dimension": 2560, "clipped_text_prefixes": clipped,
               "maximum_complete_prompt_tokens": 512, "exact_original16_parity": True,

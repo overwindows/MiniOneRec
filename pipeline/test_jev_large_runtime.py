@@ -60,6 +60,22 @@ def test_qualified_managed_python_is_selected(monkeypatch, tmp_path):
     assert install[install.index("-c") + 1].endswith("requirements.lock.txt")
 
 
+def test_reconstructed_dependencies_cannot_drift_to_other_torch_or_transformers_builds():
+    root = Path(__file__).parent / "components" / "mind_jev_large_training"
+    requirements = (root / "requirements.txt").read_text(encoding="utf-8")
+    locked = (root / "requirements.lock.txt").read_text(encoding="utf-8")
+    assert "--index-url https://pypi.org/simple" in requirements
+    assert "--extra-index-url" not in requirements
+    for package in ("torch", "torchvision"):
+        expected = "2.6.0" if package == "torch" else "0.21.0"
+        assert f"{package}==={expected}\n" in requirements
+        assert f"{package}=={expected}\n" in locked
+        assert f"{package}=={expected}+" not in locked
+    for package, expected in (("transformers", "5.21.0"), ("tokenizers", "0.23.3")):
+        assert f"{package}=={expected}\n" in requirements
+        assert f"{package}=={expected}\n" in locked
+
+
 @pytest.mark.parametrize("failure", ["dependencies", "import"])
 def test_failed_preflight_cannot_start_training(monkeypatch, tmp_path, failure):
     calls = invoke(monkeypatch, tmp_path, failure)

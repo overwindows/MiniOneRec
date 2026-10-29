@@ -456,6 +456,111 @@ atol1e-4/rtol1e-5;ranking metrics are recomputed from the ORIGINAL stored raw
 scores with atol1e-12 and the same NumPy1.26.4 tie ordering. This does not alter
 the mandatory BIT-EXACT original16 frozen-JEV feature/margin parity gate.
 
+Subsequent fresh RunHistory evidence supersedes the earlier queued snapshot:
+02 worker actually STARTED09:53:48.272616UTC despite parent cancellation.
+Parent is Canceled/Jobs child metadata CancelRequested,while the execution
+RunHistory is Running and its user log proves exact a64561f checkout and managed
+CPython3.11.9 bootstrap. Therefore03 preflight halted BEFORE any submission
+intent/cloud parent;no03 worker overlaps02. Do not claim02 never ran or launched
+only after terminal cancellation. No additional job is submitted to fix this.
+
+Reconcile the ALREADY-EXISTING02 worker,with a separate immutable receipt from
+the failed guardian. Revalidate exact source/contract/parity/canonical18000s/
+single Standard A100 and retain canceled-parent metadata verbatim. Actual start
++18000s = **2026-10-29 14:53:48.272616UTC**,earlier than the unchanged original
+15:06:23.720214UTC cutoff. The observer never submits/allocates anything and
+stops on Failed/Canceled or the earlier deadline.
+
+If,and only if,the actual worker reaches Completed,its exact checkout/runtime
+import/parity and complete artifacts can be independently verified despite the
+canceled orchestrator. Never describe the parent as Completed. Accepting any
+training-only gate additionally requires complete all-five-arm source-order
+score replay/all20 aggregate metric cells/all per-impression metrics,all-data
+fixed3-epoch coverage and intact selected head. No automatic dev allocation.
+This transparently disclosed orchestrator anomaly is not a quality result and
+does not relax data,parity,metric,refit or resource requirements.
+
+#### Recovery02 representation failure and numerical-runtime reconstruction
+
+Observed2026-10-29 10:14UTC;subsequent process/platform evidence confirms the
+user process exited1 at10:10:46.307916UTC and Singularity platform activity
+reported Failed10:13:53UTC. Parent remains Canceled,Jobs child CancelRequested,
+and RunHistory may remain stale Running. Preserve all three statuses rather
+than treating stale RunHistory as continuing model fitting.
+
+The actual GPU worker passed the managed-Python model-class import,then FAILED
+mandatory original16 bit-exact parity:35236/40960 feature uint32 bit patterns
+differ. The printed uint32 subtraction is NOT a real-valued feature error.
+Margin parity was not reached. No new article extraction,neural training,
+selection gate,final refit or new official-dev/test score exists. Keep the
+original comparison precision and all scientific/data/resource constraints.
+
+Runtime reconstruction found a concrete previously missed version-drift
+mechanism:successful stage00 used fresh Conda Python3.11.18 and PyPI
+Torch2.6.0,not the recovery's2.6.0+cu124 build. Its broad requirements resolve
+FAILED2026-10-28 15:28:01UTC and was silently treated as nonfatal;the nominal
+Transformers5.2.0 pin therefore does not prove its installed version.
+Flash-linear-attention0.4.2 was installed afterward and its published metadata
+depends on unpinned Transformers. The immutable AML image Dockerfile itself
+pins4.57.1 and Python3.10,not the working Qwen3.5 implementation.
+Official PyPI release timestamps before the actual FLA installation identify
+Transformers5.21.0,tokenizers0.23.3 and Hub2.3.0 as the reconstructed candidate.
+This is a resolver/source-based inference,NOT directly captured old runtime
+metadata or a demonstrated parity fix. A separate isolated CPU environment
+qualifies that candidate;do not mutate the preserved5.2 qualification.
+
+Before any further GPU allocation,the previous process/platform terminal
+evidence must be authenticated and recorded,original absolute GPU and campaign
+cutoffs retained,and a new explicit bounded continuation registered. Do not
+blindly launch the never-submitted03 candidate. No overlapping allocation and
+no automatic retry. CPU import success is insufficient:the original bit-exact
+16-row gate remains mandatory before article extraction or fitting.
+
+The trainer now persists model byte hashes before loading and runtime/module
+source hashes,token-input hashes,and actual16-row features/margins before the
+unchanged parity assertion. A comparison report separates differing bit counts
+from real-valued absolute errors. This improves failure evidence,not acceptance
+thresholds. CPU fixtures cover signed-zero/one-ULP/nonfinite differences and
+verify that failure preserves artifacts without reaching any new articles.
+
+#### Bounded reconstructed-runtime continuation04
+
+Registered2026-10-29 UTC before any04 submission,after independent CPU-only
+qualification of the reconstructed candidate. Managed Python3.11.9,
+PyPI Torch2.6.0/torchvision0.21.0,Transformers5.21.0,tokenizers0.23.3,
+Hub2.3.0,safetensors0.8.0,FLA/fla-core0.4.2,Triton3.2.0 pass pip check and
+the real Qwen3_5 class import with CUDA disabled. A complete new package
+lock freezes the actual qualified environment. Preserve the earlier5.2
+qualification and failed02 receipts. This is a runtime reconstruction,
+NOT evidence that original16 parity or any training/quality gate now passes.
+
+Unique new parent`jev_large_semantic_20261029_04`,unique output
+`large_semantic_04`;never submit the old03 candidate. At most one new Standard
+Ranking A100,worker14400s maximum,no automatic retry. The ORIGINAL
+2026-10-29 15:06:23.720214UTC GPU cutoff and aggregate
+2026-10-30 01:17:07.923179UTC cutoff remain unchanged. Submission requires
+more than14400s plus600s setup/queue margin before the original GPU cutoff;
+cancel if a delayed actual worker start plus14400s would exceed that cutoff.
+The controller retains the earlier absolute deadline in all cases.
+
+Because canceled-parent metadata stopped propagating,02's authenticated
+execution-wrapper completion (all user processes collected,exit1) plus the
+Singularity platform's final Failed event are the terminal-execution evidence,
+not the stale RunHistory Running value. Require fresh readback of both logs,
+identical hashes to the preserved failure receipt,exact old worker/source,
+zero existing04 parent and zero03 parent before any submission intent.
+Record parent/Jobs/RunHistory statuses verbatim and the platform terminal event
+separately. A traceback or canceled parent alone is insufficient. No overlap,
+permission workaround,status relabeling,scientific retuning or budget reset.
+
+All data/recipes/three-epoch coverage/internal gate/final-all-training-refit
+requirements stay fixed. Persist runtime/source/model/input hashes and the
+actual16-row output,then require unchanged BIT-EXACT features AND margins.
+Failure stops04 before any new articles;do not loosen tolerances or retry.
+Only a genuinely Completed worker with independently verified complete output
+can establish an internal gate. Official dev requires separate registration;
+competition-test AUC>=0.80 remains unmet.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

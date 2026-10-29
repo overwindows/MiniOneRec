@@ -1,3 +1,4 @@
+import json
 import time
 
 import numpy as np
@@ -7,7 +8,8 @@ import torch
 from full_impression_contract import digest, prepare, verify, write_json
 from full_impression_ranker import FrozenArticleRanker
 from full_impression_training import (
-    ControlPredictor, batch_inputs, batches, clipped_article_state, epoch, evaluate, load_contract, popularity,
+    ControlPredictor, article_features, batch_inputs, batches, clipped_article_state, epoch, evaluate,
+    load_contract, parity_differences, popularity,
 )
 from test_full_impression_contract import source
 
@@ -101,3 +103,78 @@ def test_only_article_text_is_clipped_and_the_fixed_state_is_preserved():
     article["abstract"] = ""
     short, clipped = clipped_article_state(LengthScorer(), article)
     assert not clipped and short.endswith("[world] headline")
+
+
+def test_parity_diagnostics_report_float_errors_without_relaxing_bit_exactness():
+    from uniform_jev_features import check_parity
+    expected = np.array([0., 1.], dtype=np.float32)
+    actual = expected.copy()
+    actual[0] = -0.
+    report = parity_differences(actual, expected)
+    assert report["different_bit_patterns"] == 1
+    assert report["maximum_float_absolute_error"] == 0.
+    with pytest.raises(AssertionError):
+        check_parity(actual, actual, expected, expected)
+    actual[1] = np.nextafter(expected[1], np.float32(2.))
+    assert parity_differences(actual, expected)["different_bit_patterns"] == 2
+    assert parity_differences(actual, expected)["maximum_float_absolute_error"] == 2 ** -23
+    assert not parity_differences(actual.astype(np.float64), expected)["shape_and_dtype_match"]
+    actual[1] = np.nan
+    report = parity_differences(actual, expected)
+    assert not report["all_values_finite"] and report["maximum_float_absolute_error"] is None
+    json.dumps(report, allow_nan=False)
+
+
+def test_failed_original16_parity_persists_evidence_and_never_extracts_new_articles(tmp_path, monkeypatch):
+    import evaluate_mind_jev
+    import full_jev_readout
+    import mind_utils
+    import probe_jev_readout
+    import uniform_jev_features
+
+    model_root, output = tmp_path / "model", tmp_path / "output"
+    model_root.mkdir()
+    output.mkdir()
+    (model_root / "model.safetensors").write_bytes(b"fixture weights")
+    expected = np.zeros((16, 2560), dtype=np.float32)
+    actual = expected.copy()
+    actual[0, 0] = 1.
+    margins = np.zeros(16, dtype=np.float32)
+
+    class Scorer:
+        def __init__(self, *args, **kwargs):
+            self.model = torch.nn.Linear(1, 1)
+
+        def _encode(self, state):
+            return [1, 2, 3]
+
+    calls = []
+
+    def extract(scorer, states, *args, **kwargs):
+        assert not any(parameter.requires_grad for parameter in scorer.model.parameters())
+        calls.append(len(states))
+        return actual, margins
+
+    monkeypatch.setattr(full_jev_readout, "DATA_SHA256", {})
+    monkeypatch.setattr(mind_utils, "load_news", lambda *args, **kwargs: {})
+    monkeypatch.setattr(evaluate_mind_jev, "JevScorer", Scorer)
+    monkeypatch.setattr(uniform_jev_features, "load_parity",
+                        lambda *args: ([{}] * 16, expected, margins))
+    monkeypatch.setattr(uniform_jev_features, "training_states",
+                        lambda *args: [{"state": "fixture"}] * 16)
+    monkeypatch.setattr(probe_jev_readout, "extract", extract)
+    with pytest.raises(AssertionError):
+        article_features(tmp_path, str(model_root), tmp_path, tmp_path, "fixture-parity",
+                         output, time.monotonic() + 60)
+    assert calls == [16]
+    report = json.loads((output / "parity.comparison.json").read_bytes())
+    assert report["features"]["different_bit_patterns"] == 1
+    assert report["features"]["maximum_float_absolute_error"] == 1.
+    assert report["margins"]["different_bit_patterns"] == 0
+    assert digest(output / "parity.observed.npz") == report["observed_sha256"]
+    assert digest(output / "parity.runtime.json") == report["runtime_sha256"]
+    assert (output / "model.first-observed-sha256.json").exists()
+    assert len(json.loads((output / "parity.input-tokens.json").read_bytes())) == 16
+    with np.load(output / "parity.observed.npz", allow_pickle=False) as observed:
+        np.testing.assert_array_equal(observed["features"], actual)
+    assert not (output / "article.features.npy").exists()

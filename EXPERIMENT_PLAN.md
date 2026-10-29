@@ -148,6 +148,45 @@ Internal corrected-data validation contains66350 sampled rows across the
 same23988 cohort-disjoint impressions;406276 rows fit the temporary heads.
 These are not the legacy66042/403222 sampled-row counts and are not dev scores.
 
+CPU selection and all-data refit completed2026-10-29 02:29:46UTC,within the
+original two-hour cap. All three candidates genuinely converged:103/109/103
+iterations. The row-weighted binary recipe passed the preregistered gate:
+internal sampled-training validation AUC0.7168085555 versus stronger safe
+control0.7051538661,gain0.0116546894,with no secondary-metric regression.
+These are NOT official-dev benchmark scores. Its final refit converged in89
+iterations using all472626 rows/all156965 impressions,zero final holdout
+exclusions and all5843444 raw training exposures for final population counts.
+Independent verification completed02:32:38UTC:all20 metric cells/all5 arms'
+66350 predictions,raw population,cohort exclusions,fitting normalizations
+and every fitting objective including the final refit were replayed.
+Proof `jev-uniform-01-training-independent-verification.json`;
+training result SHA256
+`04fb19a7a490cf2aa21c4aca1b3fb904f62783a83bea3228728c6b794408bc66`;
+frozen final head SHA256
+`b03bd7b568ae1c59c608d1fca094d6eff17fde76980881526b831eb36427280b`.
+The conditional single-dev controller was submitted separately;
+it never overwrites the completed feature-campaign receipt. The reserved
+official-dev41001-46000 window contains exactly5000 impressions and189068
+candidates,all retained in source order. No official-dev score exists yet;
+the original whole-campaign cutoff2026-10-30 01:17:07.923179UTC is unchanged.
+Actual dev parent `plum_arm_rs8wvtxmmy` was created02:37:38.356349UTC;
+deadline08:37:38.356349UTC including queue/setup. Its server allocation,
+feature-source revision,private parity input and frozen gate/head tags were
+verified. Actual worker `55097d46-41d9-4acc-9797-a5d7be756c6a` was Queued
+at02:37:56UTC; parent Running does not establish GPU execution.
+Existing attached shell `jev-uniform-01-dev` owns monitoring/cancellation,
+full archive download and frozen CPU evaluation. Do not relaunch.
+Submission/final-refit snapshot published2026-10-29 02:40:18UTC. Receipts
+`jev-uniform-01-dev-submission-publication-verification.json` and
+`jev-uniform-01-dev-submission-publication-content-verification.json`
+preserve all20 prior official-dev table cells and other shared assets/auth.
+The generic receipt's parent is historical;the companion binds the actual
+uniform dev parent and frozen final head. No browser-rendering check.
+Independent dev replay implementation `verify_jev_uniform_dev.py` is prepared
+for post-completion use;metric tie/multiple-positive fixtures and both frozen
+populations' feature mathematics on every189068 candidate passed. No dev
+prediction replay or quality result is claimed before actual completion.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

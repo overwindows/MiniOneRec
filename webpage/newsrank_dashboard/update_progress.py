@@ -26,11 +26,19 @@ CAMPAIGNS = [
     {
         "name": "JEV-4B frozen-backbone readout recovery",
         "motivation": "Current goal:competition-test AUC>=0.80,not achieved. "
-                      "JEV-CONTENT-1 adds nonlinear content/history signals to frozen margins/popularity. "
+                      "JEV-UNIFORM-1 corrects negative-sampling support;its independently verified all-data "
+                      "final refit passed the train-only allocation gate. Fresh official-dev evaluation submitted. "
+                      "Historical JEV-CONTENT-1 added nonlinear content/history signals to frozen margins/popularity. "
                       "Historical stages follow. Full-model decision SFT remains below frozen JEV. Test a small residual readout "
                       "without changing pretrained representations; prior ranking drift is observed, "
                       "but its cause is not established.",
-        "settings": "Current content_31:train-only chronological selection,then all156965 train impressions/"
+        "settings": "Current uniform_binary:all472626 corrected rows/all156965 training impressions,"
+                    "zero final holdout exclusions;all5843444 raw exposures in final population. "
+                    "Final headb03bd7b568ae1c59c608d1fca094d6eff17fde76980881526b831eb36427280b;"
+                    "final refit genuinely converged89 iterations,independently replayed. "
+                    "One Standard Ranking A100 dev extraction,worker21600s;parent cutoff2026-10-29 "
+                    "08:37:38UTC including queue/setup,no retries. Feature source15c1c56;CPU evaluator2f8b7da. "
+                    "Historical content_31:train-only chronological selection,then all156965 train impressions/"
                     "469264 sampled rows refitted;four CPU threads,zero final holdout exclusions. "
                     "Frozen model1a26a04bfafc220f99759ed246cf43d8bd26fbf416d3aa1a4bf99fb4e7c187a8. "
                     "One new Standard Ranking A100 evaluation,21600s,no retry;no GPU training. "
@@ -72,8 +80,9 @@ CAMPAIGNS = [
                     "training-result1670421674adeb8fb41f858d065edd5b276b97e3fcddb7fa0bdde23d761e63fe. "
                     "Frozen evaluation source7c6aa8b3948c7e759125570f732e74dabc148e25;"
                     "one Standard Ranking A100/21600s plus immutable CPU correction.",
-        "data": "Current registered independent window:official MIND-small dev36001-41000,"
-                "5000 impressions/all source candidates;not competition-test acceptance. "
+        "data": "Current registered independent window:official MIND-small dev41001-46000,"
+                "5000 impressions/all189068 source candidates;not competition-test acceptance. "
+                "Historical content window:official dev36001-41000,5000 impressions/189786 candidates. "
                 "Historical windows: MIND_small, legacy prompt, hist30, abstracts, prompt budget4095. "
                 "Pilot: dev5001-6000,1000 impressions/36802 candidates. "
                 "Fixed-head confirmation: fresh dev6001-11000,5000 impressions/187881 candidates. "
@@ -83,7 +92,11 @@ CAMPAIGNS = [
                 "Behavioral fresh-dev26001-31000:5000 impressions/188821 candidates. "
                 "Popularity uses all non-holdout official training impressions,not only cached fit rows. "
                 "All windows remain separate from locked first5000; do not pool intervals.",
-        "eval": "Current content_31 fresh official-dev36001-41000 result verified:"
+        "eval": "Current uniform candidate:official-dev score pending. Internal train-only gate passed,"
+                "all20 cells/all5 arms independently replayed;not benchmark evidence. "
+                "Parentplum_arm_rs8wvtxmmy submitted2026-10-29 02:37:38UTC;actual worker Queued at02:37:56UTC. "
+                "No promotion before independent full-candidate dev model/metric/bootstrap replay. "
+                "Historical content_31 fresh official-dev36001-41000 result verified:"
                 "AUC0.66352816 versus retained hybrid0.68333835 on the same5000 impressions/"
                 "189786 candidates. Primary delta-0.01981020,95%CI[-0.02608984,-0.01361295]. "
                 "Do not promote;retain the prior hybrid. Parentgreat_bee_w6zjxd296x and worker"
@@ -225,6 +238,7 @@ CAMPAIGNS = [
                 "All128 spots still required. No training rerun or new dev result. "
                 "Initial wrong-VC queued submission was canceled.",
         "runs": [
+            ("plum_arm_rs8wvtxmmy", "JEV-UNIFORM-1 frozen full-data binary;fresh official-dev41001-46000", ""),
             ("great_bee_w6zjxd296x", "Completed JEV-CONTENT-1 dev36001-41000;CPU candidate rejected", ""),
             ("45627fbc-8d9b-4f90-b63e-68d348443561", "Completed shared frozen-control worker;no GPU fitting", ""),
             ("zen_oven_dxw716bx8c", "Completed shared dev31001-36000 pass;full hybrid0.67203545 verified on CPU", ""),
@@ -400,17 +414,18 @@ CAMPAIGNS = [
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
     "CPU audit:480584 raw-negative exposures had zero sampling support;"
-    "3212 avoidable positive-only groups. JEV-UNIFORM-1 feature cache complete:"
-    "472626 rows/all156965 impressions;all266352 reused and206274 new rows independently "
-    "replayed bit-for-bit from their origins. Four GPU workers Completed. "
-    "Registered two-hour train-only fitting started2026-10-29 00:38UTC;"
-    "no final corrected model or new official-dev score yet. "
+    "3212 avoidable positive-only groups. JEV-UNIFORM-1 internal gate passed;"
+    "all20 train-only metric cells/all5 arms independently replayed. Final refit converged89 iterations,"
+    "all472626 corrected rows/all156965 impressions,zero final holdout exclusions. "
+    "Fresh official MIND-small dev41001-46000 submitted:5000 impressions/all189068 candidates;"
+    "parentplum_arm_rs8wvtxmmy,worker Queued at2026-10-29 02:37:56UTC. "
+    "No new official-dev score or promotion yet. "
     "Compact residual converged but failed its preregistered gain gate. "
     "JEV-CONTENT-1 verified on official MIND-small dev36001-41000:"
     "content_31 AUC0.66352816,retained hybrid0.68333835,frozen0.62876796;"
     "primary delta-0.01981020,95%CI[-0.02608984,-0.01361295]. "
     "Do not promote;retain the prior hybrid. Historical full/content jobs Completed."
-    "All156965 training impressions/469264 sampled rows,zero final holdout exclusions."
+    "Historical legacy fits used all156965 training impressions/469264 sampled rows,zero final holdout exclusions."
     "Partial official dev,one seed;not MIND-large/test or SOTA. "
     "Do not compare0.68333835 with earlier-window0.67598829 as a model improvement."
 )

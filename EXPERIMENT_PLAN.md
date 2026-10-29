@@ -281,6 +281,90 @@ This input-integrity milestone is not an AUC result,a model improvement,a
 competition submission,or proof of the0.80 goal. A new model hypothesis,
 train-only gate and genuinely held-out official-dev readout remain necessary.
 
+Full contract and entire source-origin replay COMPLETED2026-10-29 08:42:49UTC
+from source`6869eb71fa2465694197c0bbfb1bc026e68785a6`,within the registered
+30-minute ceiling. Every2232748 impressions/83507374 candidates/3383656
+positives/80123718 negatives replayed. Manifest SHA256
+`4daa3377b4601aca4ae5b72e45ed2931becb8dd648dd23998f17fb3e1342a5f4`;
+verification SHA256
+`de60c130dcd7ea853ce8d2b7fbe81b02b83d6b604fbbba99b96bbfa1ec841b25`.
+Temporary last training day2019-11-14 contains431517 impressions/17400106
+exposures;earlier fitting days contain1801231 impressions/66107268 exposures.
+Largest impression has300 candidates. No training/GPU/dev/test use occurred.
+Producer source file bytes are Windows CRLF;that exact producer fingerprint
+must not be confused with the Linux LF Git blob. Consume the pinned verified
+artifact/file hashes across platforms,not an assumption of identical newline bytes.
+
+### JEV-LARGE-SEMANTIC-1: frozen news representations and all-impression learning
+
+Registered before new feature extraction or scientific fitting. New hypothesis:
+encode each training ARTICLE once with the unchanged frozen JEV backbone,then
+learn user/history-to-candidate interactions over EVERY full training impression.
+This tests both scalable personalization and full exposure/positive use instead
+of repeating a long frozen cross-encoder for every sampled candidate.
+
+- One distinct Standard Ranking A100 worker21600s;parent/controller deadline
+  six hours from actual parent creation,INCLUDING queue/setup. No parallel GPU,
+  retry,resubmission,or restart of any closed campaign. The unchanged aggregate
+  cutoff2026-10-30 01:17:07.923179UTC remains binding. Article extraction
+  additionally has at most two hours,inside that same six-hour allocation.
+  After the GPU parent/worker are both completed,read-only artifact retrieval
+  has at most one CPU-only hour within the SAME original aggregate cutoff;
+  that does not extend or reopen the GPU allocation.
+- Verify the COMPLETE input contract/proof/file hashes. Before new extraction,
+  reproduce the original contiguous16-row frozen features/margins by float32
+  bit patterns;never relax parity. Fingerprint complete local frozen model
+  weights/tokenizer/config before and after extraction. Those are first-observed
+  model-byte fingerprints,not new external canonical-provenance verification.
+- Article states use empty history and category/title/abstract under the existing
+  legacy decision contract. Only the article text prefix may be shortened to
+  fit a COMPLETE512-token prompt;the task/criteria/answer boundary remain intact.
+  Store all101527 article identities and2560-dimensional float32 features;
+  padding index0 is exactly zero. Backbone weights never receive gradients.
+- Only two fixed recipes,in listed tie-breaking order: shared128-dimensional
+  GELU/LayerNorm news projection with masked mean history,or candidate-conditioned
+  history attention with learned30-position recency bias. Article feature vectors
+  are L2-normalized. Both use a learned article bias,unit-normalized projected
+  candidate/user cosine scaled10;attention uses cosine scaled4. Empty histories
+  have explicitly zero user contribution,not unmasked padding or NaN.
+- Objective: full-impression softmax over EVERY candidate,normalized over ALL
+  positives in that impression,then equal impression mean. No negative sampling,
+  positive subsampling,oversized-impression dropping,or incomplete final batch.
+  Maximum8192 candidate exposures/256 impressions per batch. For each recipe:
+  three fixed complete epochs,seed42(initialization),42/43/44(epoch shuffles),
+  AdamW learning-rate0.001,weight-decay0.0001,gradient norm cap1. No early stopping
+  or convergence claim. Record full impression/exposure/positive coverage each epoch.
+- Temporary fitting uses ALL1801231 pre-last-day training impressions;selection
+  evaluates ALL431517 last-day TRAINING impressions/17400106 candidates. Controls:
+  earlier-day-only smoothed CTR(prior20 exposures),frozen article-only JEV margin,
+  and untrained masked mean article-semantic cosine. Target-dependent control
+  statistics completely exclude the last day;the learned models do not use
+  those popularity statistics as training-row features.
+- Choose highest last-training-day AUC among the two fixed endpoints,listed order
+  breaking ties. Allocation gate requires AUC gain>=0.005 over the highest-AUC
+  safe control AND no MRR/nDCG5/nDCG10 regression against that same control.
+  These are TRAINING-only allocation statistics,never official-dev/test claims.
+- Only if that gate opens,reinitialize the selected recipe and train the SAME
+  three complete epochs on ALL2232748 training impressions/83507374 exposures/
+  3383656 positives/80123718 negatives,zero final holdout exclusions. Save a
+  frozen final head and full feature/prediction/coverage evidence. Complete
+  independent output/metric/source verification is required before any dev gate.
+- No official dev/test contents enter this worker. A future full official
+  MIND-large-dev evaluation must be registered only after verified frozen
+  selection/refit;it must disclose overlap with previously inspected MIND-small
+  dev rather than falsely call the whole benchmark untouched. No retuning on
+  dev scores;competition-test AUC>=0.80 remains the ultimate unmet criterion.
+- The dedicated component uses a private pinned environment and no multi-node
+  setup/third-party telemetry login. Dependencies match the frozen runtime's
+  Torch2.6.0/Transformers5.2.0/fla0.4.2 stack;exact original16-row parity is still
+  mandatory rather than inferred from package versions.
+
+Public benchmark context checked2026-10-29UTC: the official MIND leaderboard
+currently lists0.7326 as its highest AUC(zetik,2026-06-23),and0.7144 for
+overwindows(2026-04-21). Our0.80 criterion is an explicit stretch target,not
+the current listed official score. Primary source:`https://msnews.github.io/`.
+That listing does NOT reproduce our historical checkpoint/submission artifacts.
+
 ## JEV-CONTENT-1: autonomous continuation toward AUC 0.80
 
 Registered 2026-10-28 UTC, before fitting or inspecting new dev labels.

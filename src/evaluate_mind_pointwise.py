@@ -169,6 +169,7 @@ def batch_score_candidates_pointwise(
     use_recency: bool = False,
     use_profile_summary: bool = False,
     impression_timestamp: str = None,
+    history_format: str = "flat",
     prefix_cache: bool = False,
     pack_tokens: int = 8192,
     legacy_bf16_scores: bool = False,
@@ -194,7 +195,7 @@ def batch_score_candidates_pointwise(
             build_pointwise_prompt(
                 history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template,
                 use_recency=use_recency, use_profile_summary=use_profile_summary,
-                impression_timestamp=impression_timestamp,
+                impression_timestamp=impression_timestamp, history_format=history_format,
             )
             for cand in candidates
         ]
@@ -250,8 +251,10 @@ def main():
     parser.add_argument("--use_abstract", action="store_true")
     parser.add_argument("--use_subcategory", action="store_true", help="Use [category/subcategory] format in prompts")
     parser.add_argument("--max_history", type=int, default=0, help="Max history items (0=unlimited)")
-    parser.add_argument("--history_selection", choices=["recent", "relevant"], default="recent",
-                        help="recent = last N items; relevant = dynamic category-matched selection, quota N (must match training)")
+    parser.add_argument("--history_selection", choices=["recent", "relevant", "dedup_backfill", "dedup_only", "catcap"], default="recent",
+                        help="recent = last N; relevant = category-matched; dedup_backfill/dedup_only = drop repeated IDs; catcap = per-category cap (must match training)")
+    parser.add_argument("--history_format", choices=["flat", "grouped_profile", "two_block", "title_only"], default="flat",
+                        help="History rendering format (must match training)")
     parser.add_argument("--max_impressions", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for scoring candidates")
     parser.add_argument("--no_prefix_cache", action="store_true",
@@ -405,8 +408,16 @@ def main():
 
     # Prefix caching assumes plain full-attention KV layers. Hybrid backbones
     # (Qwen3.5 GatedDeltaNet) and sliding-window layers keep other state.
+    # It also requires SDPA: the packed path feeds a custom 4-D bool block
+    # mask, which flash_attention_2 (and eager's additive-float mask path)
+    # does not honor — packed candidates would attend to each other.
     _layer_types = set(getattr(model.config.get_text_config(), "layer_types", None) or ["full_attention"])
-    prefix_cache = not args.no_prefix_cache and not _is_qwen35 and _layer_types == {"full_attention"}
+    _attn_impl = str(getattr(model.config, "_attn_implementation", "sdpa"))
+    prefix_cache = (not args.no_prefix_cache and not _is_qwen35
+                    and _layer_types == {"full_attention"} and _attn_impl == "sdpa")
+    if not prefix_cache and not args.no_prefix_cache and _attn_impl != "sdpa":
+        print(f"Prefix KV cache disabled: attn_implementation={_attn_impl} does not honor "
+              "the packed block mask (set FLASH_ATTN=0 to enable the fast path)")
     print(f"Prefix KV cache: {prefix_cache}"
           + (f" (pack {args.pack_tokens} tokens)" if prefix_cache else ""))
 
@@ -466,7 +477,16 @@ def main():
             impression_id, _, impression_ts, history_ids, imp_list = parsed
 
             if args.max_history > 0:
-                if args.history_selection == "relevant":
+                if args.history_selection == "dedup_backfill":
+                    from mind_utils import dedup_history_ids
+                    history_ids = dedup_history_ids(history_ids, max_history=args.max_history, backfill=True)
+                elif args.history_selection == "dedup_only":
+                    from mind_utils import dedup_history_ids
+                    history_ids = dedup_history_ids(history_ids, max_history=args.max_history, backfill=False)
+                elif args.history_selection == "catcap":
+                    from mind_utils import catcap_history_ids
+                    history_ids = catcap_history_ids(history_ids, news, max_history=args.max_history, per_cat_cap=10)
+                elif args.history_selection == "relevant":
                     # Dynamic selection mirroring data.py: keep the max_history
                     # items whose category matches the impression's candidates
                     # (recency as tiebreak), re-rendered chronologically.
@@ -519,6 +539,7 @@ def main():
                 use_recency=args.use_recency,
                 use_profile_summary=args.use_profile_summary,
                 impression_timestamp=impression_ts if args.use_impression_timestamp else None,
+                history_format=args.history_format,
                 prefix_cache=prefix_cache,
                 pack_tokens=args.pack_tokens,
                 legacy_bf16_scores=args.legacy_bf16_scores,

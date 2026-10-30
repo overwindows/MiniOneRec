@@ -25,15 +25,35 @@ CKPT=$2
 USE_REC=${3:-0}
 USE_ENT=${4:-0}
 USE_TS=${5:-0}
+# Remaining prompt flags are env-overridable and MUST match the checkpoint's
+# training config (defaults = the baseline training config):
+USE_SUBCAT=${USE_SUBCATEGORY:-0}
+USE_PROF=${USE_PROFILE_SUMMARY:-0}
+HIST_SEL=${HISTORY_SELECTION:-recent}
+HIST_FMT=${HISTORY_FORMAT:-flat}
+HIST_MAX=${MAX_HISTORY:-30}
 
 mkdir -p results/scores
+SCORES=results/scores/${RUN_TAG}_dev_scores.txt
 
-echo "=== [${RUN_TAG}] SCORE DUMP (ckpt=${CKPT}, recency=${USE_REC}, entity=${USE_ENT}, ts=${USE_TS}) ==="
+echo "=== [${RUN_TAG}] SCORE DUMP (ckpt=${CKPT}, recency=${USE_REC}, entity=${USE_ENT}, ts=${USE_TS}, subcat=${USE_SUBCAT}, profile=${USE_PROF}, selection=${HIST_SEL}, format=${HIST_FMT}, max_history=${HIST_MAX}) ==="
 MIND_ROOT=/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_small \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 MAX_HISTORY=30 \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 MAX_HISTORY=${HIST_MAX} \
 USE_RECENCY=${USE_REC} USE_ENTITY=${USE_ENT} USE_IMPRESSION_TIMESTAMP=${USE_TS} \
-OUTPUT_SCORES_FILE=results/scores/${RUN_TAG}_dev_scores.txt \
+USE_SUBCATEGORY=${USE_SUBCAT} USE_PROFILE_SUMMARY=${USE_PROF} \
+HISTORY_SELECTION=${HIST_SEL} HISTORY_FORMAT=${HIST_FMT} \
+OUTPUT_SCORES_FILE=${SCORES} \
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 bash scripts/eval_mind_pointwise.sh ${CKPT} dev 2>&1 | tee logs/eval_scores_${RUN_TAG}.log
 
-echo "=== [${RUN_TAG}] SCORES DONE: results/scores/${RUN_TAG}_dev_scores.txt ==="
+# `set -e` alone cannot catch a failed eval behind `| tee`, so verify output.
+EXPECTED=$(wc -l < data/MIND_small/dev/behaviors.tsv)
+GOT=$(wc -l < "${SCORES}" 2>/dev/null || echo 0)
+if [[ ${GOT} -eq 0 ]]; then
+  echo "=== [${RUN_TAG}] SCORES FAILED: no scores written — see logs/eval_scores_${RUN_TAG}.log ==="
+  exit 1
+fi
+if [[ ${GOT} -lt ${EXPECTED} ]]; then
+  echo "WARNING: [${RUN_TAG}] scores cover ${GOT}/${EXPECTED} impressions (partial — did a GPU shard fail?)"
+fi
+echo "=== [${RUN_TAG}] SCORES DONE: ${SCORES} (${GOT}/${EXPECTED} impressions) ==="

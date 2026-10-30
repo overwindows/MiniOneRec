@@ -139,12 +139,15 @@ def train(
     use_profile_summary: bool = False,  # Prepend top-3 category interest summary
     use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
     use_entity: bool = False,  # Append Wikidata entity labels ("Topics: ...") to article text
-    history_selection: str = "recent",  # "recent" (last N) | "relevant" (dynamic category-matched, quota N)
+    history_selection: str = "recent",  # "recent" | "relevant" | "dedup_backfill" | "dedup_only" | "catcap"
+    history_format: str = "flat",  # "flat" | "grouped_profile" | "two_block" | "title_only"
     use_lora: bool = False,  # LoRA fine-tuning (for backbones too large for full FT)
     lora_r: int = 16,
     lora_alpha: int = 32,
     lora_dropout: float = 0.05,
-    lora_target_modules: str = "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj",
+    lora_target_modules: str = "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj",  # comma-separated; fire may pass a tuple
+    optimizer: str = "adamw",  # "adamw" | "muon" (Muon on hidden 2D matrices, AdamW on the rest)
+    muon_lr: float = 0.02,    # Muon lr is in spectral-norm units, NOT comparable to AdamW lr
 ):
     """Train with point-wise SFT format (Yes/No classification) using DeepSpeed"""
 
@@ -229,7 +232,9 @@ def train(
             lora_dropout=lora_dropout,
             bias="none",
             task_type="CAUSAL_LM",
-            target_modules=[m.strip() for m in lora_target_modules.split(",") if m.strip()],
+            target_modules=[m.strip() for m in
+                            (lora_target_modules.split(",") if isinstance(lora_target_modules, str)
+                             else lora_target_modules) if m.strip()],
         )
         model = get_peft_model(model, lora_config)
         # Gradient checkpointing + frozen base: inputs to checkpointed blocks
@@ -256,6 +261,7 @@ def train(
         use_impression_timestamp=use_impression_timestamp,
         use_entity=use_entity,
         history_selection=history_selection,
+        history_format=history_format,
     )
 
     val_data = MINDPointwiseSFTDataset(
@@ -276,6 +282,7 @@ def train(
         use_impression_timestamp=use_impression_timestamp,
         use_entity=use_entity,
         history_selection=history_selection,
+        history_format=history_format,
     )
 
     print(f"\nTraining with Point-wise SFT:")
@@ -333,6 +340,46 @@ def train(
 
     training_args = transformers.TrainingArguments(**training_args_dict)
 
+    # Muon optimizer (opt-in): orthogonalized momentum updates on hidden 2D
+    # weight matrices, AdamW on embeddings / lm_head / scalars (Muon's own
+    # guidance — it is not designed for those). SingleDeviceMuonWithAuxAdam
+    # keeps one optimizer object so the HF Trainer scheduler and DeepSpeed
+    # integration work unchanged. Note Muon lr is in spectral-norm units;
+    # 0.02-0.05 is the usual range regardless of model size.
+    optimizer_obj = None
+    if optimizer == "muon":
+        if training_args_dict.get("deepspeed"):
+            raise ValueError(
+                "optimizer=muon is incompatible with DeepSpeed ZeRO: ZeRO hands the "
+                "optimizer flat 1-D fp32 partitions, so Muon's Newton-Schulz step never "
+                "sees the 2-D weight matrices (zeropower_via_newtonschulz5 asserts on the "
+                "first step). Launch with torchrun and no --deepspeed_config to use Muon."
+            )
+        from muon import SingleDeviceMuonWithAuxAdam
+        # NOTE: membership must be id-based — `p not in list` invokes tensor
+        # __eq__ (elementwise), which crashes on shape mismatch.
+        _hidden_ids = {
+            id(p) for n, p in model.named_parameters()
+            if p.ndim >= 2 and p.requires_grad
+            and "embed" not in n and "lm_head" not in n
+        }
+        hidden_matrix_params = [
+            p for _, p in model.named_parameters() if id(p) in _hidden_ids
+        ]
+        other_params = [
+            p for _, p in model.named_parameters()
+            if p.requires_grad and id(p) not in _hidden_ids
+        ]
+        param_groups = [
+            dict(params=other_params, lr=learning_rate, betas=(0.9, 0.95),
+                 eps=1e-10, weight_decay=0.0, use_muon=False),
+            dict(params=hidden_matrix_params, lr=muon_lr, momentum=0.95,
+                 weight_decay=0.0, use_muon=True),
+        ]
+        optimizer_obj = SingleDeviceMuonWithAuxAdam(param_groups)
+        print(f"Muon optimizer: {len(hidden_matrix_params)} hidden matrix params, "
+              f"{len(other_params)} aux params (AdamW lr={learning_rate}, Muon lr={muon_lr})")
+
     # Initialize trainer
     # Early stopping is gated on completing at least one full epoch: eval-loss
     # often dips and recovers within epoch 1 (LR warmup + data-order effects),
@@ -354,6 +401,7 @@ def train(
         train_dataset=train_data,
         eval_dataset=val_data if val_data else None,
         args=training_args,
+        **({"optimizers": (optimizer_obj, None)} if optimizer_obj is not None else {}),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),

@@ -6,6 +6,11 @@ from typing import List, Tuple
 from collections import Counter
 import json
 import random
+import sys
+import os as _os
+# data.py sits at the repo root; its prompt helpers live in src/mind_utils.py.
+sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "src"))
+from mind_utils import _render_history, dedup_history_ids, catcap_history_ids
 from tqdm import tqdm
 import os
 import copy
@@ -190,13 +195,16 @@ class MINDPointwiseSFTDataset:
         use_profile_summary: bool = False,  # Prepend top-3 category interest summary
         use_impression_timestamp: bool = False,  # Add day/time-of-day context from impression timestamp
         use_entity: bool = False,  # Append Wikidata entity labels ("Topics: ...") to article text
-        history_selection: str = "recent",  # "recent" (last N) | "relevant" (category-matched to the impression's candidates, quota N)
+        history_selection: str = "recent",  # "recent" (last N) | "relevant" (category-matched) | "dedup_backfill" | "dedup_only" | "catcap"
+        history_format: str = "flat",  # "flat" | "grouped_profile" | "two_block" | "title_only" (prompt rendering)
         return_meta: bool = False,  # Also return impression_id/label/answer_len (for pairwise loss)
     ):
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.max_history = max_history if max_history > 0 else None
         self.history_selection = history_selection
+        self.history_format = history_format
+        self._overlength_shrunk = 0  # times encode_example dropped history to fit max_len
         self.neg_ratio = neg_ratio
         self.hard_neg_ratio = hard_neg_ratio
         self.use_abstract = use_abstract
@@ -270,6 +278,7 @@ class MINDPointwiseSFTDataset:
 
                 news[news_id] = {
                     'text': text,
+                    'title': title,
                     'category': category,
                     'subcategory': parts[2] if len(parts) > 2 else "",
                 }
@@ -293,7 +302,22 @@ class MINDPointwiseSFTDataset:
 
                 # Limit history
                 if self.max_history is not None:
-                    if self.history_selection == "relevant":
+                    if self.history_selection == "dedup_backfill":
+                        # Drop repeated IDs, then take the last max_history
+                        # uniques (backfills older unique items).
+                        history_ids = dedup_history_ids(
+                            history_ids, max_history=self.max_history, backfill=True)
+                    elif self.history_selection == "dedup_only":
+                        # Drop repeated IDs within the last-N window; shrinks.
+                        history_ids = dedup_history_ids(
+                            history_ids, max_history=self.max_history, backfill=False)
+                    elif self.history_selection == "catcap":
+                        # Cap per-category items (max 10), backfill freed slots
+                        # with next-most-recent other-category items.
+                        history_ids = catcap_history_ids(
+                            history_ids, self.news, max_history=self.max_history,
+                            per_cat_cap=10)
+                    elif self.history_selection == "relevant":
                         # Dynamic selection: keep the max_history items most
                         # relevant to this impression — category match with the
                         # impression's candidates first, recency as tiebreak.
@@ -435,14 +459,8 @@ class MINDPointwiseSFTDataset:
         prompt += "A user read these news articles:\n"
 
         # User history (already truncated by max_history in data loader)
-        if history:
-            recency_cutoff = max(0, len(history) - 5) if self.use_recency else len(history)
-            for i, h in enumerate(history, 1):
-                cat = h.get('category', 'General')
-                tag = " (recent)" if self.use_recency and (i - 1) >= recency_cutoff else ""
-                prompt += f"{i}. [{cat}] {h['text']}{tag}\n"
-        else:
-            prompt += "(No reading history)\n"
+        prompt += _render_history(history, history_format=self.history_format,
+                                  use_recency=self.use_recency)
 
         prompt += "\n"
 
@@ -509,74 +527,81 @@ class MINDPointwiseSFTDataset:
     def __len__(self):
         return len(self.samples)
 
+    def encode_example(self, history, candidate, label, impression_timestamp=""):
+        """Render + tokenize one (history, candidate, label) example.
+
+        Single source of truth for the SFT example format (MINDPairwisePrefDataset
+        delegates here). If the rendered prompt would exceed max_len, the OLDEST
+        history items are dropped and the prompt re-rendered: right-truncating
+        the token sequence would cut off the candidate block and the
+        "Will this user read this article? Answer:" question, producing
+        label-noise samples on a prompt shape eval never sees (eval does not
+        truncate). Returns (input_ids, labels, answer_len).
+        """
+        target = " Yes" if label == 1 else " No"
+        target_ids = self.tokenizer.encode(target, add_special_tokens=False)
+        max_prompt = self.max_len - len(target_ids)
+
+        history = list(history)
+        while True:
+            if self.use_subcategory:
+                prompt, _ = self._build_pointwise_prompt_subcategory(
+                    history, candidate, label)
+            else:
+                prompt, _ = self._build_pointwise_prompt(
+                    history, candidate, label,
+                    impression_timestamp=impression_timestamp)
+
+            if self.use_chat_template:
+                # Must match src/mind_utils.py build_pointwise_prompt{,_subcategory}
+                # token for token, or eval runs off-distribution.
+                article_desc = ("its category, subcategory and title"
+                                if self.use_subcategory else "its category and title")
+                system_prompt = (
+                    "You are a news recommendation assistant. "
+                    "Based on a user's reading history, predict whether they will read a given article. "
+                    f"Each article includes {article_desc}. "
+                    "Answer with Yes or No."
+                )
+                if getattr(self, "_system_role_supported", True):
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ]
+                else:
+                    # Template doesn't accept a system role; prepend the system
+                    # instruction to the user turn so the user still sees it.
+                    messages = [
+                        {"role": "user", "content": f"{system_prompt}\n\n{prompt}"}
+                    ]
+                formatted_prompt = self.tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True)
+                prompt_ids = self.tokenizer.encode(
+                    formatted_prompt, add_special_tokens=False)
+            else:
+                prompt_ids = self.tokenizer.encode(prompt, add_special_tokens=True)
+
+            if len(prompt_ids) <= max_prompt or not history:
+                break
+            # Too long: drop the oldest ~1/8 of the history and re-render.
+            history = history[max(1, len(history) // 8):]
+            self._overlength_shrunk += 1
+
+        if len(prompt_ids) > max_prompt:
+            # Even with no history the prompt overflows (giant abstract):
+            # keep the TAIL so candidate + question + answer survive.
+            prompt_ids = prompt_ids[-max_prompt:]
+
+        input_ids = prompt_ids + target_ids
+        labels = [-100] * len(prompt_ids) + target_ids
+        return input_ids, labels, len(target_ids)
+
     def __getitem__(self, idx):
         sample = self.samples[idx]
-
-        # Build prompt
-        if self.use_subcategory:
-            prompt, target = self._build_pointwise_prompt_subcategory(
-                sample['history'], sample['candidate'], sample['label']
-            )
-        else:
-            prompt, target = self._build_pointwise_prompt(
-                sample['history'], sample['candidate'], sample['label'],
-                impression_timestamp=sample.get('impression_timestamp', ''),
-            )
-
-        if self.use_chat_template:
-            # Use chat template for instruct models with system prompt
-            system_prompt = (
-                "You are a news recommendation assistant. "
-                "Based on a user's reading history, predict whether they will read a given article. "
-                "Each article includes its category and title. "
-                "Answer with Yes or No."
-            )
-            if getattr(self, "_system_role_supported", True):
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ]
-            else:
-                # Template doesn't accept a system role; prepend the system
-                # instruction to the user turn so the user still sees it.
-                messages = [
-                    {"role": "user", "content": f"{system_prompt}\n\n{prompt}"}
-                ]
-
-            # Apply chat template to get the formatted prompt with generation prompt
-            formatted_prompt = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            )
-
-            # Encode target separately (1-2 tokens: " Yes" or " No")
-            target_ids = self.tokenizer.encode(target, add_special_tokens=False)
-
-            # Truncate prompt to leave room for target, guaranteeing answer is never cut off
-            prompt_ids = self.tokenizer.encode(
-                formatted_prompt,
-                max_length=self.max_len - len(target_ids),
-                truncation=True,
-                add_special_tokens=False
-            )
-
-        else:
-            # Raw text format
-            # Encode target separately (1-2 tokens: " Yes" or " No")
-            target_ids = self.tokenizer.encode(target, add_special_tokens=False)
-
-            # Truncate prompt to leave room for target, guaranteeing answer is never cut off
-            prompt_ids = self.tokenizer.encode(
-                prompt,
-                max_length=self.max_len - len(target_ids),
-                truncation=True,
-                add_special_tokens=True
-            )
-
-        # Combine: prompt (truncated) + target (always present)
-        input_ids = (prompt_ids + target_ids)[:self.max_len]
-        train_labels = ([-100] * len(prompt_ids) + target_ids)[:self.max_len]
+        input_ids, train_labels, answer_len = self.encode_example(
+            sample['history'], sample['candidate'], sample['label'],
+            impression_timestamp=sample.get('impression_timestamp', ''),
+        )
 
         out = {
             'input_ids': torch.tensor(input_ids, dtype=torch.long),
@@ -590,10 +615,9 @@ class MINDPointwiseSFTDataset:
             #   label          -> 1 (positive) / 0 (negative)
             #   answer_len     -> number of answer tokens (" Yes"/" No"), the
             #                     only non -100 positions in labels
-            sample = self.samples[idx]
             out['impression_id'] = sample['impression_id']
             out['label'] = sample['label']
-            out['answer_len'] = len(target_ids)
+            out['answer_len'] = answer_len
         return out
 
 

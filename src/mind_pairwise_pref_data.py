@@ -59,6 +59,7 @@ class MINDPairwisePrefDataset(Dataset):
         use_impression_timestamp: bool = False,
         use_entity: bool = False,
         history_selection: str = "recent",
+        history_format: str = "flat",
         pairs_per_positive: int = 1,
     ):
         self.tokenizer = tokenizer
@@ -83,6 +84,7 @@ class MINDPairwisePrefDataset(Dataset):
             use_impression_timestamp=use_impression_timestamp,
             use_entity=use_entity,
             history_selection=history_selection,
+            history_format=history_format,
         )
         self.base = base
         self.samples = self._group_pairs(base, pairs_per_positive)
@@ -125,52 +127,13 @@ class MINDPairwisePrefDataset(Dataset):
         return pairs
 
     def _encode(self, sample, candidate, label):
-        """Render one candidate in the pointwise Yes/No format and tokenize with
-        the answer token, exactly matching MINDPointwiseSFTDataset.__getitem__."""
-        if self.base.use_subcategory:
-            prompt, target = self.base._build_pointwise_prompt_subcategory(
-                sample['history'], candidate, label
-            )
-        else:
-            prompt, target = self.base._build_pointwise_prompt(
-                sample['history'], candidate, label,
-                impression_timestamp=sample.get('impression_timestamp', ''),
-            )
-
-        if self.base.use_chat_template:
-            system_prompt = (
-                "You are a news recommendation assistant. "
-                "Based on a user's reading history, predict whether they will read a given article. "
-                "Each article includes its category and title. "
-                "Answer with Yes or No."
-            )
-            if getattr(self.base, "_system_role_supported", True):
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ]
-            else:
-                messages = [
-                    {"role": "user", "content": f"{system_prompt}\n\n{prompt}"}
-                ]
-            formatted_prompt = self.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            prompt_ids = self.tokenizer.encode(
-                formatted_prompt, add_special_tokens=False
-            )
-        else:
-            target = " Yes" if label == 1 else " No"
-            prompt_ids = self.tokenizer.encode(
-                prompt, add_special_tokens=True
-            )
-
-        target_ids = self.tokenizer.encode(target, add_special_tokens=False)
-        # Truncate prompt to leave room for the answer, matching SFT training.
-        max_prompt = self.max_len - len(target_ids)
-        prompt_ids = prompt_ids[:max_prompt]
-        input_ids = (prompt_ids + target_ids)[:self.max_len]
-        labels = ([-100] * len(prompt_ids) + target_ids)[:self.max_len]
+        """Render one candidate in the pointwise Yes/No format, delegating to
+        MINDPointwiseSFTDataset.encode_example so the format (system prompt,
+        history rendering, over-length handling) cannot drift from SFT."""
+        input_ids, labels, _ = self.base.encode_example(
+            sample['history'], candidate, label,
+            impression_timestamp=sample.get('impression_timestamp', ''),
+        )
         return input_ids, labels
 
     def __getitem__(self, idx):

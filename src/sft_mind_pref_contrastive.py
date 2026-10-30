@@ -199,6 +199,7 @@ def train(
     use_impression_timestamp: bool = False,
     use_entity: bool = False,
     history_selection: str = "recent",  # must match the SFT checkpoint's training
+    history_format: str = "flat",       # must match the SFT checkpoint's training
     pairs_per_positive: int = 1,
     warmup_steps: int = 50,
     deepspeed_config: str = "",
@@ -277,6 +278,7 @@ def train(
         use_impression_timestamp=use_impression_timestamp,
         use_entity=use_entity,
         history_selection=history_selection,
+        history_format=history_format,
         pairs_per_positive=pairs_per_positive,
     )
 

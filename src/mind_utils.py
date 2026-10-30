@@ -23,17 +23,27 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 
 
-def _parse_timestamp(ts: Optional[str]):
-    """Parse MIND timestamp string into (day_of_week, time_period) or (None, None)."""
+def _parse_timestamp_dt(ts: Optional[str]):
+    """Parse a MIND timestamp ('11/15/2019 1:00:00 PM') to a datetime, or None."""
     if not ts:
-        return None, None
+        return None
     try:
         from datetime import datetime
-        dt = datetime.strptime(ts.strip(), "%m/%d/%Y %I:%M:%S %p")
+        return datetime.strptime(ts.strip(), "%m/%d/%Y %I:%M:%S %p")
+    except Exception:
+        return None
+
+
+def _parse_timestamp(ts: Optional[str]):
+    """Parse MIND timestamp string into (day_of_week, time_period) or (None, None)."""
+    dt = _parse_timestamp_dt(ts)
+    if dt is None:
+        return None, None
+    try:
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         day = days[dt.weekday()]
         h = dt.hour
-        if 6 <= h < 12:
+        if 6 <= h < 12:  # noqa: PLR2004
             period = "morning"
         elif 12 <= h < 18:
             period = "afternoon"
@@ -131,6 +141,114 @@ def _chat_template_supports_system(tokenizer) -> bool:
     return _system_role_supported_cache[key]
 
 
+def _render_history(history: List[Dict[str, str]], history_format: str = "flat",
+                    use_recency: bool = False) -> str:
+    """Render the user's history list into prompt text.
+
+    Formats (wave-11 history-representation study):
+      flat            - numbered list, one item per line (baseline)
+      grouped_profile - items grouped by category with counts, most recent
+                        first within each group ("Sports (12): ...")
+      two_block       - "Recently read:" (last 10, recency-tagged) then
+                        "Longer-term interests:" (the rest)
+      title_only      - bare titles, no [category] tag, no abstract text
+    """
+    if not history:
+        return "(No reading history)\n"
+
+    if history_format == "grouped_profile":
+        # Group by category preserving first-seen order; within a group keep
+        # chronological order (most recent last, same as the flat list).
+        groups: Dict[str, List[Dict[str, str]]] = {}
+        for h in history:
+            groups.setdefault(h.get("category", "General"), []).append(h)
+        # Order groups by size descending (dominant interest first)
+        ordered = sorted(groups.items(), key=lambda kv: -len(kv[1]))
+        lines = []
+        for cat, items in ordered:
+            lines.append(f"{cat} ({len(items)}):")
+            for h in items:
+                lines.append(f"  - {h['text']}")
+        return "\n".join(lines) + "\n"
+
+    if history_format == "two_block":
+        recent = history[-10:]
+        older = history[:-10]
+        lines = ["Recently read:"]
+        for h in recent:
+            lines.append(f"  - {h['text']} (recent)")
+        if older:
+            lines.append("Longer-term interests:")
+            for h in older:
+                lines.append(f"  - {h['text']}")
+        return "\n".join(lines) + "\n"
+
+    if history_format == "title_only":
+        lines = [f"{i}. {h['title']}" for i, h in enumerate(history, 1)]
+        return "\n".join(lines) + "\n"
+
+    # flat (baseline)
+    recency_cutoff = max(0, len(history) - 5) if use_recency else len(history)
+    lines = []
+    for i, h in enumerate(history, 1):
+        cat = h.get("category", "General")
+        tag = " (recent)" if use_recency and (i - 1) >= recency_cutoff else ""
+        lines.append(f"{i}. [{cat}] {h['text']}{tag}")
+    return "\n".join(lines) + "\n"
+
+
+def dedup_history_ids(history_ids: List[str], max_history: int = 0,
+                      backfill: bool = True) -> List[str]:
+    """Drop repeated news IDs from a history id list (chronological order and
+    first occurrence kept).
+
+    backfill=True (max_history>0): dedup the WHOLE list, then take the last
+      max_history uniques — older unique items backfill the window (recovers
+      ~21k items on MIND_small train).
+    backfill=False: slice the last-max_history window FIRST, then dedup within
+      it — the window shrinks, nothing older is pulled in. (Deduping the whole
+      list before slicing would be identical to backfill=True.)
+    """
+    src = history_ids if (backfill or max_history <= 0) else history_ids[-max_history:]
+    seen = set()
+    out = []
+    for nid in src:
+        if nid not in seen:
+            seen.add(nid)
+            out.append(nid)
+    if backfill and max_history > 0:
+        return out[-max_history:]
+    return out
+
+
+def catcap_history_ids(history_ids: List[str], news: Dict[str, Dict],
+                       max_history: int = 0, per_cat_cap: int = 10) -> List[str]:
+    """Cap per-category items in the recent window, filling freed slots with
+    the next most-recent items from other categories (no candidate info used).
+    Selected items are re-rendered in chronological order.
+    """
+    window = history_ids[-max_history:] if max_history > 0 else list(history_ids)
+    counts: Counter = Counter()
+    kept = []
+    for nid in window:
+        cat = news.get(nid, {}).get("category", "")
+        if counts[cat] < per_cat_cap:
+            counts[cat] += 1
+            kept.append(nid)
+    if max_history > 0 and len(kept) < max_history and len(history_ids) > len(window):
+        # backfill from older items under the same cap
+        older = [nid for nid in history_ids[:-max_history] if nid not in set(window)]
+        for nid in reversed(older):
+            if len(kept) >= max_history:
+                break
+            cat = news.get(nid, {}).get("category", "")
+            if counts[cat] < per_cat_cap:
+                counts[cat] += 1
+                kept.append(nid)
+        kept.sort(key=lambda n: history_ids.index(n))
+    return kept
+
+
 def build_pointwise_prompt(
     history: List[Dict[str, str]],
     candidate: Dict[str, str],
@@ -139,6 +257,7 @@ def build_pointwise_prompt(
     use_recency: bool = False,
     use_profile_summary: bool = False,
     impression_timestamp: Optional[str] = None,
+    history_format: str = "flat",
 ) -> str:
     """
     Build pointwise Yes/No classification prompt matching SFT training format.
@@ -178,14 +297,7 @@ def build_pointwise_prompt(
 
     content += "A user read these news articles:\n"
 
-    if history:
-        recency_cutoff = max(0, len(history) - 5) if use_recency else len(history)
-        for i, h in enumerate(history, 1):
-            cat = h.get("category", "General")
-            tag = " (recent)" if use_recency and (i - 1) >= recency_cutoff else ""
-            content += f"{i}. [{cat}] {h['text']}{tag}\n"
-    else:
-        content += "(No reading history)\n"
+    content += _render_history(history, history_format=history_format, use_recency=use_recency)
 
     content += "\n"
     content += "Candidate article:\n"

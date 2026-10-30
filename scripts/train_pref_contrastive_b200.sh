@@ -10,6 +10,7 @@
 #   PC_USE_RECENCY (default 1), PC_USE_IMPRESSION_TIMESTAMP (default 0),
 #   PC_USE_PROFILE_SUMMARY (default 0), PC_USE_ENTITY (default 0),
 #   PC_USE_SUBCATEGORY (default 0), PC_HISTORY_SELECTION (default recent),
+#   PC_HISTORY_FORMAT (default flat),
 #   PC_BETA (default 0.1), PC_LR (default 5e-6), PC_EPOCHS (default 1.0)
 #SBATCH --job-name=pref_ct
 #SBATCH --partition=gpuonly
@@ -44,6 +45,7 @@ PC_USE_PROFILE_SUMMARY=${PC_USE_PROFILE_SUMMARY:-0}
 PC_USE_ENTITY=${PC_USE_ENTITY:-0}
 PC_USE_SUBCATEGORY=${PC_USE_SUBCATEGORY:-0}
 PC_HISTORY_SELECTION=${PC_HISTORY_SELECTION:-recent}
+PC_HISTORY_FORMAT=${PC_HISTORY_FORMAT:-flat}
 PC_BETA=${PC_BETA:-0.1}
 PC_LR=${PC_LR:-5e-6}
 PC_EPOCHS=${PC_EPOCHS:-1.0}
@@ -70,6 +72,7 @@ deepspeed --num_gpus=8 --master_port=29500 src/sft_mind_pref_contrastive.py \
   --use_entity ${PC_USE_ENTITY} \
   --use_subcategory ${PC_USE_SUBCATEGORY} \
   --history_selection ${PC_HISTORY_SELECTION} \
+  --history_format ${PC_HISTORY_FORMAT} \
   --deepspeed_config ds_configs/ds_config_zero2_gpu.json "$@"
 
 echo "=== [${RUN_TAG}] EVAL dev AUC ==="
@@ -82,6 +85,7 @@ USE_PROFILE_SUMMARY=${PC_USE_PROFILE_SUMMARY} \
 USE_ENTITY=${PC_USE_ENTITY} \
 USE_SUBCATEGORY=${PC_USE_SUBCATEGORY} \
 HISTORY_SELECTION=${PC_HISTORY_SELECTION} \
+HISTORY_FORMAT=${PC_HISTORY_FORMAT} \
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 bash scripts/eval_mind_pointwise.sh ${OUT}/final_checkpoint dev 2>&1 | tee logs/eval_${RUN_TAG}.log
 

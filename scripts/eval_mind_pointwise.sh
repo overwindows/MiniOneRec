@@ -93,7 +93,8 @@ USE_RECENCY="${USE_RECENCY:-0}"  # Mark 5 most recent history items with "(recen
 USE_PROFILE_SUMMARY="${USE_PROFILE_SUMMARY:-0}"  # Prepend top-3 category interest summary
 USE_IMPRESSION_TIMESTAMP="${USE_IMPRESSION_TIMESTAMP:-0}"  # Add day/time-of-day context (must match training)
 USE_ENTITY="${USE_ENTITY:-0}"  # Append Wikidata entity labels to article text (must match training)
-HISTORY_SELECTION="${HISTORY_SELECTION:-recent}"  # recent = last N; relevant = dynamic category-matched (must match training)
+HISTORY_SELECTION="${HISTORY_SELECTION:-recent}"  # recent | relevant | dedup_backfill | dedup_only | catcap (must match training)
+HISTORY_FORMAT="${HISTORY_FORMAT:-flat}"  # flat | grouped_profile | two_block | title_only (must match training)
 
 # Construct paths
 DATA_DIR="${MIND_ROOT}/${SPLIT}"
@@ -176,6 +177,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       --news_path \"${NEWS_PATH}\" \
       --max_history ${MAX_HISTORY} \
       --history_selection ${HISTORY_SELECTION} \
+      --history_format ${HISTORY_FORMAT} \
       --batch_size ${BATCH_SIZE} \
       --pack_tokens ${PACK_TOKENS} \
       --output_file \"${TEMP_DIR}/${gpu_id}.txt\""
@@ -327,6 +329,7 @@ else
     --news_path ${NEWS_PATH} \
     --max_history ${MAX_HISTORY} \
     --history_selection ${HISTORY_SELECTION} \
+    --history_format ${HISTORY_FORMAT} \
     --batch_size ${BATCH_SIZE} \
     --pack_tokens ${PACK_TOKENS}"
 

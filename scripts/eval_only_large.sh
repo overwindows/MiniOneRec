@@ -27,6 +27,9 @@ CHAT=${3:-1}
 echo "=== [${RUN_TAG}] EVAL large dev AUC (ckpt=${CKPT}, chat=${CHAT}) ==="
 MIND_ROOT=/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_large \
 USE_ABSTRACT=1 USE_CHAT_TEMPLATE=${CHAT} FLASH_ATTN=0 MAX_HISTORY=30 \
+USE_RECENCY=${TE_USE_RECENCY:-0} \
+HISTORY_SELECTION=${TE_HISTORY_SELECTION:-recent} \
+HISTORY_FORMAT=flat \
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 bash scripts/eval_mind_pointwise.sh ${CKPT} dev 2>&1 | tee logs/eval_${RUN_TAG}.log
 

@@ -133,9 +133,12 @@ def compute_and_save_scores(
                 history_ids = history_ids[-max_history:]
 
             for imp in parts[4].split():
-                if '-' not in imp:
+                if not imp:
                     continue
-                news_id = imp.rsplit('-', 1)[0]
+                if '-' in imp:
+                    news_id = imp.rsplit('-', 1)[0]
+                else:
+                    news_id = imp
                 score = compute_cf_score(news_id, history_ids, news_to_users)
                 f_out.write(f"{impression_id}\t{news_id}\t{score:.6f}\n")
                 scored += 1

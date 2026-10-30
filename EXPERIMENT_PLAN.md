@@ -1635,6 +1635,70 @@ and closed compact-model gate. Publication receipts
 All20 prior official-dev table cells and other site assets/auth are unchanged.
 No signed-in browser-rendering verification or new benchmark result is claimed.
 
+## 🎯 ROADMAP: Target AUC 0.80 (set 2026-10-30)
+
+**Target locked: competition-test AUC ≥ 0.80** (up from "beat SOTA"). Context:
+us 0.7144 (L13/L17 E3A) · #2 zetik 0.7326 · #1 dingjian 0.7529. Gap to 0.80 =
+**+0.0856 over us**, +0.047 over today's #1. New-member folding buys only
+~+0.001-0.002 each, so 0.80 requires a **step-change in method**, not marginal
+ensembles. Unmet: `competition-test AUC>=0.80` remains the sole acceptance gate.
+
+### Constraint: compute
+The AML Singularity fabric has allocated **zero GPU nodes to any job since
+~2026-10-19** (395+ jobs scanned, no `start_time` ever set; ranking/recall/
+shared all dead). All our SUBCAT test evals (`neat_bridge`, `polite_stomach`,
+`musing_bee`, `eager_kumquat`) queued with `start_time: None`. Waiting on the
+platform owner to restore allocation. **The only compute that works today is
+CPU** — which the JEV disciplined track already uses productively.
+
+### Track A — CPU disciplined ranker (RUNNING, no GPU needed) ★fastest path
+Existing pre-registered JEV track toward exactly this target:
+- `prepare_jev_full_feature_cache.py` — **DONE**: 469264×2560 frozen
+  full-feature matrix, checksum-pinned (`01b41d83...`), all rows verified,
+  independent full-text replay matched exactly.
+- `run_jev_content_stage.py` — first candidate **REJECTED** on official-dev
+  (content_31 0.6635 < retained hybrid 0.6833).
+- `JEV-JOINT-1` (rich-text + popularity, impression-balanced) — **STOPPED**:
+  L-BFGS hits 100-iter limit twice, max-grad ~1.5e-5, not converged → no
+  candidate scored. Solver-memory hypothesis (history 100) did NOT fix it.
+- **NEXT CPU MOVE**: fix the optimizer so a joint rich-text+popularity head
+  actually *converges*. Levers (in order): (1) stronger solver — newton-cg /
+  trust-constr / PyTorch L-BFGS full-batch, or early-terminate when
+  gradient<eps; (2) feature re-scaling / whitening so Hessian is better
+  conditioned (see JEV-LOWRANK-1's whitened-residual idea); (3) reduce
+  dimension (rank-constrained head) to tame the 2564-dim L-BFGS. Convergence
+  is the blocker — no candidate can be scored until a head converges.
+
+### Track B — ensemble member capture (BLOCKED on GPU, ~+0.001-0.002 each)
+- SUBCAT test eval still queued (`eager_kumquat_b0m31594yr`) — scores never
+  landed. When fabric returns: `assemble_sub.py` L13/L17/SUBCAT 0.4/0.4/0.2
+  → Codabench. Marginal only; keeps us current while Track A converges.
+- Not enough on its own for 0.80.
+
+### Track C — fundamental method step-change (needs GPU, biggest upside)
+To reach 0.80 (not just nudge), one of:
+1. **Stronger backbone / better init**: fine-tune a larger/better base
+   (Qwen3-8B is our best; try a stronger base or 2-stage pretrain on full
+   click stream) on MIND. Current best is 1.7B-centric — headroom in scale.
+2. **Two-stage rerank**: candidate-gen (fast recall) + a heavy cross-encoder
+   reranker on the top-k. Changes the objective from pointwise to truly
+   ranking-aware.
+3. **Better objective**: pairwise/listwise (LambdaRank) loss at full scale,
+   or distillation from a much larger teacher model.
+4. **Feature depth**: subcat was our only positive new feature; find several
+   more genuinely-additive behavioral/categorical features and compound them.
+
+All four are GPU-bound → gated on the outage.
+
+### Decision order
+1. Unblock CPU solver convergence (Track A) → score a converged joint head →
+   official-dev gate → if passes take a **free** Codabench test eval when
+   compute returns.
+2. In parallel, escalate AML outage (owner ping) to unblock GPU for Track B/C.
+3. Track C is the only path with 0.80-scale headroom; start it as soon as GPU
+   is available, prioritizing a stronger base + ranking objective.
+
+---
 ## 🚀 Azure ML Pipeline Support
 
 This experiment plan has been updated to use **Azure ML pipelines** for scalable training and evaluation on A100 GPU clusters.

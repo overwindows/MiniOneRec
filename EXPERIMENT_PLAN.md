@@ -1755,6 +1755,14 @@ result was produced. No new compute allocation was approved;real execution
 requires a separately bounded allocation and preregistered protocol rather than
 resetting any expired campaign. Original complete official-large-dev AUC
 0.6814457842 and unmet competition-test0.80 target remain unchanged.
+Concurrent roadmap update`d701868` now deprioritizes further CPU readout
+experiments in favor of Track C stronger-backbone/ranking training. The
+qualified Newton-CG implementation is an optional utility,not a reopening of
+Track A or evidence that solver convergence can achieve0.80. No CPU trial is
+registered or launched by this implementation update.
+Implementation-only page/feed deployed2026-11-01 05:55:58.965374UTC,receipt
+`jev-newton-implementation-20261101-publication.json`;all52 verified benchmark
+cells and other shared assets/auth unchanged. No browser-rendering claim.
 
 ---
 ## 🚀 Azure ML Pipeline Support

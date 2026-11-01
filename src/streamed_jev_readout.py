@@ -1,4 +1,4 @@
-"""Memory-bounded joint rich-representation and popularity readout fitting."""
+"""Streamed joint readout fitting with default L-BFGS and opt-in Newton-CG."""
 
 from collections import Counter
 import json
@@ -146,6 +146,40 @@ class StreamedObjective:
             raise FloatingPointError("Streamed readout objective or gradient is nonfinite")
         return float(loss), gradient
 
+    def hessian_product(self, parameters, vector):
+        check_deadline(self.deadline)
+        parameters, vector = np.asarray(parameters), np.asarray(vector)
+        if (parameters.shape != (self.dimension + 1,) or vector.shape != parameters.shape
+                or not np.isfinite(parameters).all() or not np.isfinite(vector).all()):
+            raise ValueError("Hessian products require aligned finite parameter and direction vectors")
+        weight, bias = parameters[:-1], parameters[-1]
+        product = np.r_[self.recipe["l2"] * vector[:-1], 0.]
+        fraction = self.recipe["pair_fraction"]
+        if fraction < 1:
+            for start in range(0, len(self.indices), BATCH_SIZE):
+                check_deadline(self.deadline)
+                indices = self.indices[start:start + BATCH_SIZE]
+                x = self.standardized(indices)
+                scores = self.margins[indices] + x @ weight + bias
+                curvature = ((1. - fraction) * self.weights[start:start + BATCH_SIZE]
+                             * expit(scores) * expit(-scores))
+                projected = curvature * (x @ vector[:-1] + vector[-1])
+                product[:-1] += x.T @ projected
+                product[-1] += projected.sum()
+        if self.pairs is not None:
+            left, right, weights = self.pairs
+            for start in range(0, len(left), BATCH_SIZE):
+                check_deadline(self.deadline)
+                p, n = left[start:start + BATCH_SIZE], right[start:start + BATCH_SIZE]
+                difference = self.standardized(p) - self.standardized(n)
+                scores = self.margins[p] - self.margins[n] + difference @ weight
+                curvature = (fraction * weights[start:start + BATCH_SIZE]
+                             * expit(scores) * expit(-scores))
+                product[:-1] += difference.T @ (curvature * (difference @ vector[:-1]))
+        if not np.isfinite(product).all():
+            raise FloatingPointError("Streamed readout Hessian product is nonfinite")
+        return product
+
 
 def initial_parameters(objective, head=None):
     parameters = np.zeros(objective.dimension + 1)
@@ -166,9 +200,11 @@ def initial_parameters(objective, head=None):
 
 
 def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, deadline=None,
-                 *, max_iter=100, initial_head=None):
+                 *, max_iter=100, initial_head=None, solver="lbfgs"):
     if not isinstance(max_iter, int) or isinstance(max_iter, bool) or max_iter < 1:
         raise ValueError("An explicit positive iteration limit is required")
+    if solver not in ("lbfgs", "newton-cg"):
+        raise ValueError("Expected a registered lbfgs or newton-cg solver")
     objective = StreamedObjective(
         features, extras, margins, labels, groups, fit_mask, recipe, deadline,
     )
@@ -184,10 +220,16 @@ def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, de
                 "iteration": iterations, "loss": float(intermediate_result.fun),
             }), flush=True)
 
+    options = (
+        {"method": "Newton-CG", "hessp": objective.hessian_product,
+         "options": {"maxiter": max_iter, "xtol": 1e-10}}
+        if solver == "newton-cg" else
+        {"method": "L-BFGS-B",
+         "options": {"maxiter": max_iter, "maxcor": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10}}
+    )
     result = minimize(
-        objective.value_gradient, initial_parameters(objective, initial_head), jac=True, method="L-BFGS-B",
-        callback=report,
-        options={"maxiter": max_iter, "maxcor": 100, "maxls": 30, "gtol": 1e-6, "ftol": 1e-10},
+        objective.value_gradient, initial_parameters(objective, initial_head), jac=True,
+        callback=report, **options,
     )
     if not result.success:
         raise RuntimeError(
@@ -195,16 +237,31 @@ def fit_streamed(features, extras, margins, labels, groups, fit_mask, recipe, de
             + f"; iterations={result.nit}, evaluations={result.nfev}, loss={result.fun:.12g},"
             + f" maximum_gradient={np.abs(result.jac).max():.12g}"
         )
+    if solver == "newton-cg":
+        loss, gradient = objective.value_gradient(result.x)
+        maximum_gradient = float(np.abs(gradient).max())
+        if maximum_gradient > 1e-6:
+            raise RuntimeError(
+                "Streamed Newton-CG failed the recomputed stationarity check:"
+                + f" iterations={result.nit}, loss={loss:.12g},"
+                + f" maximum_gradient={maximum_gradient:.12g}"
+            )
     head = {
         "mean": objective.mean, "scale": objective.scale,
         "weight": result.x[:-1], "bias": np.asarray(result.x[-1]),
     }
-    return head, {
+    diagnostics = {
         "loss": float(result.fun), "iterations": int(result.nit),
         "evaluations": int(result.nfev), "converged": True,
-        "fitting_rows": len(objective.indices), "history_size": 100,
+        "fitting_rows": len(objective.indices),
         "iteration_limit": max_iter, "warm_start": initial_head is not None,
     }
+    if solver == "newton-cg":
+        diagnostics.update(loss=loss, solver=solver, maximum_gradient=maximum_gradient,
+                           hessian_vector_products=int(result.nhev))
+    else:
+        diagnostics["history_size"] = 100
+    return head, diagnostics
 
 
 def predict_streamed(head, features, extras, margins):

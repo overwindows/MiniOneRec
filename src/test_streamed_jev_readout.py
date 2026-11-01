@@ -135,3 +135,106 @@ def test_nonconvergence_is_not_accepted(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="iterations=100.*maximum_gradient=1"):
         fit_streamed(*fixture(), RECIPES[0])
+
+
+@pytest.mark.parametrize("recipe", (*RECIPES, {
+    "name": "pair_only_fixture", "balanced": True, "pair_fraction": 1., "l2": .01,
+}))
+def test_streamed_hessian_product_matches_gradient_differences(recipe, monkeypatch):
+    monkeypatch.setattr(streamed_jev_readout, "BATCH_SIZE", 4)
+    data = list(fixture())
+    data[3][:3] = 1
+    objective = StreamedObjective(*data, recipe)
+    parameters = np.linspace(-.2, .2, 6)
+    direction = np.linspace(.4, -.3, 6)
+    epsilon = 1e-5
+    expected = (objective.value_gradient(parameters + epsilon * direction)[1]
+                - objective.value_gradient(parameters - epsilon * direction)[1]) / (2 * epsilon)
+    actual = objective.hessian_product(parameters, direction)
+    np.testing.assert_allclose(actual, expected, rtol=1e-8, atol=1e-10)
+    assert direction @ actual >= 0
+    other = np.linspace(-.5, .1, 6)
+    assert other @ actual == pytest.approx(direction @ objective.hessian_product(parameters, other))
+    if recipe["pair_fraction"] == 1.:
+        assert actual[-1] == 0.
+
+
+@pytest.mark.parametrize("recipe", RECIPES)
+def test_newton_matches_default_solver_and_checks_stationarity(recipe):
+    features, extras, margins, _, _, _ = fixture()
+    expected, _ = fit_streamed(*fixture(), recipe)
+    head, report = fit_streamed(*fixture(), recipe, solver="newton-cg")
+    np.testing.assert_allclose(
+        predict_streamed(head, features, extras, margins),
+        predict_streamed(expected, features, extras, margins), rtol=0, atol=1e-4,
+    )
+    assert report["converged"] and report["solver"] == "newton-cg"
+    assert report["maximum_gradient"] <= 1e-6 and report["hessian_vector_products"] > 0
+    assert report["iterations"] <= 100 and "history_size" not in report
+
+
+def test_newton_validation_invariance_and_deadline(monkeypatch):
+    data = list(fixture())
+    first, _ = fit_streamed(*data, RECIPES[3], solver="newton-cg")
+    data[0][~data[-1]] = 1e8
+    data[1][~data[-1]] = -1e8
+    data[3][~data[-1]] = 1 - data[3][~data[-1]]
+    second, _ = fit_streamed(*data, RECIPES[3], solver="newton-cg")
+    for name in first:
+        np.testing.assert_array_equal(first[name], second[name])
+    objective = StreamedObjective(*data, RECIPES[3])
+    objective.deadline = time.monotonic() - 1
+    with pytest.raises(TimeoutError):
+        objective.hessian_product(np.zeros(6), np.ones(6))
+    with pytest.raises(TimeoutError):
+        fit_streamed(*data, RECIPES[3], solver="newton-cg", deadline=time.monotonic() - 1)
+
+
+@pytest.mark.parametrize("parameters,vector", [
+    (np.zeros(5), np.ones(6)), (np.zeros(6), np.ones(5)),
+    (np.full(6, np.nan), np.ones(6)), (np.zeros(6), np.full(6, np.inf)),
+])
+def test_hessian_invalid_inputs_fail_closed(parameters, vector):
+    objective = StreamedObjective(*fixture(), RECIPES[3])
+    with pytest.raises(ValueError, match="aligned finite"):
+        objective.hessian_product(parameters, vector)
+
+
+def test_newton_false_success_does_not_bypass_stationarity(monkeypatch):
+    monkeypatch.setattr(
+        streamed_jev_readout, "minimize",
+        lambda *args, **kwargs: SimpleNamespace(
+            success=True, message="small step", nit=1, nfev=2, fun=.3,
+            jac=np.zeros(6), x=np.zeros(6),
+        ),
+    )
+    with pytest.raises(RuntimeError, match="stationarity.*maximum_gradient"):
+        fit_streamed(*fixture(), RECIPES[0], solver="newton-cg")
+
+
+@pytest.mark.parametrize("solver", ["lbfgs", "newton-cg"])
+def test_iteration_exhaustion_never_returns_a_head(solver):
+    with pytest.raises(RuntimeError, match="failed to converge"):
+        fit_streamed(*fixture(), RECIPES[0], solver=solver, max_iter=1)
+
+
+def test_unknown_solver_fails_before_fitting():
+    with pytest.raises(ValueError, match="registered"):
+        fit_streamed(*fixture(), RECIPES[0], solver="unregistered")
+
+
+def test_newton_converges_with_correlated_full_width_features():
+    random = np.random.default_rng(42)
+    latent = random.normal(size=(48, 2))
+    features = latent[:, :1] + .01 * random.normal(size=(48, 2560))
+    extras = np.column_stack((latent, np.ones((48, 2))))
+    labels = np.tile([0, 1, 0], 16)
+    groups = [str(index // 3) for index in range(48)]
+    mask = np.arange(48) < 36
+    head, report = fit_streamed(
+        features, extras, np.zeros(48), labels, groups, mask, RECIPES[0],
+        deadline=time.monotonic() + 60, solver="newton-cg",
+    )
+    assert len(head["weight"]) == 2564
+    assert report["iterations"] <= 100 and report["maximum_gradient"] <= 1e-6
+    assert np.isfinite(predict_streamed(head, features, extras, np.zeros(48))).all()

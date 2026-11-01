@@ -1739,6 +1739,60 @@ Fall back across clusters (`--vm-cluster recall`) and tiers
 
 ### November 1 implementation update: streamed Newton-CG, NOT a running experiment
 
+#### November 1 complete-impression path: software/source qualified, NOT an8B result
+
+`complete_impression_causal_margin_bt_v1` is now an opt-in native training
+path (`full_impression_training=True`,micro_batch_size=1). The offset-indexed
+dataset keeps every raw impression/candidate/label in source order,including
+duplicate exposures and one-class groups;it never samples negatives or
+materializes83million candidate dictionaries. It reuses the existing verified
+full-contract news reader and the legacy pointwise prompt encoder. Legacy/
+uniform sampling defaults remain unchanged. Source mutation,unknown articles,
+bad labels/IDs and oversized complete prompts fail explicitly;the new path
+never silently truncates away candidate text.
+
+The candidate forward is chunked independently of the impression unit.
+Non-reentrant activation checkpointing uses positional tensor inputs and
+preserves RNG during recomputation. Full-vocabulary CE is weighted by actual
+chunk population;all present positive/negative pairs are formed AFTER joining
+the entire impression's differentiable margins. No cross-chunk pairs or
+gradients are dropped. CPU direct-versus-chunked loss/gradient comparisons,
+dropout/RNG checks and retained-activation checks pass. The existing binary
+JEV decision default and all scientific metric/score tolerances are unchanged.
+
+The native Trainer samples whole impressions,not candidate rows. Fixed
+epochs require exact source impression-ID hash/count,exposure and positive
+coverage;missing/duplicate consumption fails and final checkpoint saving
+requires every epoch proof. Source/epoch manifests are saved in checkpoint
+configuration. The full entrypoint was exercised on tiny synthetic Qwen3,
+including final serialization only after complete epoch proofs.
+
+87 targeted CPU fixtures plus15 subtests pass,including prior full-contract,
+legacy/uniform sampler and JEV hybrid tests. No real-source model fitting or
+8B weights were used. The new source index was separately validated against
+ALL pinned configured MIND-large training bytes2026-11-01 07:27UTC:
+2232748 impressions,83507374 exposures,3383656 positives,101527 news;
+maximum300 candidates/impression,index17861984 bytes. Both raw source
+hashes match the existing full-training intake exactly. Proof:
+`jev-complete-impression-source-20261101-02-verification.json`.
+This is INDEX integrity using a guarded tokenizer stub,not real8B prompt
+tokenization,truncation-budget qualification,model fitting or evaluation.
+External canonical archive provenance was NOT independently reverified.
+
+Full mode rejects dev paths,subsampling/negative-ratio overrides,old resume,
+DDP and unqualified DeepSpeed before weight loading;native single-process
+hardware/optimizer feasibility still needs qualification. For a later frozen
+recipe,history30/cutoff8192 are explicit prompt features,not a declaration that
+all actual8B prompts already fit. The legacy AML component/roadmap command
+does not automatically expose this new flag. No remote source push,new GPU
+allocation,deadline extension or real8B job has occurred. Fresh allocation
+approval was unavailable;competition-test0.80 remains UNMET.
+
+Webpage/feed disclosure deployed2026-11-01 07:42UTC with all52 benchmark
+cells and other assets/auth unchanged. Implementation-only publication:
+`jev-complete-impression-20261101-publication.json`. No browser rendering
+verification or new benchmark result is claimed.
+
 #### November 1 Track C loss repair: local CPU qualification, NOT full-scale readiness
 
 The legacy pairwise SFT used the logit AT the appended supervised answer

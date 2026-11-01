@@ -83,10 +83,8 @@ def encode_decision_prompt(tokenizer, prompt, *, max_length=None, truncate=False
     return ids
 
 
-def candidate_decision_loss(model, inputs, token_ids, *, loss_type="decision"):
-    """Read only the final prompt logits; the appended target is never forwarded."""
-    if loss_type not in LOSS_TYPES:
-        raise ValueError(f"Unknown candidate loss type: {loss_type}")
+def decision_prompt_inputs(inputs, token_ids):
+    """Validate the complete batch and remove its appended supervised answers."""
     if len(token_ids) != 2 or len(set(token_ids)) != 2 or min(token_ids) < 0:
         raise ValueError("Decision loss requires two distinct nonnegative A/B IDs")
     ids, labels, mask = (inputs[key] for key in ("input_ids", "labels", "attention_mask"))
@@ -115,14 +113,20 @@ def candidate_decision_loss(model, inputs, token_ids, *, loss_type="decision"):
         if inputs["position_ids"].shape != ids.shape:
             raise ValueError("JEV position IDs must match the input shape")
         positions = inputs["position_ids"][:, :-1]
-    output = model(
-        input_ids=ids[:, :-1],
-        attention_mask=prompt_mask,
-        position_ids=positions,
-        use_cache=False,
-        return_dict=True,
-        logits_to_keep=1,
-    )
+    return {
+        "input_ids": ids[:, :-1], "attention_mask": prompt_mask,
+        "position_ids": positions, "use_cache": False, "return_dict": True,
+        "logits_to_keep": 1,
+    }
+
+
+def candidate_decision_loss(model, inputs, token_ids, *, loss_type="decision"):
+    """Read only the final prompt logits; the appended target is never forwarded."""
+    if loss_type not in LOSS_TYPES:
+        raise ValueError(f"Unknown candidate loss type: {loss_type}")
+    output = model(**decision_prompt_inputs(inputs, token_ids))
+    ids, labels = inputs["input_ids"], inputs["labels"]
+    yes_id, no_id = token_ids
     if output.logits.ndim != 3 or output.logits.shape[:2] != (ids.shape[0], 1):
         raise ValueError("JEV model must return exactly one logit position per prompt")
     if max(token_ids) >= output.logits.shape[-1]:

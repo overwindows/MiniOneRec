@@ -26,6 +26,10 @@ Implementation notes:
 - All positive/negative pairs PRESENT IN A BATCH are averaged per impression.
   No cross-impression fallback is used. The legacy shuffled/sampled dataset
   is NOT a qualified full-impression/all-candidate training path.
+- Opt-in `full_impression_training=True` retains complete source impressions,
+  computes all pairs across checkpointed candidate chunks, and verifies every
+  fixed epoch before final saving. It requires micro_batch_size=1, no dev
+  paths/sampling, and single-process native training; DDP/resume are not qualified.
 
 Usage:
     deepspeed --hostfile=hostfile src/sft_mind_pointwise_pairwise.py \
@@ -62,9 +66,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data import MINDPointwiseSFTDataset
 from jev_decision import candidate_decision_loss
+from mind_pairwise_loss import complete_impression_loss, validate_pairwise_metadata, within_impression_bt
+from mind_impression_data import MINDImpressionSFTDataset
+from mind_impression_training import CompleteEpochCoverage, CompleteImpressionCollator
 
 
 PAIRWISE_OBJECTIVE = "causal_margin_bt_v2"
+COMPLETE_OBJECTIVE = "complete_impression_causal_margin_bt_v1"
 
 
 def resolve_report_to(wandb_project):
@@ -175,30 +183,50 @@ class _PairwiseTrainer(transformers.Trainer):
 
     @staticmethod
     def _validate_metadata(cls, impressions, batch_size):
-        if (not isinstance(cls, torch.Tensor) or cls.ndim != 1 or cls.numel() != batch_size
-                or not torch.all((cls == 0) | (cls == 1))
-                or not isinstance(impressions, (list, tuple)) or len(impressions) != batch_size
-                or any(not isinstance(impression, str) or not impression for impression in impressions)):
-            raise ValueError("Pairwise metadata needs one binary label and impression ID per candidate")
+        validate_pairwise_metadata(cls, impressions, batch_size)
 
     def _pairwise_term(self, scores, cls, impressions):
         """Average all present positive/negative pairs equally per impression."""
-        if scores.ndim != 1 or not scores.numel() or not torch.isfinite(scores).all():
-            raise ValueError("Pairwise scores must be a finite vector")
-        self._validate_metadata(cls, impressions, scores.numel())
-        groups = {}
-        for index, impression in enumerate(impressions):
-            groups.setdefault(impression, []).append(index)
-        cls = cls.to(scores.device)
-        losses = []
-        for indices in groups.values():
-            indices = torch.tensor(indices, device=scores.device)
-            positive = scores[indices[cls[indices] == 1]]
-            negative = scores[indices[cls[indices] == 0]]
-            if positive.numel() and negative.numel():
-                losses.append(torch.nn.functional.softplus(
-                    negative[None, :] - positive[:, None]).mean())
-        return torch.stack(losses).mean() if losses else None
+        return within_impression_bt(scores, cls, impressions)
+
+
+class CompleteImpressionTrainer(_PairwiseTrainer):
+    def __init__(self, *, expected_source, candidate_chunk_size, **kwargs):
+        args = kwargs["args"]
+        if (args.world_size != 1 or args.per_device_train_batch_size != 1
+                or args.dataloader_drop_last or args.remove_unused_columns or args.max_steps > 0
+                or args.num_train_epochs < 1 or not float(args.num_train_epochs).is_integer()
+                or kwargs.get("eval_dataset") is not None or args.deepspeed):
+            raise ValueError(
+                "Complete-source mode requires single-process fixed epochs, one impression per "
+                "batch, no dropping, no step cutoff/dev evaluation or unqualified DeepSpeed")
+        if (not isinstance(candidate_chunk_size, int) or isinstance(candidate_chunk_size, bool)
+                or candidate_chunk_size < 1):
+            raise ValueError("Candidate chunk size must be a positive integer")
+        self.expected_source = dict(expected_source)
+        self.candidate_chunk_size = candidate_chunk_size
+        self.epoch_coverage = []
+        self._active_epoch = False
+        super().__init__(**kwargs)
+        self.add_callback(CompleteEpochCoverage(self))
+
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        if self._active_epoch:
+            validate_pairwise_metadata(
+                inputs["label"], inputs["impression_id"], inputs["input_ids"].shape[0])
+            if not inputs["impression_id"]:
+                raise ValueError("A complete-source training impression cannot be empty")
+            identifier = inputs["impression_id"][0]
+            if identifier in self._consumed_ids:
+                raise ValueError(f"Impression consumed more than once in this epoch: {identifier}")
+        loss, outputs = complete_impression_loss(
+            model, inputs, (self._yes_id, self._no_id),
+            chunk_size=self.candidate_chunk_size, pairwise_weight=self._pw)
+        if self._active_epoch:
+            self._consumed_ids.add(identifier)
+            self._exposures += inputs["expected_candidates"]
+            self._positives += int(inputs["label"].sum().item())
+        return (loss, outputs) if return_outputs else loss
 
 
 def train(
@@ -234,10 +262,25 @@ def train(
     use_profile_summary: bool = False,
     use_impression_timestamp: bool = False,
     pairwise_loss_weight: float = 0.5,  # lambda for the Bradley-Terry term (A7.3)
+    full_impression_training: bool = False,
+    candidate_chunk_size: int = 2,
 ):
     """Train with hybrid point-wise CE + pairwise Bradley-Terry objective."""
     if not math.isfinite(pairwise_loss_weight) or pairwise_loss_weight < 0:
         raise ValueError("Pairwise loss weight must be finite and nonnegative")
+    if full_impression_training:
+        if (int(os.environ.get("WORLD_SIZE", 1)) != 1 or micro_batch_size != 1
+                or deepspeed_config or resume_from_checkpoint or group_by_length
+                or sample > 0 or eval_behaviors_path or eval_news_path
+                or neg_ratio != 1.0 or hard_neg_ratio != 0.5):
+            raise ValueError(
+                "Complete-source mode requires one process/impression per batch, fresh fixed "
+                "epochs, no dev paths/sampling/ratio overrides or unqualified DeepSpeed/resume")
+        if (not isinstance(candidate_chunk_size, int) or isinstance(candidate_chunk_size, bool)
+                or candidate_chunk_size < 1 or num_epochs < 1
+                or not isinstance(num_epochs, int) or isinstance(num_epochs, bool)
+                or not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size < 1):
+            raise ValueError("Complete-source epochs, batch size and chunk size must be positive integers")
     if not output_dir:
         raise ValueError("Please specify a new --output_dir")
     if os.path.exists(os.path.join(output_dir, "final_checkpoint")):
@@ -283,6 +326,14 @@ def train(
             or any(tokens[0] in tokenizer.all_special_ids for tokens in answer_tokens)):
         raise ValueError("Yes/No answers must encode as distinct single non-special tokens")
     YES_ID, NO_ID = (tokens[0] for tokens in answer_tokens)
+    full_data = None
+    if full_impression_training:
+        full_data = MINDImpressionSFTDataset(
+            train_behaviors_path, train_news_path, tokenizer,
+            max_len=cutoff_len, max_history=max_history, use_abstract=use_abstract,
+            use_subcategory=use_subcategory, use_chat_template=use_chat_template,
+            use_recency=use_recency, use_profile_summary=use_profile_summary,
+            use_impression_timestamp=use_impression_timestamp)
     if pairwise_loss_weight > 0 and resume_from_checkpoint:
         resume_config = AutoConfig.from_pretrained(
             _Path(resume_from_checkpoint), local_files_only=True)
@@ -307,14 +358,18 @@ def train(
         if _hybrid_backbone:
             print(f"  Detected hybrid backbones ({_arch}): using sdpa attention (vision tower not loaded)")
 
-    if pairwise_loss_weight > 0:
+    if pairwise_loss_weight > 0 or full_impression_training:
         model.config.mind_pairwise_objective = PAIRWISE_OBJECTIVE
         model.config.mind_pairwise_score = "final_prompt_yes_minus_no"
         model.config.mind_pairwise_loss_weight = pairwise_loss_weight
         model.config.mind_pairwise_answer_token_ids = [YES_ID, NO_ID]
+    if full_impression_training:
+        model.config.mind_pairwise_objective = COMPLETE_OBJECTIVE
+        model.config.mind_training_source = full_data.source_manifest
+        model.config.mind_candidate_chunk_size = candidate_chunk_size
     print(f"Answer token ids: YES={YES_ID!r} NO={NO_ID!r}")
 
-    train_data = MINDPointwiseSFTDataset(
+    train_data = full_data if full_impression_training else MINDPointwiseSFTDataset(
         behaviors_path=train_behaviors_path,
         news_path=train_news_path,
         tokenizer=tokenizer,
@@ -333,7 +388,7 @@ def train(
         return_meta=True,
     )
 
-    val_data = MINDPointwiseSFTDataset(
+    val_data = None if full_impression_training else MINDPointwiseSFTDataset(
         behaviors_path=eval_behaviors_path,
         news_path=eval_news_path,
         tokenizer=tokenizer,
@@ -354,9 +409,12 @@ def train(
 
     print(f"\nTraining with Hybrid Point-wise + Pairwise (BT) SFT:")
     print(f"  Train samples: {len(train_data)}")
-    print(f"  Val samples: {len(val_data)}")
+    print(f"  Val samples: {len(val_data) if val_data is not None else 0}")
+    if full_impression_training:
+        print(f"  Batch unit: complete impressions; candidate chunk size: {candidate_chunk_size}")
+        print(f"  Full source: {train_data.source_manifest}")
     print(f"  Max history: {'unlimited' if max_history == 0 else max_history}")
-    print(f"  Neg ratio: {neg_ratio}")
+    print("  Negative sampling: NONE" if full_impression_training else f"  Neg ratio: {neg_ratio}")
     print(f"  Cutoff length: {cutoff_len}")
     print(f"  Chat template: {'enabled' if use_chat_template else 'disabled (raw text)'}")
     print(f"  Pairwise (BT) loss weight lambda: {pairwise_loss_weight}")
@@ -394,7 +452,10 @@ def train(
 
     training_args = transformers.TrainingArguments(**training_args_dict)
 
-    trainer = _PairwiseTrainer(
+    trainer_type = CompleteImpressionTrainer if full_impression_training else _PairwiseTrainer
+    full_kwargs = ({"expected_source": train_data.source_manifest,
+                    "candidate_chunk_size": candidate_chunk_size} if full_impression_training else {})
+    trainer = trainer_type(
         yes_token_id=YES_ID,
         no_token_id=NO_ID,
         pairwise_loss_weight=pairwise_loss_weight,
@@ -402,13 +463,17 @@ def train(
         train_dataset=train_data,
         eval_dataset=val_data if val_data else None,
         args=training_args,
-        data_collator=_Collator(tokenizer),
+        data_collator=(CompleteImpressionCollator(_Collator(tokenizer))
+                       if full_impression_training else _Collator(tokenizer)),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=early_stopping_patience)] if val_data else None,
+        **full_kwargs,
     )
 
     model.config.use_cache = False
 
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    if full_impression_training:
+        model.config.mind_training_epoch_coverage = trainer.epoch_coverage
 
     final_checkpoint_path = os.path.join(output_dir, "final_checkpoint")
     trainer.save_model(final_checkpoint_path)

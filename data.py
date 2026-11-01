@@ -196,12 +196,35 @@ class MINDPointwiseSFTDataset:
     ):
         if negative_sampling not in ("legacy", "uniform"):
             raise ValueError("negative_sampling must be 'legacy' or 'uniform'")
-        self.tokenizer = tokenizer
-        self.max_len = max_len
-        self.max_history = max_history if max_history > 0 else None
         self.neg_ratio = neg_ratio
         self.hard_neg_ratio = hard_neg_ratio
         self.negative_sampling = negative_sampling
+        self.seed = seed
+        self._configure_encoder(
+            tokenizer, max_len=max_len, max_history=max_history,
+            use_abstract=use_abstract, use_chat_template=use_chat_template,
+            use_subcategory=use_subcategory, use_recency=use_recency,
+            use_profile_summary=use_profile_summary,
+            use_impression_timestamp=use_impression_timestamp, return_meta=return_meta,
+        )
+
+        self.news = self._load_news(news_path)
+        self.samples = self._load_and_expand_behaviors(behaviors_path, sample)
+
+        print(f"Loaded {len(self.samples)} point-wise samples")
+        pos_count = sum(1 for s in self.samples if s['label'] == 1)
+        neg_count = len(self.samples) - pos_count
+        print(f"  Positives: {pos_count}, Negatives: {neg_count}, Ratio: {neg_count/max(pos_count,1):.2f}")
+
+    def _configure_encoder(
+        self, tokenizer, *, max_len=2048, max_history=0,
+        use_abstract=False, use_chat_template=False, use_subcategory=False,
+        use_recency=False, use_profile_summary=False, use_impression_timestamp=False,
+        return_meta=False, strict_template=False, strict_prompt_budget=False,
+    ):
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+        self.max_history = max_history if max_history > 0 else None
         self.use_abstract = use_abstract
         self.use_chat_template = use_chat_template
         self.use_subcategory = use_subcategory
@@ -209,7 +232,7 @@ class MINDPointwiseSFTDataset:
         self.use_profile_summary = use_profile_summary
         self.use_impression_timestamp = use_impression_timestamp
         self.return_meta = return_meta
-        self.seed = seed
+        self._strict_prompt_budget = strict_prompt_budget
 
         # Some instruct variants' chat templates do NOT accept a "system" role
         # (e.g. gemma-2-2b-it raises jinja2 TemplateError "System role not
@@ -224,20 +247,11 @@ class MINDPointwiseSFTDataset:
                     tokenize=False, add_generation_prompt=True,
                 )
             except Exception:
+                if strict_template:
+                    raise
                 self._system_role_supported = False
                 print("  Chat template does not support a 'system' role; "
                       "folding the system prompt into the user message.")
-
-        # Load news articles
-        self.news = self._load_news(news_path)
-
-        # Load and expand behaviors into point-wise samples
-        self.samples = self._load_and_expand_behaviors(behaviors_path, sample)
-
-        print(f"Loaded {len(self.samples)} point-wise samples")
-        pos_count = sum(1 for s in self.samples if s['label'] == 1)
-        neg_count = len(self.samples) - pos_count
-        print(f"  Positives: {pos_count}, Negatives: {neg_count}, Ratio: {neg_count/max(pos_count,1):.2f}")
 
     def _load_news(self, news_path: str):
         """Load news articles from news.tsv"""
@@ -469,8 +483,19 @@ class MINDPointwiseSFTDataset:
         return len(self.samples)
 
     def __getitem__(self, idx):
-        sample = self.samples[idx]
+        return self._encode_pointwise_sample(self.samples[idx])
 
+    def _encode_prompt_ids(self, prompt, target_ids, *, add_special_tokens):
+        if self._strict_prompt_budget:
+            ids = self.tokenizer.encode(prompt, add_special_tokens=add_special_tokens)
+            if not ids or len(ids) + len(target_ids) > self.max_len:
+                raise ValueError("Complete-impression prompt exceeds its token budget; no silent truncation")
+            return ids
+        return self.tokenizer.encode(
+            prompt, max_length=self.max_len - len(target_ids),
+            truncation=True, add_special_tokens=add_special_tokens)
+
+    def _encode_pointwise_sample(self, sample):
         # Build prompt
         if self.use_subcategory:
             prompt, target = self._build_pointwise_prompt_subcategory(
@@ -513,12 +538,8 @@ class MINDPointwiseSFTDataset:
             target_ids = self.tokenizer.encode(target, add_special_tokens=False)
 
             # Truncate prompt to leave room for target, guaranteeing answer is never cut off
-            prompt_ids = self.tokenizer.encode(
-                formatted_prompt,
-                max_length=self.max_len - len(target_ids),
-                truncation=True,
-                add_special_tokens=False
-            )
+            prompt_ids = self._encode_prompt_ids(
+                formatted_prompt, target_ids, add_special_tokens=False)
 
         else:
             # Raw text format
@@ -526,12 +547,7 @@ class MINDPointwiseSFTDataset:
             target_ids = self.tokenizer.encode(target, add_special_tokens=False)
 
             # Truncate prompt to leave room for target, guaranteeing answer is never cut off
-            prompt_ids = self.tokenizer.encode(
-                prompt,
-                max_length=self.max_len - len(target_ids),
-                truncation=True,
-                add_special_tokens=True
-            )
+            prompt_ids = self._encode_prompt_ids(prompt, target_ids, add_special_tokens=True)
 
         # Combine: prompt (truncated) + target (always present)
         input_ids = (prompt_ids + target_ids)[:self.max_len]
@@ -549,7 +565,6 @@ class MINDPointwiseSFTDataset:
             #   label          -> 1 (positive) / 0 (negative)
             #   answer_len     -> number of answer tokens (" Yes"/" No"), the
             #                     only non -100 positions in labels
-            sample = self.samples[idx]
             out['impression_id'] = sample['impression_id']
             out['label'] = sample['label']
             out['answer_len'] = len(target_ids)

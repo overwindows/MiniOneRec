@@ -1739,6 +1739,40 @@ Fall back across clusters (`--vm-cluster recall`) and tiers
 
 ### November 1 implementation update: streamed Newton-CG, NOT a running experiment
 
+#### November 1 real-tokenizer stress audit: bounded input evidence, NOT GPU readiness
+
+Pinned public Qwen/Qwen3-8B tokenizer/config revision
+`b968826d9c46dd6066d109eabc6255188de91218` was downloaded as data only.
+Loaded locally with trust_remote_code=False;no weights were loaded.
+Actual Yes/No answers are distinct single tokens7414/2308.
+
+At2026-11-01 07:55UTC the complete configured training-source index and
+all2232748 source impressions were scanned for stress selection. Sixteen
+largest normalized article-byte estimates plus first/last yielded18 complete
+impressions and1194 real candidate sequences. Explicit input recipe:
+history30,abstracts,subcategories,chat template,8192 tokens including answer.
+All selected candidates were encoded without truncation;maximum3671 tokens,
+zero over8192. Proof:`jev-qwen3-8b-prompt-budget-20261101-01.json`.
+Byte estimates are NOT proven token maxima. This is NOT an exact audit of
+all83507374 candidate prompts and does not freeze a fitting recipe or gate.
+
+A separate meta architecture/two-element CPU optimizer probe measured
+8190735360 parameters and native BF16 AdamW moment dtypes. Extrapolated
+weights+gradients+moments alone total65525882880 bytes,61.02573395GiB.
+Proof:`jev-qwen3-8b-static-memory-20261101-01.json`. Activations,optimizer
+temporaries,checkpoint recomputation,CUDA/allocator and framework overhead
+are excluded. This lower bound does NOT qualify one-A100 memory/performance,
+real8B optimizer stability or training throughput.
+
+No model fitting,dev/test scoring,new GPU job,allocation or source push.
+Original budgets/gates remain unchanged;competition-test0.80 is UNMET.
+Unauthenticated live HTTP redirected to AAD sign-in;HTTP200 alone is not
+served-page content verification. Authentication was not bypassed/changed.
+
+Bounded-evidence webpage/feed disclosure deployed2026-11-01 07:58UTC;
+all52 benchmark cells/assets/auth unchanged. Publication receipt:
+`jev-real-tokenizer-20261101-publication.json`. No browser rendering claimed.
+
 #### November 1 complete-impression path: software/source qualified, NOT an8B result
 
 `complete_impression_causal_margin_bt_v1` is now an opt-in native training

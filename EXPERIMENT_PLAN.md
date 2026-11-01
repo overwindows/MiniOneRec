@@ -1661,13 +1661,20 @@ Existing pre-registered JEV track toward exactly this target:
 - `JEV-JOINT-1` (rich-text + popularity, impression-balanced) — **STOPPED**:
   L-BFGS hits 100-iter limit twice, max-grad ~1.5e-5, not converged → no
   candidate scored. Solver-memory hypothesis (history 100) did NOT fix it.
-- **NEXT CPU MOVE**: fix the optimizer so a joint rich-text+popularity head
-  actually *converges*. Levers (in order): (1) stronger solver — newton-cg /
-  trust-constr / PyTorch L-BFGS full-batch, or early-terminate when
-  gradient<eps; (2) feature re-scaling / whitening so Hessian is better
-  conditioned (see JEV-LOWRANK-1's whitened-residual idea); (3) reduce
-  dimension (rank-constrained head) to tame the 2564-dim L-BFGS. Convergence
-  is the blocker — no candidate can be scored until a head converges.
+- `JEV-LOWRANK-1` — **solver CONVERGED** (projection to 64-dim + whitening
+  fixed conditioning; converged in 5/6/7 iters) but **gate CLOSED**
+  (2026-10-28): best internal sampled-training AUC 0.71505 vs safe
+  fresh-popularity control 0.71339 → gain +0.00165 < +0.005 gate. Not accepted.
+- **TRACK A TERMINAL (2026-11-01)**: solver blocker solved (it was
+  conditioning, not budget), but the disciplined JEV readout is built on
+  **MIND-small frozen features** and scores **0.6765 official-dev**
+  (`jev-uniform-01-dev-evaluation/result.json`) — far *below* the competitive
+  L13/L17 members (~0.71) and decoupled from the competition track. Even a
+  gated pass could not approach 0.80 (internal ceiling ~0.72). **Do not
+  invest further CPU in the MIND-small readout head**; the 0.8 headroom is
+  exclusively in Track C (GPU step-change). Track A is STOPPED by
+  ceiling, not by solver. Retain converged heads only as a CPU candidate
+  for a possible ensemble probe if ever shown generic-additive.
 
 ### Track B — ensemble member capture (BLOCKED on GPU, ~+0.001-0.002 each)
 - SUBCAT test eval still queued (`eager_kumquat_b0m31594yr`) — scores never
@@ -1675,7 +1682,7 @@ Existing pre-registered JEV track toward exactly this target:
   → Codabench. Marginal only; keeps us current while Track A converges.
 - Not enough on its own for 0.80.
 
-### Track C — fundamental method step-change (needs GPU, biggest upside)
+### Track C — fundamental method step-change (needs GPU, biggest upside) ★the only 0.8 path
 To reach 0.80 (not just nudge), one of:
 1. **Stronger backbone / better init**: fine-tune a larger/better base
    (Qwen3-8B is our best; try a stronger base or 2-stage pretrain on full
@@ -1688,15 +1695,66 @@ To reach 0.80 (not just nudge), one of:
 4. **Feature depth**: subcat was our only positive new feature; find several
    more genuinely-additive behavioral/categorical features and compound them.
 
-All four are GPU-bound → gated on the outage.
+All four are GPU-bound → gated on the outage. **This is the only path with
+0.8-scale headroom** (+0.0856 over us / +0.047 over today's #1 dingjian
+0.7529). PREP-REGISTERED for instant launch the moment a node allocates:
+(see Track C prep protocol below).
 
-### Decision order
-1. Unblock CPU solver convergence (Track A) → score a converged joint head →
-   official-dev gate → if passes take a **free** Codabench test eval when
-   compute returns.
-2. In parallel, escalate AML outage (owner ping) to unblock GPU for Track B/C.
-3. Track C is the only path with 0.80-scale headroom; start it as soon as GPU
-   is available, prioritizing a stronger base + ranking objective.
+### Track C prep protocol (registered 2026-11-01, launch-gated on a node)
+Chosen strongest lever first: **stronger backbone (Qwen3-8B, our best base)
++ pointwise→ranking objective (pairwise LambdaRank-style user-level loss)**
+at full MIND-large scale, with a strict dev gate and gated test eval.
+Steps queued for immediate execution on GPU availability:
+1. Submit Qwen3-8B pointwise→pairwise SFT (reuse verified pipeline +
+   `--instance-type Singularity.ND96amrs_A100_v4`) on full dev-support
+   training data, warm-init from existing best 8B member if architecture
+   matches.
+2. Official-dev gate: must beat retained L13/L17 E3A dev AUC by a
+   registered margin before any test eval.
+3. Only on pass: test eval (free once GPU returns) + fold if generic-additive;
+   else diagnose and iterate the objective/scale.
+
+### Decision order (updated 2026-11-01)
+1. **Escalate AML outage to owner now (in progress)** — the single thing
+   unblocking Track C; monitor queue still dead (`eager_kumquat` queued).
+2. **Track C is the only 0.8 path** — prep-registered above; launch the moment
+   a node allocates, prioritizing stronger base + ranking objective.
+3. Track A **STOPPED** (ceiling 0.72, decoupled from competition track); Track
+   B marginal member folding resumes only when GPU returns.
+
+### November 1 implementation update: streamed Newton-CG, NOT a running experiment
+
+The October30 roadmap above is a dated plan,not current evidence of a running
+CPU campaign or a still-current platform outage. The latest completed model
+trial remains the independently rejected joint-view trial. Original campaign
+deadlines and frozen failures remain unchanged.
+
+Implemented `fit_streamed(..., solver="newton-cg")` as a separate opt-in numerical
+path. The default `solver="lbfgs"` preserves the existing100-iteration/history100
+L-BFGS settings and output semantics. No failed controller or archived result
+is modified or rerun. No objective,normalization,cohort,weighting or quality gate
+is changed. Binary and impression-balanced positive-negative components use
+analytic streamed Hessian-vector products;no full Hessian or additional
+full-feature float64 copy is constructed. Pair-only curvature has no intercept
+term;ridge regularization still excludes the intercept.
+
+Newton-CG retains the100-iteration default,uses step tolerance1e-10,and must
+return optimizer success AND pass a newly recomputed full-objective maximum
+absolute gradient<=1e-6. Small-step success alone cannot return a head.
+Iteration exhaustion,nonfinite inputs/products and deadlines fail explicitly.
+This checks stationarity separately from optimizer-reported success,not an
+independent reproduction of its trajectory or proof of benchmark quality.
+
+46 targeted synthetic/compatibility fixtures passed,including every objective's
+Hessian-product finite differences,symmetry/positive curvature,multiple streamed
+blocks,unpaired-group binary coverage,validation-data invariance,false-success
+rejection,deadline/iteration limits,and convergence with correlated2564-feature
+inputs. Existing low-rank,uniform fitting and warm-start defaults still pass.
+No official-training model fit,new dev/test scores,GPU allocation or benchmark
+result was produced. No new compute allocation was approved;real execution
+requires a separately bounded allocation and preregistered protocol rather than
+resetting any expired campaign. Original complete official-large-dev AUC
+0.6814457842 and unmet competition-test0.80 target remain unchanged.
 
 ---
 ## 🚀 Azure ML Pipeline Support

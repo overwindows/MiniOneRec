@@ -76,13 +76,27 @@ if [[ -z "${OUTPUT_FILE:-}" ]]; then
   OUTPUT_FILE="./results_mind/${SPLIT}_ensemble_predictions.txt"
 fi
 
-TEMP_DIR="./temp_ensemble_scores/$$"
-mkdir -p "${TEMP_DIR}"
+TEMP_ROOT="${KEEP_SCORES_DIR:-$(dirname "${OUTPUT_FILE}")}"
+mkdir -p "${TEMP_ROOT}"
+TEMP_DIR=$(mktemp -d "${TEMP_ROOT}/.pending-wave.XXXXXX")
+echo "Recovery outputs retained on failure: ${TEMP_DIR}"
 
 # ── Split GPUs evenly across models ─────────────────────────────────────────
-ALL_GPUS="${CUDA_VISIBLE_DEVICES:-0}"
+if [[ -v CUDA_VISIBLE_DEVICES ]]; then
+  ALL_GPUS="${CUDA_VISIBLE_DEVICES}"
+  if [[ -z "${ALL_GPUS}" || "${ALL_GPUS}" == "-1" ]]; then
+    echo "ERROR: CUDA_VISIBLE_DEVICES disables GPU evaluation." >&2
+    exit 1
+  fi
+else
+  ALL_GPUS=$("${PYTHON}" -c 'import sys, torch; n = torch.cuda.device_count(); sys.exit("No visible GPUs") if n < 1 else print(",".join(map(str, range(n))))')
+fi
 IFS=',' read -ra GPU_LIST <<< "${ALL_GPUS}"
 N_GPUS=${#GPU_LIST[@]}
+if [[ ${N_GPUS} -lt ${N_MODELS} ]]; then
+  echo "ERROR: ${N_MODELS} parallel models require at least ${N_MODELS} visible GPUs; got ${N_GPUS}." >&2
+  exit 1
+fi
 
 # Distribute GPUs: model i gets floor(N_GPUS/N_MODELS) or ceil
 declare -a MODEL_GPUS
@@ -165,6 +179,7 @@ for i in "${!MODEL_PATHS[@]}"; do
   USE_ABSTRACT=${USE_ABS} \
   MAX_HISTORY=${MAX_HISTORY} \
   BATCH_SIZE=${BATCH_SIZE} \
+  OUTPUT_FILE="${TEMP_DIR}/model_${MODEL_NUM}_predictions.txt" \
   OUTPUT_SCORES_FILE=${SCORE_FILE} \
   MIND_SIZE=${MIND_SIZE} \
   MIND_ROOT=${MIND_ROOT} \
@@ -203,7 +218,7 @@ if [[ ${#failed[@]} -gt 0 ]]; then
       tail -30 "${LOG_FILES[$i]}"
     fi
   done
-  rm -rf "${TEMP_DIR}"
+  echo "Partial outputs retained at ${TEMP_DIR}; no ensemble result accepted." >&2
   exit 1
 fi
 

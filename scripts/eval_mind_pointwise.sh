@@ -24,6 +24,11 @@ MODEL_PATH="${1:-}"
 SPLIT="${2:-dev}"
 MAX_IMPRESSIONS="${3:-0}"
 
+if [[ -v CUDA_VISIBLE_DEVICES ]] && [[ -z "${CUDA_VISIBLE_DEVICES}" || "${CUDA_VISIBLE_DEVICES}" == "-1" ]]; then
+  echo "ERROR: CUDA_VISIBLE_DEVICES disables GPU evaluation." >&2
+  exit 1
+fi
+
 # Detect parallel mode based on CUDA_VISIBLE_DEVICES
 if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]] && [[ "${CUDA_VISIBLE_DEVICES}" == *","* ]]; then
   PARALLEL_MODE=true
@@ -137,9 +142,20 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   echo "Starting parallel evaluation..."
   echo ""
 
-  # Create temporary directory
-  TEMP_DIR="./temp_mind_pointwise/${SPLIT}-$$"
-  mkdir -p "${TEMP_DIR}"
+  PER_GPU_MAX_IMPRESSIONS=0
+  if [[ "${MAX_IMPRESSIONS}" -gt 0 ]]; then
+    num_gpus=$(echo "$CUDA_LIST" | tr ',' ' ' | wc -w)
+    PER_GPU_MAX_IMPRESSIONS=$((MAX_IMPRESSIONS / num_gpus))
+    if [[ "${PER_GPU_MAX_IMPRESSIONS}" -eq 0 ]]; then
+      echo "ERROR: Parallel screening limit must be at least the GPU count." >&2
+      exit 1
+    fi
+  fi
+
+  TEMP_ROOT=$(dirname "${OUTPUT_SCORES_FILE:-${OUTPUT_FILE:-./results_mind/${SPLIT}_pointwise_predictions.txt}}")
+  mkdir -p "${TEMP_ROOT}"
+  TEMP_DIR=$(mktemp -d "${TEMP_ROOT}/.${SPLIT}-shards.XXXXXX")
+  echo "Recovery shards retained on failure: ${TEMP_DIR}"
 
   # Split behaviors across GPUs
   echo "Splitting behaviors across GPUs..."
@@ -189,9 +205,7 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
     fi
 
     if [[ -n "${MAX_IMPRESSIONS}" ]] && [[ "${MAX_IMPRESSIONS}" -gt 0 ]]; then
-      num_gpus=$(echo "$CUDA_LIST" | tr ',' ' ' | wc -w)
-      per_gpu=$((MAX_IMPRESSIONS / num_gpus))
-      cmd="${cmd} --max_impressions ${per_gpu}"
+      cmd="${cmd} --max_impressions ${PER_GPU_MAX_IMPRESSIONS}"
     fi
 
     if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
@@ -246,21 +260,38 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
   # Merge predictions
   if [[ ${#failed_gpus[@]} -gt 0 ]]; then
-    echo "WARNING: ${#failed_gpus[@]} GPU(s) failed: ${failed_gpus[@]}"
+    echo "ERROR: ${#failed_gpus[@]} GPU(s) failed: ${failed_gpus[*]}" >&2
+    echo "Partial outputs retained at ${TEMP_DIR}; no merged result accepted." >&2
+    exit 1
   fi
 
   OUTPUT_FILE="${OUTPUT_FILE:-./results_mind/${SPLIT}_pointwise_predictions.txt}"
   mkdir -p "$(dirname "$OUTPUT_FILE")"
 
   echo "Merging predictions..."
-  actual_cuda_list=$(ls "${TEMP_DIR}"/*.txt 2>/dev/null | sed 's/.*\///g' | grep -E '^[0-9]+\.txt$' | sed 's/\.txt//g' | tr '\n' ',' | sed 's/,$//')
 
   "${PYTHON}" src/merge_mind.py \
     --input_path "${TEMP_DIR}" \
-    --output_path "${OUTPUT_FILE}" \
-    --cuda_list "${actual_cuda_list}" \
+    --output_path "${TEMP_DIR}/merged_predictions.txt" \
+    --cuda_list "${CUDA_LIST}" \
+    --behaviors_path "${BEHAVIORS_PATH}" \
+    --max_impressions "${PER_GPU_MAX_IMPRESSIONS}" \
     --calculate_metrics false
 
+  if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
+    echo "Merging score files..."
+    "${PYTHON}" src/merge_mind.py \
+      --input_path "${TEMP_DIR}" \
+      --output_path "${TEMP_DIR}/merged_scores.txt" \
+      --cuda_list "${CUDA_LIST}" \
+      --behaviors_path "${BEHAVIORS_PATH}" \
+      --max_impressions "${PER_GPU_MAX_IMPRESSIONS}" \
+      --score_files true \
+      --calculate_metrics false
+    mkdir -p "$(dirname "${OUTPUT_SCORES_FILE}")"
+    mv "${TEMP_DIR}/merged_scores.txt" "${OUTPUT_SCORES_FILE}"
+  fi
+  mv "${TEMP_DIR}/merged_predictions.txt" "${OUTPUT_FILE}"
   echo ""
   echo "========================================="
   echo "✓ Parallel evaluation completed!"
@@ -278,14 +309,6 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
     echo ""
     echo "Note: Test split has no ground truth labels."
     echo "Submit predictions to MIND leaderboard for evaluation."
-  fi
-
-  # Merge raw score files if requested
-  if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
-    mkdir -p "$(dirname "${OUTPUT_SCORES_FILE}")"
-    echo "Merging score files..."
-    cat "${TEMP_DIR}"/*_scores.txt 2>/dev/null > "${OUTPUT_SCORES_FILE}" || true
-    echo "✓ Scores saved to: ${OUTPUT_SCORES_FILE}"
   fi
 
   # Cleanup temp files

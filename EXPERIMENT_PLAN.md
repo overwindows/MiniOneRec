@@ -1714,6 +1714,21 @@ Steps queued for immediate execution on GPU availability:
 3. Only on pass: test eval (free once GPU returns) + fold if generic-additive;
    else diagnose and iterate the objective/scale.
 
+**Ready-to-launch command (verified 2026-11-01; `run_pipeline.py` now takes
+`--sla-tier`, model-path=qwen3-8B, pointwise→pairwise via
+`--pointwise-ratio 0.5 --pairwise-loss-weight 0.5` at full MIND-large):**
+```bash
+python pipeline/run_pipeline.py \
+  --experiment-name mind_trackC_8B_rank \
+  --model-path <8B-base-or-best-8B-ckpt> \
+  --data-root shares/users/wuc/data/MIND_large \
+  --output-root shares/users/wuc/output_dir \
+  --pointwise-ratio 0.5 --pairwise-loss-weight 0.5 --ranking-neg-ratio 4.0 \
+  --num-epochs 5 --use-abstract 1 --vm-cluster ranking --sla-tier Standard
+```
+Fall back across clusters (`--vm-cluster recall`) and tiers
+(`--sla-tier Basic`) if it gets no node — per user directive.
+
 ### Decision order (updated 2026-11-01)
 1. **Escalate AML outage to owner now (in progress)** — the single thing
    unblocking Track C; monitor queue still dead (`eager_kumquat` queued).
@@ -1723,6 +1738,57 @@ Steps queued for immediate execution on GPU availability:
    B marginal member folding resumes only when GPU returns.
 
 ### November 1 implementation update: streamed Newton-CG, NOT a running experiment
+
+#### November 1 verified SUBCAT failure and forward-only merge repair
+
+Read-only AML/ADLS observation2026-11-01 06:24:40UTC supersedes the earlier
+queued-state claim for `eager_kumquat_b0m31594yr`. Parent and child
+`e46fa2ee-ee6a-426f-8966-98d30b324afe` are now Failed;RunHistory records child
+user code reaching prediction merging2026-10-31 00:39UTC and raising
+`TypeError: object of type 'int' has no len()` in `merge_mind.py`. A scalar
+`--cuda_list 0` is parsed by Fire as an integer,not a list. ARM's legacy-child
+representation omits execution properties;using its missing fields or
+`creation_context.start_time` does NOT establish an unallocated worker.
+This job-specific evidence does not establish current global fabric health.
+
+Proof`jev-track-c-20261101-aml-readonly.json` binds actual legacy RunHistory
+status/error/timestamps and a fresh read-only listing of the configured durable
+`ens_subcat_test_scores/scores` directory:EMPTY. No complete old test scores
+have been recovered or independently accepted. The old scripts staged shards
+inside the ephemeral clone and copied durable scores only AFTER merging;
+the crash therefore preceded that persistence. Do not claim the old failed
+job succeeded or submit a partial result.
+
+Forward repair shares strict scalar/string/list/tuple GPU-ID normalization
+between splitting/merging. Required missing/empty/duplicate/malformed shards
+fail before output publication. Optional source validation checks exact
+requested impression IDs,candidate multiplicities and finite score counts,
+preserving explicit per-shard screening limits without relabeling them full
+evaluation. Per-GPU failure now aborts rather than shrinking the shard set.
+Ranks/scores are validated in staging before final writes;silent score-cat
+success was removed. Per-model outputs cannot overwrite the final ensemble
+while another model fails.
+
+With existing output/KEEP_SCORES_DIR settings,shards and pending per-model
+files are created beneath the output storage BEFORE inference and retained
+on failure. Both component waves stop forcing eight CUDA IDs and respect
+the worker allocation. Unset visibility is discovered from the actual
+PyTorch-visible devices;explicitly disabled GPUs and too few GPUs for parallel
+models fail before launching evaluators. No automatic device-sharing,rerun,
+resource-tier change or additional GPU job is introduced by this repair.
+
+38 Windows merger fixtures and50 isolated-WSL merger/Bash workflow fixtures
+pass,including the actual Fire scalar CLI regression,full-source/count
+validation,partial GPU failure,missing scores,durable failure retention,
+final-output preservation and allocation guards,including stubbed visible
+device discovery. Screening validation uses the actual per-GPU limit;limits
+below the parallel GPU count fail rather than turning zero into full inference.
+Bash fixtures use a fake
+evaluator,not a model or GPU. Missing CLI/test packages were installed only
+in a separate merger-validation environment;the pinned neural runtime was
+not modified. The repair is local until its source is deliberately published/
+frozen for a future approved job;existing failed runs are not restarted.
+No new source-data scoring,dev/test result or0.80 acceptance follows.
 
 The October30 roadmap above is a dated plan,not current evidence of a running
 CPU campaign or a still-current platform outage. The latest completed model

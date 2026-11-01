@@ -10,6 +10,21 @@ import os
 from tqdm import tqdm
 
 
+def parse_cuda_list(cuda_list):
+    if isinstance(cuda_list, int) and not isinstance(cuda_list, bool):
+        cuda_list = [cuda_list]
+    elif isinstance(cuda_list, str):
+        fields = [field.strip() for field in cuda_list.split(",")]
+        if not all(field.isdecimal() for field in fields):
+            raise ValueError("GPU IDs must be nonnegative integers")
+        cuda_list = [int(field) for field in fields]
+    if (not isinstance(cuda_list, (list, tuple)) or not cuda_list
+            or any(not isinstance(gpu, int) or isinstance(gpu, bool) or gpu < 0 for gpu in cuda_list)
+            or len(set(cuda_list)) != len(cuda_list)):
+        raise ValueError("GPU IDs must be a nonempty, unique list of nonnegative integers")
+    return list(cuda_list)
+
+
 def split(input_path, output_path, cuda_list):
     """
     Split MIND behaviors.tsv file into multiple parts for parallel GPU processing.
@@ -17,11 +32,9 @@ def split(input_path, output_path, cuda_list):
     Args:
         input_path: Path to behaviors.tsv file
         output_path: Directory to save split files
-        cuda_list: Comma-separated list of GPU IDs (e.g., "0,1,2,3") or list of ints
+        cuda_list: A GPU ID, comma-separated IDs, or a list/tuple of ints
     """
-    # Parse cuda_list
-    if isinstance(cuda_list, str):
-        cuda_list = [int(x.strip()) for x in cuda_list.split(',') if x.strip()]
+    cuda_list = parse_cuda_list(cuda_list)
 
     # Create output directory
     os.makedirs(output_path, exist_ok=True)

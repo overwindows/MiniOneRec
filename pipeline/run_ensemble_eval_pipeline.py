@@ -61,13 +61,13 @@ UAI_RESOURCE_ID = (
     "/resourceGroups/AMLStudio"
     "/providers/Microsoft.ManagedIdentity/userAssignedIdentities/rankfun_aml"
 )
-def make_res_cfg(instance_type="Singularity.ND96amrs_A100_v4"):
+def make_res_cfg(instance_type="Singularity.ND96amrs_A100_v4", sla_tier="Premium"):
     return JobResourceConfiguration(
         instance_count=1,
         instance_type=instance_type,
         properties={
             "singularity": {
-                "slaTier": "Premium",
+                "slaTier": sla_tier,
                 "priority": "High",
                 "enableAzmlInt": False,
             }
@@ -101,6 +101,8 @@ def mind_ensemble_eval_pipeline(
     run_convert: int = 0,
     debug_mode: str = "false",
     instance_type: str = "Singularity.ND96amrs_A100_v4",
+    sla_tier: str = "Premium",
+    vm_cluster: str = "recall",
 ):
     """MIND Pointwise Ensemble Evaluation Pipeline
 
@@ -133,10 +135,12 @@ def mind_ensemble_eval_pipeline(
         debug_mode=debug_mode,
     )
 
-    eval_node.compute = VC_ARM_ID
-    eval_node.resources = make_res_cfg(instance_type=instance_type)
-    # Singularity policy: UAI lets the node authenticate to the RW_MOUNT datastore
-    # (avoids NoIdentityOnCompute / datastore mount failures).
+    # NOTE: the Singularity policy needs the UAI so the node can authenticate
+    # to the RW_MOUNT datastore (avoids NoIdentityOnCompute / mount failures).
+    # compute + resources (instance_type/sla_tier/vm_cluster) are applied on the
+    # returned pipeline job in __main__ (mirrors run_eval_pipeline.py), because
+    # dsl.pipeline wraps inputs into PipelineInput placeholders that can't index
+    # a module dict.
     eval_node.environment_variables = {
         "_AZUREML_SINGULARITY_JOB_UAI": UAI_RESOURCE_ID,
     }
@@ -168,6 +172,8 @@ if __name__ == "__main__":
     parser.add_argument("--instance-type", default="Singularity.ND96amrs_A100_v4",
                         help="实例类型/GKE SKU (default: Singularity.ND96amrs_A100_v4 8xA100). "
                              "单卡 A100 = Singularity.ND12am_A100_v4")
+    parser.add_argument("--sla-tier", default="Premium", choices=["Basic", "Standard", "Premium"],
+                        help="SLA tier; Premium is node-starved on recall, Standard has free A100s (default: Premium)")
     parser.add_argument("--mind-size", default="large", choices=["small", "large"],
                         help="MIND 数据集大小 (default: large)")
     parser.add_argument("--max-history", type=int, default=30,
@@ -202,8 +208,14 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         run_convert=args.run_convert,
         debug_mode=debug_mode,
-        instance_type=args.instance_type,
     )
+
+    # Apply cluster + resources to the eval node (mirrors run_eval_pipeline.py).
+    for node in job.jobs.values():
+        if node.name == "eval_node":
+            node.compute = VC_ARM_ID_MAP[args.vm_cluster]
+            node.resources = make_res_cfg(instance_type=args.instance_type, sla_tier=args.sla_tier)
+            break
 
     # Pipeline-level settings
     job.settings.default_compute = VC_ARM_ID_MAP[args.vm_cluster]

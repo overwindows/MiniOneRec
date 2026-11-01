@@ -1,0 +1,10 @@
+{
+  "purpose": "SUBCAT test-eval cluster x SLA-tier sweep (2026-11-01). User directive: if no node on one cluster/tier, resubmit across different clusters AND tiers. Model: sft_mind_pointwise_large_Qwen3-1.7B_bs256_ep5_neg2.0_hist30_abstract_subcat_chat/final_checkpoint, split=test -> ens_subcat_test_scores. Single-A100 ND12am_A100_v4. All four land into the SAME output_subdir, so whichever node allocates first produces ens_subcat_test_scores/scores.",
+  "note": "eager_kumquat (recall:Premium, 8xA100) went Failed/start=None on 2026-11-01 after ~13 days queued. Premium had been the only tier ever used; Standard/Basic are the new levers. Old monitor_eager_kumquat.py should be retired.",
+  "jobs": [
+    {"job_id": "wheat_lion_5x1128965f", "cluster": "recall", "tier": "Standard", "display": "subcat-test-recall-standard", "submitted_at": "2026-11-01"},
+    {"job_id": "loving_soursop_kqcbpyx8xs", "cluster": "ranking", "tier": "Standard", "display": "subcat-test-ranking-standard", "submitted_at": "2026-11-01"},
+    {"job_id": "gray_chaconia_fshglsgsjn", "cluster": "shared", "tier": "Standard", "display": "subcat-test-shared-standard", "submitted_at": "2026-11-01"},
+    {"job_id": "wheat_brain_gm14963sn6", "cluster": "recall", "tier": "Basic", "display": "subcat-test-recall-basic", "submitted_at": "2026-11-01"}
+  ]
+}

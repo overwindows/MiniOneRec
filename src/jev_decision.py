@@ -83,8 +83,10 @@ def encode_decision_prompt(tokenizer, prompt, *, max_length=None, truncate=False
     return ids
 
 
-def candidate_decision_loss(model, inputs, token_ids):
+def candidate_decision_loss(model, inputs, token_ids, *, loss_type="decision"):
     """Read only the final prompt logits; the appended target is never forwarded."""
+    if loss_type not in LOSS_TYPES:
+        raise ValueError(f"Unknown candidate loss type: {loss_type}")
     if len(token_ids) != 2 or len(set(token_ids)) != 2 or min(token_ids) < 0:
         raise ValueError("Decision loss requires two distinct nonnegative A/B IDs")
     ids, labels, mask = (inputs[key] for key in ("input_ids", "labels", "attention_mask"))
@@ -129,7 +131,10 @@ def candidate_decision_loss(model, inputs, token_ids):
     if not torch.isfinite(logits).all():
         raise FloatingPointError("JEV A/B decision logits contain NaN/Inf")
     targets = (labels[:, -1] == yes_id).float()
-    loss = F.binary_cross_entropy_with_logits(logits[:, 0] - logits[:, 1], targets)
+    if loss_type == "full_vocab":
+        loss = F.cross_entropy(output.logits[:, 0, :].float(), labels[:, -1])
+    else:
+        loss = F.binary_cross_entropy_with_logits(logits[:, 0] - logits[:, 1], targets)
     if not torch.isfinite(loss):
         raise FloatingPointError("JEV candidate decision loss contains NaN/Inf")
     return loss, {"loss": loss, "logits": logits}

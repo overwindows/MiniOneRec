@@ -8,23 +8,24 @@ model also learns to score clicked candidates above non-clicked ones within the
 same impression (A7.3, EXPERIMENT_PLAN.md):
 
     L_BT = -log(sigmoid(score_pos - score_neg))
-    score(candidate) = logit of the " Yes" answer token
+    score(candidate) = logit(" Yes") - logit(" No") at the final PROMPT position
 
 Total loss = L_CE + pairwise_loss_weight * L_BT
 
 Rationale (arXiv:2312.16018, GLIMPSE 2409.17711): purely point-wise CE ignores
 the ranking structure within an impression. Pairing positives against negatives
 sharpens the relative score gap, which is what the AUC metric actually measures.
-Expected gain ~ +0.2-0.5% AUC over the point-wise baseline (L1.3 settings).
+This objective implementation does not establish a benchmark gain.
 
 Implementation notes:
 - Uses `MINDPointwiseSFTDataset(return_meta=True)` so each sample carries its
   `impression_id` and `label`, letting the trainer pair pos/neg candidates from
   the same impression.
-- The answer tokens are the only non -100 positions in `labels` (left-padded),
-  so their logits can be recovered per-sample inside `compute_loss`.
-- `score` is taken as the logit of the " Yes" token (the positive-class logit),
-  matching how `evaluate_mind_pointwise.py` ranks candidates by P(yes).
+- The one-token target is removed before the ranking forward pass. Full-vocab
+  CE and the yes-minus-no margin use the same final prompt logits.
+- All positive/negative pairs PRESENT IN A BATCH are averaged per impression.
+  No cross-impression fallback is used. The legacy shuffled/sampled dataset
+  is NOT a qualified full-impression/all-candidate training path.
 
 Usage:
     deepspeed --hostfile=hostfile src/sft_mind_pointwise_pairwise.py \
@@ -42,6 +43,8 @@ import os
 import sys
 import random
 import datetime
+import math
+import warnings
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -54,17 +57,14 @@ from transformers import (
 )
 import fire
 
-# Pre-initialize process group with a 2-hour timeout before DeepSpeed does it.
-if "LOCAL_RANK" in os.environ and not dist.is_initialized():
-    dist.init_process_group(
-        backend="nccl",
-        timeout=datetime.timedelta(hours=2),
-    )
-
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data import MINDPointwiseSFTDataset
+from jev_decision import candidate_decision_loss
+
+
+PAIRWISE_OBJECTIVE = "causal_margin_bt_v2"
 
 
 def resolve_report_to(wandb_project):
@@ -125,88 +125,80 @@ class _Collator:
 
 
 class _PairwiseTrainer(transformers.Trainer):
-    """HF Trainer with CE + lambda*BT. The BT term ranks yes-logits pos>neg."""
+    """Full-vocab CE + within-impression BT on target-free decision margins."""
 
     def __init__(self, yes_token_id, no_token_id, pairwise_loss_weight=0.5, **kwargs):
+        if not math.isfinite(pairwise_loss_weight) or pairwise_loss_weight < 0:
+            raise ValueError("Pairwise loss weight must be finite and nonnegative")
         self._yes_id = yes_token_id
         self._no_id = no_token_id
         self._pw = pairwise_loss_weight
+        self._warned_missing_pairs = False
         super().__init__(**kwargs)
+        self.model_accepts_loss_kwargs = False
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
-        labels = inputs.pop("labels", None)
-        impressions = inputs.pop("impression_id", None)
-        cls = inputs.pop("label", None)  # 1 = clicked, 0 = not clicked
-
-        outputs = model(**inputs, labels=labels)
-        ce_loss = outputs.loss
-
-        loss = ce_loss
-        if impressions is not None and cls is not None and self._pw > 0:
-            logits = outputs.logits  # [B, L, V]
-            # Answer tokens are the only non -100 positions (left-padded so
-            # they are right-aligned). Grab each sample's yes-class logit as
-            # its "score" proxy.
-            valid = labels != -100  # [B, L]
-            # Score = logit of the FIRST answer token at the YES token id.
-            scores = []
-            for i in range(logits.shape[0]):
-                vpos = valid[i].nonzero(as_tuple=True)[0]
-                if vpos.numel() == 0:
-                    scores.append(torch.zeros((), device=logits.device))
-                    continue
-                pos = vpos[0].item()
-                # P(yes) logit for the answer position.
-                scores.append(logits[i, pos, self._yes_id])
-            scores = torch.stack(scores)
-            cls = cls.to(scores.device)
-
+        model_inputs = {key: value for key, value in inputs.items()
+                        if key not in ("impression_id", "label")}
+        if self._pw == 0:
+            outputs = model(**model_inputs)
+            loss = outputs.loss
+        else:
+            if "impression_id" not in inputs or "label" not in inputs:
+                raise ValueError("Pairwise loss requires impression_id and binary label metadata")
+            labels = model_inputs["labels"]
+            if not isinstance(labels, torch.Tensor) or labels.ndim != 2 or labels.shape[1] < 2:
+                raise ValueError("Pairwise labels must include a nonempty prompt and final answer")
+            cls = inputs["label"]
+            impressions = inputs["impression_id"]
+            self._validate_metadata(cls, impressions, labels.shape[0])
+            if not torch.all(labels[:, -1] == torch.where(
+                    cls.to(labels.device) == 1, self._yes_id, self._no_id)):
+                raise ValueError("Pairwise metadata must match the supervised Yes/No answer")
+            loss, outputs = candidate_decision_loss(
+                model, model_inputs, (self._yes_id, self._no_id), loss_type="full_vocab")
+            scores = outputs["logits"][:, 0] - outputs["logits"][:, 1]
             bt = self._pairwise_term(scores, cls, impressions)
-            if bt is not None:
+            if bt is None:
+                if not self._warned_missing_pairs:
+                    warnings.warn(
+                        "No within-impression positive/negative pairs in this batch; CE only. "
+                        "Shuffled candidate batches are not full-impression ranking training.",
+                        RuntimeWarning, stacklevel=2)
+                    self._warned_missing_pairs = True
+            else:
                 loss = loss + self._pw * bt
-
+            outputs["loss"] = loss
+        if not torch.isfinite(loss):
+            raise FloatingPointError("Pairwise training loss contains NaN/Inf")
         return (loss, outputs) if return_outputs else loss
 
+    @staticmethod
+    def _validate_metadata(cls, impressions, batch_size):
+        if (not isinstance(cls, torch.Tensor) or cls.ndim != 1 or cls.numel() != batch_size
+                or not torch.all((cls == 0) | (cls == 1))
+                or not isinstance(impressions, (list, tuple)) or len(impressions) != batch_size
+                or any(not isinstance(impression, str) or not impression for impression in impressions)):
+            raise ValueError("Pairwise metadata needs one binary label and impression ID per candidate")
+
     def _pairwise_term(self, scores, cls, impressions):
-        """Bradley-Terry: -log(sigmoid(score_pos - score_neg)).
-
-        Pair candidates within the same impression; fall back to global pos/neg
-        pairing when a batch has no impression-matched pairs.
-        """
-        pos_idx = (cls == 1).nonzero(as_tuple=True)[0]
-        neg_idx = (cls == 0).nonzero(as_tuple=True)[0]
-        if pos_idx.numel() == 0 or neg_idx.numel() == 0:
-            return None
-
-        # Prefer pairing within the same impression.
-        imp_pos = neg_idx  # reuse
-        paired_pos = []
-        paired_neg = []
-        used_neg = set()
-        # Group negatives by impression for fast lookup.
-        imp2neg = {}
-        for ni in neg_idx.tolist():
-            imp2neg.setdefault(impressions[ni], []).append(ni)
-        for pi in pos_idx.tolist():
-            imp = impressions[pi]
-            cand = [n for n in imp2neg.get(imp, []) if n not in used_neg]
-            if cand:
-                ni = cand[0]
-                used_neg.add(ni)
-                paired_pos.append(pi)
-                paired_neg.append(ni)
-
-        if paired_pos:
-            p = scores[torch.tensor(paired_pos, device=scores.device)]
-            n = scores[torch.tensor(paired_neg, device=scores.device)]
-        else:
-            # Fall back to a random global pos/neg pairing.
-            k = min(pos_idx.numel(), neg_idx.numel())
-            perm = torch.randperm(neg_idx.numel(), device=scores.device)[:k]
-            p = scores[pos_idx[:k]]
-            n = scores[neg_idx[perm]]
-
-        return -torch.log(torch.sigmoid(p - n) + 1e-8).mean()
+        """Average all present positive/negative pairs equally per impression."""
+        if scores.ndim != 1 or not scores.numel() or not torch.isfinite(scores).all():
+            raise ValueError("Pairwise scores must be a finite vector")
+        self._validate_metadata(cls, impressions, scores.numel())
+        groups = {}
+        for index, impression in enumerate(impressions):
+            groups.setdefault(impression, []).append(index)
+        cls = cls.to(scores.device)
+        losses = []
+        for indices in groups.values():
+            indices = torch.tensor(indices, device=scores.device)
+            positive = scores[indices[cls[indices] == 1]]
+            negative = scores[indices[cls[indices] == 0]]
+            if positive.numel() and negative.numel():
+                losses.append(torch.nn.functional.softplus(
+                    negative[None, :] - positive[:, None]).mean())
+        return torch.stack(losses).mean() if losses else None
 
 
 def train(
@@ -244,6 +236,16 @@ def train(
     pairwise_loss_weight: float = 0.5,  # lambda for the Bradley-Terry term (A7.3)
 ):
     """Train with hybrid point-wise CE + pairwise Bradley-Terry objective."""
+    if not math.isfinite(pairwise_loss_weight) or pairwise_loss_weight < 0:
+        raise ValueError("Pairwise loss weight must be finite and nonnegative")
+    if not output_dir:
+        raise ValueError("Please specify a new --output_dir")
+    if os.path.exists(os.path.join(output_dir, "final_checkpoint")):
+        raise ValueError("Refusing to overwrite an existing final checkpoint; use a new output_dir")
+    if os.path.isdir(output_dir) and os.listdir(output_dir) and not resume_from_checkpoint:
+        raise ValueError("Use a new empty output_dir; do not reuse prior trial artifacts")
+    if "LOCAL_RANK" in os.environ and not dist.is_initialized():
+        dist.init_process_group(backend="nccl", timeout=datetime.timedelta(hours=2))
     set_seed(seed)
 
     if use_chat_template is None:
@@ -271,6 +273,24 @@ def train(
     _base_model_arg = _Path(base_model) if _local else base_model
     _local_kwargs = {"local_files_only": True} if _local else {}
 
+    tokenizer = AutoTokenizer.from_pretrained(_base_model_arg, trust_remote_code=True, **_local_kwargs)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.padding_side = "left"
+    answer_tokens = [tokenizer.encode(answer, add_special_tokens=False) for answer in (" Yes", " No")]
+    if (any(len(tokens) != 1 for tokens in answer_tokens)
+            or answer_tokens[0] == answer_tokens[1]
+            or any(tokens[0] in tokenizer.all_special_ids for tokens in answer_tokens)):
+        raise ValueError("Yes/No answers must encode as distinct single non-special tokens")
+    YES_ID, NO_ID = (tokens[0] for tokens in answer_tokens)
+    if pairwise_loss_weight > 0 and resume_from_checkpoint:
+        resume_config = AutoConfig.from_pretrained(
+            _Path(resume_from_checkpoint), local_files_only=True)
+        if (getattr(resume_config, "mind_pairwise_objective", None) != PAIRWISE_OBJECTIVE
+                or getattr(resume_config, "mind_pairwise_loss_weight", None) != pairwise_loss_weight
+                or getattr(resume_config, "mind_pairwise_answer_token_ids", None) != [YES_ID, NO_ID]):
+            raise ValueError("Cannot resume incompatible optimizer state under the repaired pairwise objective")
+
     if train_from_scratch:
         config = AutoConfig.from_pretrained(_base_model_arg, **_local_kwargs)
         model = AutoModelForCausalLM.from_config(config)
@@ -287,17 +307,11 @@ def train(
         if _hybrid_backbone:
             print(f"  Detected hybrid backbones ({_arch}): using sdpa attention (vision tower not loaded)")
 
-    tokenizer = AutoTokenizer.from_pretrained(_base_model_arg, trust_remote_code=True, **_local_kwargs)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    tokenizer.padding_side = "left"
-
-    # Answer tokens: the positive-class " Yes" logit is our ranking score.
-    try:
-        YES_ID = tokenizer.encode(" Yes", add_special_tokens=False)[0]
-        NO_ID = tokenizer.encode(" No", add_special_tokens=False)[0]
-    except Exception as e:
-        raise RuntimeError(f"Could not resolve answer token ids: {e}")
+    if pairwise_loss_weight > 0:
+        model.config.mind_pairwise_objective = PAIRWISE_OBJECTIVE
+        model.config.mind_pairwise_score = "final_prompt_yes_minus_no"
+        model.config.mind_pairwise_loss_weight = pairwise_loss_weight
+        model.config.mind_pairwise_answer_token_ids = [YES_ID, NO_ID]
     print(f"Answer token ids: YES={YES_ID!r} NO={NO_ID!r}")
 
     train_data = MINDPointwiseSFTDataset(
@@ -335,6 +349,7 @@ def train(
         use_recency=use_recency,
         use_profile_summary=use_profile_summary,
         use_impression_timestamp=use_impression_timestamp,
+        return_meta=True,
     )
 
     print(f"\nTraining with Hybrid Point-wise + Pairwise (BT) SFT:")
@@ -347,6 +362,7 @@ def train(
     print(f"  Pairwise (BT) loss weight lambda: {pairwise_loss_weight}")
 
     training_args_dict = {
+        "remove_unused_columns": False,
         "per_device_train_batch_size": micro_batch_size,
         "per_device_eval_batch_size": micro_batch_size,
         "gradient_accumulation_steps": gradient_accumulation_steps,

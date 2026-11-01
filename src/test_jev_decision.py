@@ -219,7 +219,10 @@ class QwenIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             trainer = JEVWithinModelDistillTrainer(
                 model=model, enable_kl=False, loss_type="decision", decision_token_ids=(2, 3),
-                args=TrainingArguments(output_dir=directory, report_to="none", use_cpu=True),
+                args=TrainingArguments(
+                    output_dir=directory, report_to="none", use_cpu=True,
+                    max_steps=2, per_device_train_batch_size=1,
+                    gradient_accumulation_steps=2, save_strategy="no", disable_tqdm=True),
             )
             self.assertFalse(trainer.model_accepts_loss_kwargs)
             optimizer = torch.optim.SGD(model.parameters(), lr=0.05)
@@ -243,11 +246,6 @@ class QwenIntegrationTests(unittest.TestCase):
             trainer.train_dataset = [
                 {key: value[row] for key, value in batch().items()} for row in range(2)
             ]
-            trainer.args.max_steps = 2
-            trainer.args.per_device_train_batch_size = 1
-            trainer.args.gradient_accumulation_steps = 2
-            trainer.args.save_strategy = "no"
-            trainer.args.disable_tqdm = True
             forward_calls = []
             hook = model.register_forward_pre_hook(lambda _model, _args: forward_calls.append(None))
             self.addCleanup(hook.remove)

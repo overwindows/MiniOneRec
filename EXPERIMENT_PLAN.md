@@ -1739,6 +1739,54 @@ Fall back across clusters (`--vm-cluster recall`) and tiers
 
 ### November 1 implementation update: streamed Newton-CG, NOT a running experiment
 
+#### November 1 Track C loss repair: local CPU qualification, NOT full-scale readiness
+
+The legacy pairwise SFT used the logit AT the appended supervised answer
+instead of the preceding prompt position;it also optimized the raw Yes logit,
+whereas pointwise evaluation ranks Yes-minus-No margins. Those are not the
+same score. Missing same-impression pairs previously fell back to random
+cross-impression comparisons. Default Trainer column filtering could remove
+impression metadata and silently disable the ranking term.
+
+`causal_margin_bt_v2` now reuses the shared target-free candidate forward:
+strip the single answer before forwarding,retain original full-vocabulary
+CE at the final prompt position,and rank by the Yes-minus-No margin.
+All available positive/negative pairs are averaged equally per eligible
+impression using stable softplus. No cross-impression pairs are invented.
+Metadata/answer disagreement,missing metadata,invalid tokens/nonfinite
+losses fail explicitly. Pairless batches emit a CE-only warning;that is
+NOT full-impression ranking qualification. Zero pairwise weight preserves
+the legacy CE forward. Data columns and validation metadata are retained.
+
+Checkpoint configuration records objective version,weight and answer IDs;
+incompatible optimizer resume is rejected before weight loading. Completed
+checkpoints and nonempty prior trial directories are not overwritten/reused
+without explicit compatible resume. Historical trials remain immutable;
+no new trial is fitted or scored by this implementation update.
+
+IMPORTANT: the purported ready-to-launch command above sets
+`pointwise_ratio=0.5`,which the current component routes to
+`sft_mind_multitask.sh`,NOT this pairwise trainer. The multitask branch
+does not forward `pairwise_loss_weight`. Do not describe that command as
+a verified Bradley-Terry/LambdaRank launch. Bradley-Terry is not LambdaRank.
+The old shuffled/negative-sampled dataset and microbatch boundaries remain
+unqualified for complete-impression/all-candidate training. This repair
+does not authorize or register an8B job,dev selection or test scoring.
+
+CPU qualification uses newly initialized tiny Qwen3 and hybrid Qwen3.5
+models only,not8B weights or MIND data. It checks full-vocab causal CE against
+the appended-label reference,exact within-impression pair formulas/gradients,
+no cross-impression RNG fallback,input/metadata/token/resume guards,and a
+real Trainer optimizer step. The shared JEV binary default remains unchanged.
+The existing hybrid integration fixture had mutated batch settings AFTER
+Trainer construction;the unchanged HEAD helper reproduced its wrong
+microbatch-count failure. Configure those settings before construction,
+retaining the exact four-forward/two-step assertion rather than weakening it.
+The pinned neural environment is not modified;an isolated CLI/test environment
+reads its installed numerical packages with CUDA explicitly disabled.
+35 targeted loss/integration fixtures and15 subtests pass. No official metric
+or neural campaign gate is changed by those synthetic results.
+
 #### November 1 verified SUBCAT failure and forward-only merge repair
 
 Read-only AML/ADLS observation2026-11-01 06:24:40UTC supersedes the earlier

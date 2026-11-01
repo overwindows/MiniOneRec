@@ -56,19 +56,22 @@ UAI_RESOURCE_ID = (
 # ============================================================================
 # 3) Resource Configuration - 8-GPU ND96amrs_A100_v4
 # ============================================================================
-res_cfg = JobResourceConfiguration(
-    instance_count=1,
-    instance_type="Singularity.ND96amrs_A100_v4",
-    properties={
-        "singularity": {
-            # "slaTier": "Premium",
-            "slaTier": "Standard",
-            "priority": "High",
-            # "priority": "Low",
-            "enableAzmlInt": False,
-        }
-    },
-)
+def make_res_cfg(sla_tier="Premium"):
+    # slaTier levers: Premium is node-starved, Standard/Basic are the untried
+    # alternatives when nothing allocates (user directive: vary clusters+tiers).
+    return JobResourceConfiguration(
+        instance_count=1,
+        instance_type="Singularity.ND96amrs_A100_v4",
+        properties={
+            "singularity": {
+                "slaTier": sla_tier,
+                "priority": "High",
+                "enableAzmlInt": False,
+            }
+        },
+    )
+
+res_cfg = make_res_cfg(sla_tier="Standard")
 
 # ============================================================================
 # 4) Load Component from YAML
@@ -238,10 +241,14 @@ if __name__ == "__main__":
                         help="A7.3 pairwise (Bradley-Terry) loss weight lambda (default: 0.5)")
     parser.add_argument("--vm-cluster", default="ranking", choices=["ranking", "recall"],
                         help="Virtual cluster to submit to; use 'recall' when ranking compute is busy (default: ranking)")
+    parser.add_argument("--sla-tier", default="Standard", choices=["Basic", "Standard", "Premium"],
+                        help="SLA tier; Premium is node-starved, Standard/Basic are alternatives (default: Standard)")
     args = parser.parse_args()
 
     # Select the compute cluster. `recall` is the fallback when `ranking` is busy.
     VC_ARM_ID = VC_ARM_ID_MAP[args.vm_cluster]
+    # Rebuild resources with the selected tier so the launched node uses it.
+    res_cfg = make_res_cfg(sla_tier=args.sla_tier)
 
     debug_mode = "true" if args.debug else "false"
 

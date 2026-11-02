@@ -295,6 +295,22 @@ source push,permission change or extension of the10:38:30.795745UTC cutoff.
 
 Competition-test AUC>=0.80 remains the acceptance criterion and is unmet.
 
+Qualified source/tests/protocol committed6b22b05,54 fixtures passed,no push.
+Controller registered09:16:54.063243UTC November2 after snapshot preparation:
+4800-second total maximum,4788 child seconds,four threads/3758096384 bytes,
+original10:38:30.795745UTC remains an upper bound. Verification conservatively
+uses the earlier registered-at+child-seconds-minus1s cutoff so the4800-second
+INCLUDING-preparation budget cannot be silently extended to the absolute
+upper bound. Frozen snapshot and graph recipe hashes are in
+`jev-click-graph-01-controller-registration.json`. Real graph progress proves
+all1801231/66107268/2712612 earlier-day aggregation consumed;heldout score
+stream exists. No internal AUC or final ALL-training fit is yet accepted.
+Observed-running graph/page/feed deployed09:22:25UTC November2:
+`jev-click-graph-01-start-publication.json`. All52 historical benchmark
+cells/unrelated assets/auth preserved,browser rendering unverified. The
+new graph has no accepted AUC yet;the independently rejected CPU model's
+metric and closed gate remain unchanged.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

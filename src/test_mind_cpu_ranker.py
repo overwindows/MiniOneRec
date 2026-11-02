@@ -17,6 +17,32 @@ from mind_cpu_ranker import (
 )
 
 
+def broadcast_reference(model, histories, candidates, groups, sizes, features):
+    history = model.news_vectors(histories)
+    keys = model.key(history + model.positions[None, :, :])
+    values = model.value(history)
+    candidate = model.news_vectors(candidates)
+    mask = histories[groups] != 0
+    logits = (keys[groups] * model.query(candidate)[:, None, :]).sum(-1) / np.sqrt(model.dimensions)
+    logits = logits.masked_fill(~mask, -torch.inf)
+    logits = torch.where(mask.any(1)[:, None], logits, torch.zeros_like(logits))
+    attention = torch.softmax(logits, dim=1) * mask
+    context = (attention[:, :, None] * values[groups]).sum(1)
+    count = mask.sum(1).clamp_min(1)
+    category = model.categories[candidates, None]
+    subcategory = model.subcategories[candidates, None]
+    category_match = ((model.categories[histories[groups]] == category)
+                      & mask & (category != 0)).sum(1) / count
+    subcategory_match = ((model.subcategories[histories[groups]] == subcategory)
+                         & mask & (subcategory != 0)).sum(1) / count
+    mean = (history[groups] * mask[:, :, None]).sum(1) / count[:, None]
+    cosine = torch.nn.functional.cosine_similarity(candidate, mean, dim=1)
+    extra = torch.cat((features, category_match[:, None], subcategory_match[:, None],
+                       cosine[:, None], torch.log1p(mask.sum(1).float())[:, None],
+                       torch.log1p(sizes[groups].float())[:, None]), dim=1)
+    return features[:, 0] + model.head(torch.cat((candidate, context, candidate * context, extra), dim=1)).squeeze(-1)
+
+
 def news():
     return {
         "N1": {"category": "sport", "subcategory": "ball", "title": "Football match win", "abstract": "Sports team scored goals"},
@@ -102,11 +128,7 @@ def test_candidate_attention_chunk_outputs_and_gradients_match(fixture_source, c
     chunked = copy.deepcopy(original)
     tensors = batch_tensors(fixture_source, corpus, priors, np.arange(4), False)
     histories, candidates, groups, sizes, features, labels = tensors
-    history_vectors = original.news_vectors(histories)
-    expected = original._chunk(
-        candidates, groups, features, sizes, histories, history_vectors,
-        original.key(history_vectors + original.positions[None, :, :]),
-        original.value(history_vectors))
+    expected = broadcast_reference(original, histories, candidates, groups, sizes, features)
     actual = chunked(histories, candidates, groups, sizes, features, chunk_size)
     torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-6)
     complete_loss(expected, labels, groups, sizes).backward()
@@ -232,6 +254,58 @@ def test_omitted_epoch_impression_rejects_before_model_publication(tmp_path, fix
                      time.monotonic() + 60, 10 * 2**30)
     assert not (tmp_path / "model.pt").exists()
     assert not (tmp_path / "epoch_coverage.json").exists()
+
+
+def test_ragged_large_pair_loss_and_gradients_match_complete_group_reference():
+    torch.manual_seed(315)
+    sizes = torch.tensor([300, 300, 1, 17])
+    groups = torch.repeat_interleave(torch.arange(len(sizes)), sizes)
+    labels = torch.cat((torch.ones(150), torch.zeros(150), torch.ones(1),
+                        torch.zeros(299), torch.ones(1), torch.zeros(17)))
+    scores = torch.randn(len(labels), requires_grad=True)
+    reference_scores = scores.detach().clone().requires_grad_()
+    ce, pairs = [], []
+    for index in range(len(sizes)):
+        selected = groups == index
+        values, targets = reference_scores[selected], labels[selected]
+        ce.append(torch.nn.functional.binary_cross_entropy_with_logits(values, targets))
+        positive, negative = values[targets == 1], values[targets == 0]
+        if len(positive) and len(negative):
+            pairs.append(torch.nn.functional.softplus(negative[None, :] - positive[:, None]).mean())
+    expected = torch.stack(ce).mean() + 0.5 * torch.stack(pairs).mean()
+    actual = complete_loss(scores, labels, groups, sizes)
+    torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-6)
+    actual.backward()
+    expected.backward()
+    torch.testing.assert_close(scores.grad, reference_scores.grad, atol=1e-7, rtol=2e-5)
+
+
+def test_default_dimensions_large_attention_matches_original_broadcast(fixture_source):
+    torch.manual_seed(811)
+    corpus = Corpus(news())
+    priors = Priors(fixture_source, corpus, np.arange(4), time.monotonic() + 60, 10 * 2**30)
+    reference = CandidateHistoryRanker(corpus, priors.known)
+    torch.nn.init.normal_(reference.head[-1].weight, std=0.01)
+    reference.eval()
+    model = copy.deepcopy(reference)
+    histories = torch.from_numpy(fixture_source.histories[:2].astype(np.int64))
+    sizes = torch.tensor([300, 300])
+    groups = torch.repeat_interleave(torch.arange(2), sizes)
+    candidates = torch.arange(600) % 4 + 1
+    features = torch.zeros((600, 3))
+    labels = torch.zeros(600)
+    labels[:150] = 1
+    labels[300] = 1
+    expected = broadcast_reference(reference, histories, candidates, groups, sizes, features)
+    actual = model(histories, candidates, groups, sizes, features, chunk_size=2048)
+    torch.testing.assert_close(actual, expected, atol=2e-6, rtol=2e-5)
+    complete_loss(actual, labels, groups, sizes).backward()
+    complete_loss(expected, labels, groups, sizes).backward()
+    for left, right in zip(reference.parameters(), model.parameters()):
+        if left.grad is not None:
+            a = left.grad.to_dense() if left.grad.is_sparse else left.grad
+            b = right.grad.to_dense() if right.grad.is_sparse else right.grad
+            torch.testing.assert_close(a, b, atol=2e-6, rtol=2e-5)
 
 
 def test_complete_two_epoch_training_persists_proofs_and_reload(tmp_path, fixture_source):

@@ -76,21 +76,19 @@ def complete_loss(scores, labels, group_index, sizes, pairwise_weight=0.5):
     negative_counts = sizes - positive_counts
     eligible = (positive_counts > 0) & (negative_counts > 0)
     loss = ce.mean()
-    if torch.any(eligible):
-        padded = []
-        for selected, counts in ((positive, positive_counts), (~positive, negative_counts)):
-            selected_groups = group_index[selected]
-            starts = torch.cumsum(counts, 0) - counts
-            columns = torch.arange(int(counts.sum())) - starts[selected_groups]
-            values = scores.new_zeros((len(sizes), int(counts.max())))
-            values = values.index_put((selected_groups, columns), scores[selected])
-            mask = torch.arange(values.shape[1])[None, :] < counts[:, None]
-            padded.append((values, mask))
-        pos, neg = padded
-        pair_mask = pos[1][:, :, None] & neg[1][:, None, :]
-        pair_losses = F.softplus(neg[0][:, None, :] - pos[0][:, :, None]) * pair_mask
+    if pairwise_weight and torch.any(eligible):
+        positive_groups = group_index[positive]
+        repeats = negative_counts[positive_groups]
+        positive_indices = torch.repeat_interleave(torch.arange(int(positive.sum())), repeats)
+        pair_groups = positive_groups[positive_indices]
+        negative_starts = torch.cumsum(negative_counts, 0) - negative_counts
+        pair_starts = torch.cumsum(repeats, 0) - repeats
+        negative_indices = (negative_starts[pair_groups]
+                            + torch.arange(len(positive_indices)) - pair_starts[positive_indices])
+        pair_losses = F.softplus(
+            scores[~positive][negative_indices] - scores[positive][positive_indices])
         denominators = (positive_counts * negative_counts).clamp_min(1)
-        bt = pair_losses.sum((1, 2)) / denominators
+        bt = scores.new_zeros(len(sizes)).index_add(0, pair_groups, pair_losses) / denominators
         loss = loss + pairwise_weight * bt[eligible].mean()
     if not torch.isfinite(loss):
         raise FloatingPointError("CPU ranking loss is not finite")
@@ -377,22 +375,21 @@ class CandidateHistoryRanker(nn.Module):
                 + self.category_embedding(self.categories[news])
                 + self.subcategory_embedding(self.subcategories[news]))
 
-    def _chunk(self, news, groups, priors, sizes, histories, history_vectors, keys, values):
+    def _chunk(self, news, groups, priors, sizes, histories, mean_histories, keys, values):
         candidate = self.news_vectors(news)
         mask = histories[groups] != 0
         query = self.query(candidate)
-        scores = (keys[groups] * query[:, None, :]).sum(-1) / math.sqrt(self.dimensions)
+        scores = torch.bmm(keys[groups], query[:, :, None]).squeeze(-1) / math.sqrt(self.dimensions)
         scores = scores.masked_fill(~mask, -torch.inf)
         scores = torch.where(mask.any(1)[:, None], scores, torch.zeros_like(scores))
         attention = torch.softmax(scores, dim=1) * mask
-        context = (attention[:, :, None] * values[groups]).sum(1)
+        context = torch.bmm(attention[:, None, :], values[groups]).squeeze(1)
         count = mask.sum(1).clamp_min(1)
         category_match = ((self.categories[histories[groups]] == self.categories[news, None])
                           & mask & (self.categories[news, None] != 0)).sum(1) / count
         subcategory_match = ((self.subcategories[histories[groups]] == self.subcategories[news, None])
                              & mask & (self.subcategories[news, None] != 0)).sum(1) / count
-        mean_history = (history_vectors[groups] * mask[:, :, None]).sum(1) / count[:, None]
-        cosine = F.cosine_similarity(candidate, mean_history, dim=1)
+        cosine = F.cosine_similarity(candidate, mean_histories[groups], dim=1)
         extra = torch.cat((priors, category_match[:, None], subcategory_match[:, None],
                            cosine[:, None], torch.log1p(mask.sum(1).float())[:, None],
                            torch.log1p(sizes[groups].float())[:, None]), dim=1)
@@ -403,12 +400,15 @@ class CandidateHistoryRanker(nn.Module):
         if not isinstance(chunk_size, int) or isinstance(chunk_size, bool) or chunk_size < 1:
             raise ValueError("Candidate chunk size must be a positive integer")
         history_vectors = self.news_vectors(histories)
+        history_mask = histories != 0
+        mean_histories = ((history_vectors * history_mask[:, :, None]).sum(1)
+                          / history_mask.sum(1).clamp_min(1)[:, None])
         keys = self.key(history_vectors + self.positions[None, :, :])
         values = self.value(history_vectors)
         chunks = []
         for start in range(0, len(news), chunk_size):
             args = (news[start:start + chunk_size], groups[start:start + chunk_size],
-                    priors[start:start + chunk_size], sizes, histories, history_vectors, keys, values)
+                    priors[start:start + chunk_size], sizes, histories, mean_histories, keys, values)
             if torch.is_grad_enabled():
                 logits = checkpoint(self._chunk, *args, use_reentrant=False, preserve_rng_state=True)
             else:

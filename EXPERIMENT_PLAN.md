@@ -96,6 +96,30 @@ The independent saved-score verifier passes150 tied synthetic AUC fixtures
 and must verify full raw-dev identity/order/width/population and both complete
 final epochs before publishing any model metric.
 
+Recovery TERMINAL04:53:08.843006UTC November2:the watchdog killed its own
+child at the peak-RSS ceiling. Observed3782897664 bytes exceeded3758096384;
+elapsed1279.831240 seconds,exit-9. Last logged progress:first epoch3072
+steps,786432 impressions/28892744 exposures. The selection artifact directory
+is empty:zero complete epoch proofs,model checkpoints or AUC results. No
+final refit or dev/test evaluation occurred. Preserve both launch histories;
+do not increase the cap,reset the cutoff or accept partial fitting. Correct
+future resource usage using synthetic qualification before any new protocol.
+
+Resource repair for continued implementation:enumerate only real within-
+impression BT pairs instead of batch-wide padded cross-products;use batched
+matrix products for attention and compute mean histories once per impression.
+Ranking dimensions,parameters,loss weights,candidate coverage and gates are
+unchanged. Original snapshots and terminal results remain immutable.
+25 CPU tests include independent original broadcast scores/gradients and
+large ragged-pair reference gradients. Matched three-step synthetic stress
+with101527 synthetic news/256 groups/300 candidates/history30 reduced peak
+RSS from4240310272 to2140835840 bytes. A separate16-step varying-group stress
+with800000000 resident synthetic ballast bytes peaked at2864381952 bytes.
+These are synthetic engineering probes,NOT full-data memory qualification,
+model AUC or evidence that the0.80 goal is met. Source repair may continue
+only inside the original cutoff and unchanged3.5GiB/four-thread ceilings;
+no fresh wall-clock allocation,old-result relabeling or partial-model promotion.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

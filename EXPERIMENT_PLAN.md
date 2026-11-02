@@ -24,6 +24,54 @@
 > AUC >= 0.80; keep dataset/split/candidate coverage explicit and do not infer
 > a valid target gap by comparing results from different benchmarks.
 
+## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
+
+Protocol frozen November 2, 2026 UTC before real-data fitting. This is a
+distinct non-language-model hypothesis, not a retry, deadline extension or
+gate relaxation of any rejected JEV campaign. Competition-test AUC >= 0.80
+remains the acceptance criterion; no result from this experiment exists yet.
+
+- Train lexical/category/news-ID representations with candidate-aware
+  history attention, history30, dimensions64, ID-feature dropout0.5 and
+  train-only TF-IDF32768/SVD64 news features. Full training-news metadata is
+  used for lexical fitting; heldout click targets are not. This architecture
+  is not equivalent to full-vocabulary SFT and does not replace that path.
+- Bind the complete MIND-large training manifest SHA256
+  `4daa3377b4601aca4ae5b72e45ed2931becb8dd648dd23998f17fb3e1342a5f4`,
+  its source producer and every raw/encoded file hash. Final fitting requires
+  all2232748 impressions/all83507374 exposures/all3383656 positives. Preserve
+  duplicate article exposures, candidate order and exactly-once impression
+  coverage; no negative sampling or dropped candidates.
+- Impression-balanced binary CE plus0.5 exact within-impression positive/
+  negative Bradley-Terry loss. Two BLAKE2b impression-ID folds exclude the
+  entire current fold from training click-prior pools. Internal heldout
+  labels never contribute to those pools. Inference uses pooled fitting
+  priors, with no dev-label fitting.
+- One fixed recipe: two epochs,seed42,256 complete impressions per batch,
+  differentiable candidate chunks2048, dense AdamW/sparse Adam lr0.001,
+  dense weight decay0.001, dense gradient clipping1.0. Every epoch saves
+  exact impression/exposure/positive counts and a source-position digest.
+- Temporary selection fits earlier training days only:1801231 impressions,
+  with431517 impressions on2019-11-14 as heldout TRAINING-day validation.
+  Require internal AUC >=0.69. This is a screening gate, not an official-dev
+  or competition result. Failure stops without final refit or dev reads.
+- Only after that gate, fit the unchanged two-epoch recipe from scratch on
+  ALL training impressions/candidates, then score every376471 official
+  MIND-large-dev impression/all14085557 exposures/all574845 positives.
+  Correct score ties, reject undefined AUC rather than silently dropping
+  impressions, and retain known-train article metadata identities.
+- Single local CPU trial, no cloud/GPU allocations or source uploads:
+  immutable7200 seconds including startup/source preparation, four threads,
+  3758096384-byte peak-RSS ceiling. An external controller kills the specific
+  child on timeout or memory breach, including blocking native operations.
+  Fresh output `Q:\CodeGuru\scratch\jev-cpu-native-01-20261102`; no overwrite,
+  automatic retry, budget reset or resumed partial training.
+- Qualification:23 CPU tests cover complete-group losses/gradients, sparse
+  checkpoint/dropout behavior, empty histories, fold and heldout exclusion,
+  serialization/unknown articles, duplicate/omitted positions, epoch proofs
+  and tie-correct evaluation. Passing checks is not research acceptance.
+  Independently verify any actual result before benchmark promotion.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

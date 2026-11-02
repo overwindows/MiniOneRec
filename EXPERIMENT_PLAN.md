@@ -129,6 +129,19 @@ proof hashes and forbids cutoff/cap/coverage overrides. Fresh output
 `Q:\CodeGuru\scratch\jev-cpu-native-resource-01-20261102`. Ranking recipe
 and all-data final refit requirements remain unchanged;no AUC exists yet.
 
+Resource continuation TERMINAL November2 original cutoff:watchdog result
+`rejected_hard_wall_clock_cap`,exit-9,elapsed4701.534591s;receipt finished
+06:26:41.039790UTC (control/receipt overhead after06:26:39.324761UTC cutoff).
+Observed actual peak3152896000 bytes remained below3758096384. One complete
+earlier-training epoch independently replayed against pinned label/offset/
+day arrays:1801231 impressions/66107268 exposures/2712612 positives and exact
+source-position bitmap digest. Second-epoch last logged1310720 impressions/
+48116659 exposures;selection directory remains empty. No complete two-epoch
+fit,checkpoint,internal AUC,final all-training refit or dev/test evaluation.
+Proof:`jev-cpu-resource-01-partial-coverage-verification.json`. Preserve all
+artifacts;expired original budget is not reset. New execution needs a new,
+explicitly bounded budget;partial epochs are not accepted model results.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

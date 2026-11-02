@@ -472,6 +472,34 @@ Original10:36:41.063243UTC aggregate cutoff remains unchanged;all transitive
 source hashes frozen,isolated CLI import passed. Earlier-day fitting
 underway;no completed epoch/new AUC/final ALL-training fit result yet.
 
+### Title terminal and independent verification, November 2, 2026
+
+The title/history model exited0 at10:25:11.420573UTC,655.646465s,
+peak2358218752 bytes,`rejected_internal_gate`. AUC0.6670103723929238,
+MRR0.29313563809283727,nDCG5/10=0.3181572148065158/
+0.38263567834741535 on the complete431517/17400106/671044 heldout
+TRAINING-day population. ONE complete earlier-training epoch consumed
+1801231/66107268/2712612 in7037 optimizer steps. No final ALL-training
+fit,official-dev/test read/evaluation or accepted new benchmark.
+
+Read-only independent verification completed10:30:15.665586UTC:
+204.128889s,peak1836224512 bytes. Every saved title feature independently
+reconstructed,every restored score bit-exact,all four metrics and complete
+epoch/source-population ledger verified. NumPy weighted article encoder
+on all101528 rows:max error1.1920928955078125e-7. Independent complete
+recency/cosine/intrinsic score formula on64 selected groups:max error
+2.384185791015625e-6. This is NOT independent replay of every optimizer
+gradient update. Original caps/cutoff and all rejected gates unchanged.
+Proof:`jev-title-ranker-01-independent-verification.json`.
+
+The historical registration/running publication was deployed10:21:12UTC:
+`jev-lexical-rejection-title-start-publication.json`,52 old benchmark cells/
+assets/auth unchanged. All four recipes now stopped/rejected. The verified
+full official-dev JEV result0.6814457842047346 remains unchanged;the0.80
+competition-test acceptance target is not met. Remaining original time
+cannot support another qualified complete neural trial plus verification;
+do not silently allocate a fresh budget or reopen rejected recipes.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

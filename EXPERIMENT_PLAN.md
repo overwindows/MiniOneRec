@@ -390,6 +390,20 @@ is absent. This is a hypothesis,not a diagnosed cause or promised0.80 result.
 
 The0.80 competition-test target remains unmet.
 
+New lexical implementation/tests/protocol and verified graph disclosure
+committed2d4fc74 locally,no push. Controller registered09:47:53.330559UTC,
+2942-second maximum including snapshot preparation,2927 child seconds,
+allocation cutoff remains10:36:41.063243UTC,original10:38:30.795745UTC upper
+bound unchanged. Immutable source/runtime snapshot. Real saved earlier-day
+likelihood fit converged in112 iterations,33073 features,complete
+1801231/66107268/2712612 coverage and source bitmapc2afb72b... .
+Objective0.1588028057103586 is a fitting loss,NOT AUC. Heldout score stream
+exists;no internal AUC or final ALL-training/official-dev result yet.
+Lexical-running page/feed deployed09:53:38UTC November2:
+`jev-lexical-glm-01-start-publication.json`. All52 prior benchmark cells/
+unrelated assets/auth preserved;browser rendering unverified. Neither
+optimizer convergence nor running evaluation establishes a new AUC result.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

@@ -246,6 +246,55 @@ All52 prior benchmark cells/unrelated assets/auth unchanged;browser rendering
 not verified. The earlier self-reported publication and failed verification
 remain historical evidence. No source push or overall task completion.
 
+## JEV-CLICK-GRAPH-1: separate complete-candidate graph hypothesis
+
+Registered after the renewed November2 17:04+08 autonomous-continuation
+instruction,BEFORE fitting this new model. The rejected CPU ranker's model,
+0.69 gate,receipts and results remain unchanged. This is a different
+statistical item-item graph model,not another epoch/retune of that ranker or
+the prior learned collaborative-residual network. No GPU/cloud allocation,
+source push,permission change or extension of the10:38:30.795745UTC cutoff.
+
+- Consume the same independently verified,hash-pinned full MIND-large
+  contract,all original candidates/labels/history occurrences and duplicate
+  exposures. Aggregate article clicks AND all candidate exposures for
+  global-rate-shrunk article logits,prior strength20. No negative sampling.
+- Construct directed history-article to clicked-candidate co-occurrences,
+  preserving repeated history items and repeated positive candidate
+  exposures. FP64 positive-co-occurrence arithmetic. Expected independent
+  count = positive-context history frequency * article clicks / total clicks.
+  Graph weight = positive part of log((observed+10)/(expected+10)).
+  No self/padding edges;retain256 strongest neighbors per history article,
+  deterministic ties by ascending article index. This prunes features,NOT
+  evaluation candidates. Score = article logit +4*mean history graph weight.
+  No lexical/pretrained features,trainable embeddings or neural optimizer.
+- Earlier-day selection fit:all1801231 impressions/66107268 exposures/
+  2712612 positives. Heldout Nov14 TRAINING-day population431517/
+  17400106/671044. Fixed AUC>=0.69 gate,one recipe,no weight search.
+  If rejected,stop BEFORE all-training fit and official-dev/test reads.
+- Only after passing,build a fresh graph/prior from ALL2232748 training
+  impressions/83507374 exposures/3383656 positives. One complete statistical
+  aggregation fit,NOT a two-epoch neural-training claim. Then evaluate
+  every official-dev impression/candidate and independently replay scores,
+  fit coverage/source-position digests and saved graph/prior artifacts.
+  Reject malformed/undefined impressions instead of success-shaped defaults.
+- Fresh destination `Q:\CodeGuru\scratch\jev-click-graph-01-20261102`.
+  Use only current remaining time up to existing absolute10:38:30.795745UTC,
+  at most4800 seconds including snapshot/preparation/selection/final fit/
+  evaluation/verification. Four threads/same3758096384-byte RSS ceiling,
+  external own-child watchdog,no overwrite or automatic repeat.
+- Qualification:21 graph fixtures plus33 existing shared-helper fixtures
+  pass,covering independent dense count/weight/score references,top-k ties,
+  duplicate exposures/history,heldout-label exclusion,serialization,empty/
+  unknown histories and strict population/undefined-AUC rejection.
+  Synthetic hot-history16385 groups/4915500 exposures plus600MB resident
+  ballast peak1271431168 bytes. Broad-identity/duplicate-history65536
+  groups/19660800 exposures/6376055 nonzero graph edges plus600MB ballast
+  peak1457377280 bytes. These are resource/math probes,NOT benchmark
+  fitting,full-data resource proof,AUC improvement or0.80 acceptance.
+
+Competition-test AUC>=0.80 remains the acceptance criterion and is unmet.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

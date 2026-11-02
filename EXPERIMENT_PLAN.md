@@ -311,6 +311,85 @@ cells/unrelated assets/auth preserved,browser rendering unverified. The
 new graph has no accepted AUC yet;the independently rejected CPU model's
 metric and closed gate remain unchanged.
 
+Graph TERMINAL09:30:55.509930UTC November2:exit0,854.085226 seconds,
+peak2213883904 bytes <3758096384. The model was REJECTED at the fixed
+0.69 screen:reported heldout TRAINING-day AUC0.6128281737533684,
+MRR0.2620732944682693,nDCG5/10=0.27504026548847754/0.3371420879155512,
+complete431517/17400106/671044 evaluation population. One complete
+earlier-day statistical fit only;NO final ALL-training graph fit or new
+official-dev/test read/evaluation. Independent verification is running
+within the original time/memory limits. Until its complete proof exists,
+label these internal metrics SELF-REPORTED,not independently verified.
+No change to the rejected graph/CPU recipes,gates or0.80 acceptance target.
+
+Graph independent verification COMPLETED09:35:01.508016UTC November2:
+`jev-click-graph-01-independent-verification.json`. All431517 impressions/
+17400106 candidate scores restored BIT-EXACT;all four metrics/coverage
+match the reported result. Every article's full fitting exposure/click
+counts and prior reconstructed,64 selected graph rows independently
+reconstructed;this is NOT a reconstruction of every graph edge.
+Source-position bitmap and saved artifact hashes match. Verification
+elapsed220.121429 seconds,peak1545003008 bytes below3758096384,inside
+the original allocation. AUC0.6128281737533684 is now independently
+verified TRAINING-day rejection,not an official-dev/test benchmark.
+Neither rejected recipe/gate is reopened. The negative result motivates
+testing a different full-vocabulary supervised lexical model for cold-news
+generalization;it does not establish a causal explanation of the graph loss.
+
+Graph-verified rejection/page/feed deployed09:44:50UTC November2:
+`jev-click-graph-01-rejection-publication.json`. All52 historical benchmark
+cells/assets/auth unchanged;browser rendering unverified.
+
+## JEV-LEXICAL-GLM-1: full sparse supervised lexical likelihood
+
+Freeze this DIFFERENT hypothesis before benchmark fitting after the
+independently rejected graph. No graph/ranker recipe or closed gate is
+retuned/restarted. Hypothesis:direct supervised word/bigram click likelihood
+can generalize article attractiveness where item identity/co-click support
+is absent. This is a hypothesis,not a diagnosed cause or promised0.80 result.
+
+- Reuse ONLY the pinned unlabeled training-news `corpus.json` and
+  `lexical_encoder.npz` from CPU fit02,never its ranker weights/click priors.
+  Reconstruct full32768-vocabulary TF-IDF title+abstract rows,not just the
+  lossy64-dimensional projection,plus category/subcategory indicators.
+  Frozen SVD vectors are used only for fixed history-content cosine.
+- Aggregate EVERY fitting impression/candidate exposure and binary click.
+  Fit a sparse binomial GLM with intercept,L2=1e-5 (intercept unpenalized).
+  Article count likelihood is mathematically identical to the sum of
+  per-candidate binary losses for these shared article features;no negative
+  sampling or candidate pruning. Unlike prior models,this is candidate-
+  weighted likelihood,NOT group-balanced CE/BT or neural optimizer epochs.
+- Deterministic L-BFGS-B,max400 iterations,gtol1e-6,ftol1e-10;require
+  optimizer success,otherwise record explicit failure,no success-shaped
+  fallback. Article logit uses20-exposure empirical prior centered on the
+  learned lexical click probability;unexposed articles use lexical logits.
+  Stable log-space computation,not clipped/silent saturated probabilities.
+- Fixed untrained context terms:cosine weight1,category/subcategory overlap
+  weights0.5 each,previously-read penalty1,last30 history items. No metric
+  search or fitted head on own-label-derived priors.
+- Earlier-day fit1801231/66107268/2712612;heldout TRAINING-day screen
+ 431517/17400106/671044,fixedAUC>=0.69. Failure stops BEFORE final fit/
+  official-dev/test reads. If passed,fit ALL2232748/83507374/3383656,
+  then full official dev376471/14085557/574845 and independent restored-
+  score/source-count/likelihood/empirical-prior replay. Never fit dev labels.
+- New output `Q:\CodeGuru\scratch\jev-lexical-glm-01-20261102`. At most
+ 3600 seconds INCLUDING preparation,selection/final fitting,evaluation and
+  verification,clipped to the remaining existing10:36:41.063243UTC aggregate
+  cutoff and original10:38:30.795745UTC upper bound. Four threads/same
+ 3758096384-byte RSS ceiling,own-child watchdog. No extension,overwrite,
+  automatic repeat,new GPU/cloud allocation,source push or permission change.
+-10 new likelihood fixtures +54 shared graph/ranker fixtures pass. Independent
+  full-candidate vs aggregated objective/gradient,finite differences,heldout-
+  target exclusion,cold/extreme-logit stability,metadata guards,serialization
+  and order/duplicate preservation are covered. Synthetic33072-feature/
+ 101528-article/131072-group/39321600-exposure likelihood probe plus600MB
+  ballast peaked1621938176 bytes;zero optimizer iterations (allocation probe).
+  Separate strong-signal probe ran21 iterations,8112546 nonzeros,peak
+ 1621569536 bytes. These are synthetic math/resource probes,NOT full-data
+  feasibility or benchmark/AUC acceptance.
+
+The0.80 competition-test target remains unmet.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

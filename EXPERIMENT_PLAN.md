@@ -29,7 +29,7 @@
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a
 distinct non-language-model hypothesis, not a retry, deadline extension or
 gate relaxation of any rejected JEV campaign. Competition-test AUC >= 0.80
-remains the acceptance criterion; no result from this experiment exists yet.
+remains the acceptance criterion; no fitted-model or AUC result exists yet.
 
 - Train lexical/category/news-ID representations with candidate-aware
   history attention, history30, dimensions64, ID-feature dropout0.5 and
@@ -71,6 +71,18 @@ remains the acceptance criterion; no result from this experiment exists yet.
   serialization/unknown articles, duplicate/omitted positions, epoch proofs
   and tie-correct evaluation. Passing checks is not research acceptance.
   Independently verify any actual result before benchmark promotion.
+
+November2 terminal launch record:controller registration was created, but
+the child exited before CLI registration, source loading or model fitting.
+At04:26:50UTC the watchdog recorded `rejected_source_or_runtime_error`,
+exit1,elapsed11.057341 seconds,observed peak553607168 bytes. The isolated
+flat snapshot omitted repository-root `data.py` through the reused news
+parser's transitive imports. Failed snapshot,log and controller registration/
+result receipts are preserved; no experiment retry or cutoff reset occurred.
+Corrected packaging now retains the original repository layout and copies
+committed local root/src import dependencies. A separate isolated `--help`
+smoke qualification passed with zero data reads/fits. That repair is not a
+model result or authorization to restart the terminal trial.
 
 ## JEV-UNIFORM-1: corrected full-support training campaign
 

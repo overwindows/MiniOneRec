@@ -177,6 +177,13 @@ immutable. No cloud/GPU allocation,source push or permission change.
   runtime-censored attempt,NOT evidence of AUC improvement. Competition-test
   AUC>=0.80 remains the sole acceptance criterion and is still unmet.
 
+Parser/new protocol committed `d5b83c84711ea32b6f4ca2b9baa1fe68723b896a`.
+New controller started06:38:30.795745UTC November2;new immutable cutoff
+10:38:30.795745UTC,14400 seconds total,14383 remaining after code preparation.
+Fresh registration records the old terminal result hash and unchanged old
+cutoff separately. Attached shell`jev-cpu-complete-fit-02`;old snapshots and
+results are not modified. No new AUC exists yet.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

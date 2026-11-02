@@ -1785,6 +1785,25 @@ Score-diagnostic webpage/feed deployed03:39UTC November2;all52 original
 benchmark cells/assets/auth unchanged. Publication:
 `jev-existing-score-replay-20261102-publication.json`.
 
+Further read-only artifact inventory03:47UTC November2 confirmed the
+143375423-byte remote8B score file exactly matches the replayed local cache
+SHA d886731f6dba82e2d75396cad616cab77a5c26c0375a13793ad3795de17028df.
+The known model directory contains highest numbered checkpoint18432 AND
+a final_checkpoint directory. Directory presence does NOT establish completed
+five-epoch/all-source training or prove which checkpoint generated the scores.
+Receipt:`jev-8b-artifact-inventory-20261102-01.json`;producer/coverage
+authentication remains explicitly false.
+
+The local Windows guest exposes only Hyper-V/Remote Display adapters;no
+NVIDIA management interface was exposed in Windows or WSL. Existing WSL
+Torch2.6.0+cu124 independently reports cuda_available=False,device_count0,
+with CUDA_VISIBLE_DEVICES unset. This is local-runtime evidence,not global
+Azure GPU health. No local-GPU training alternative is currently available.
+A NEW end-to-end budget request for explicit A100 GPU-hours and elapsed
+hours INCLUDING queue again returned USER UNAVAILABLE. No cap,authorization,
+upload,allocation or fresh deadline exists. Do not start unbudgeted jobs,
+reset old deadlines,or mark the0.80 goal complete.
+
 #### November 1 real-tokenizer stress audit: bounded input evidence, NOT GPU readiness
 
 Pinned public Qwen/Qwen3-8B tokenizer/config revision

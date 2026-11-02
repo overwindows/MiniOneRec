@@ -500,6 +500,12 @@ competition-test acceptance target is not met. Remaining original time
 cannot support another qualified complete neural trial plus verification;
 do not silently allocate a fresh budget or reopen rejected recipes.
 
+Verified title rejection page/feed deployed10:35:00.949545UTC November2:
+`jev-title-ranker-01-rejection-publication.json`. All52 prior benchmark
+cells,unrelated assets/auth and unique IDs preserved;browser rendering
+not verified. No new fitting,source push,GPU/cloud allocation or goal
+completion was claimed by publication.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

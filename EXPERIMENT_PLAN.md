@@ -120,6 +120,15 @@ model AUC or evidence that the0.80 goal is met. Source repair may continue
 only inside the original cutoff and unchanged3.5GiB/four-thread ceilings;
 no fresh wall-clock allocation,old-result relabeling or partial-model promotion.
 
+Memory repair committed `cd81994edc20d37776e8945a2f52bcf5bdf353a6`.
+One explicitly labelled resource-engineering continuation freezes that
+qualified implementation and uses only original remaining time;no new
+7200-second allocation. Controller `continue_jev_cpu_resource_repair.py`
+preserves prior failures,binds original registration/rejection/synthetic
+proof hashes and forbids cutoff/cap/coverage overrides. Fresh output
+`Q:\CodeGuru\scratch\jev-cpu-native-resource-01-20261102`. Ranking recipe
+and all-data final refit requirements remain unchanged;no AUC exists yet.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

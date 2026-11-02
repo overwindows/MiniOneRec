@@ -182,7 +182,46 @@ New controller started06:38:30.795745UTC November2;new immutable cutoff
 10:38:30.795745UTC,14400 seconds total,14383 remaining after code preparation.
 Fresh registration records the old terminal result hash and unchanged old
 cutoff separately. Attached shell`jev-cpu-complete-fit-02`;old snapshots and
-results are not modified. No new AUC exists yet.
+results are not modified. No new AUC existed at that registration.
+
+TERMINAL November2 08:37:48.552343UTC:the fit02 process exited0 within
+its allocation,7157.041686 seconds,observed peak3637563392 bytes below
+3758096384. Process success is NOT model acceptance:the saved result is
+`rejected_internal_gate`,reported heldout TRAINING-day AUC
+0.6827827320372267 < fixed0.69. Population:431517 impressions/17400106
+exposures/671044 positives. Two complete earlier-training epochs each
+cover1801231 impressions/66107268 exposures/2712612 positives. This is NOT
+a completed ALL-training final fit:the failed gate stopped before that
+refit and before official-dev/test reads or scoring. Competition-test0.80
+remains unmet;do not reopen this gate or retune this rejected candidate.
+
+Independent restored-model replay initially failed its unchanged3.5GiB
+cap after125.211794 seconds,observed peak3761446912 bytes. It wrote partial
+scores before stopping;no full verification proof exists for that attempt.
+Its JSONL/log/controller are preserved. Artifact-size inspection disproved
+a giant-Unicode-vocabulary explanation;the original inference allocation
+growth is not yet attributed to a demonstrated root cause.
+
+Read-only verification recovery uses serial65536-impression shards,original
+512-impression inference batches/2048-candidate chunks,and memory-mapped
+immutable training arrays/checkpoint loading. No optimizer or model fitting,
+new dev/test contents,gate change or trained-snapshot edit. Every shard
+checks input/model hashes;independent persisted-score replay must reject
+missing/duplicate/reordered positions and candidate widths,then match the
+full heldout population and reported AUC. Original failed outputs remain.
+Fresh `jev-cpu-fit02-internal-shards-01` verification is bounded to at most
+1800 seconds WITHIN the existing10:38:30.795745UTC cutoff,four threads/
+3758096384 bytes;no fresh fitting budget or cap increase. Until its complete
+proof exists,the internal AUC is self-reported,not independently verified.
+
+The mapped verifier's first65536 complete impressions produced exactly the
+same source positions and candidate scores as the preserved original failed
+replay. This is an inference-equivalence check,not full-population AUC proof.
+Terminal rejection/page/feed deployed08:56:18UTC November2 with the metric
+explicitly self-reported while verification runs;all52 prior benchmark cells
+and unrelated assets/auth preserved. Receipt:
+`jev-cpu-complete-fit-02-rejection-publication.json`. Browser rendering has
+not been verified. No source push,gate reopening or accepted benchmark.
 
 ## JEV-UNIFORM-1: corrected full-support training campaign
 

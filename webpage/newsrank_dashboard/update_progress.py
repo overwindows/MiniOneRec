@@ -198,6 +198,13 @@ CAMPAIGNS = [
                       "posteriors/counts,fit bitmap,every restored score bit-exact;153.092578s,"
                       "peak1687719936 bytes.2942s incl prep/fits/eval/verification,2927 child seconds,"
                       "four threads/3758096384 bytes,old10:36:41UTC cutoff unchanged,no fresh GPU/cloud.0.80 unmet. "
+                      "JEV-TITLE-RANKER-1 source8ea6b30 registered10:14:39UTC:DIFFERENT jointly TRAINABLE "
+                      "title-word embeddings/history recency,one complete epoch,256 complete groups/batch."
+                      "All candidates retained;unlabeled encoder initialization ONLY,no old fitted weights/priors."
+                      "78 fixtures pass;32-step synthetic optimizer changed embeddings,800MB ballast,"
+                      "peak1682120704 bytes. Earlier-day fitting underway,no new AUC yet;unchanged .69 gate "
+                      "before fresh ALL-training one-epoch fit/full dev.1345s incl prep,1320 child seconds,"
+                      "same10:36:41UTC cutoff,four threads/3758096384 cap,no fresh GPU/cloud or .80 result. "
                       "Parent AND worker Completed;frozen all-training head,no fitting or retuning. "
                       "Fresh02 process/platform terminal logs were authenticated before04 submission;"
                       "stale Jobs/RunHistory Running values remain disclosed,not relabeled. "
@@ -655,6 +662,9 @@ CAMPAIGNS = [
 
 HEADLINE = (
     "Project goal:competition-test AUC>=0.80;not achieved. "
+    "Joint TRAINABLE title/history model source8ea6b30 registered10:14:39UTC;earlier-day fitting "
+    "underway,one complete all-candidate epoch. Own unchanged .69 gate before ALL-training fit/"
+    "official dev. No new accepted AUC yet;original10:36:41UTC CPU cutoff unchanged. "
     "Lexical model source2d4fc74 TERMINAL09:59:42UTC;independently verified TRAINING-day "
     "AUC0.6248332158 FAILED .69 gate. Replay completed10:02:40UTC;"
     "NO ALL-training fit or official-dev/test reads. "

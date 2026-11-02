@@ -466,6 +466,12 @@ This is a hypothesis,NOT a proven cause of previous failures.
   allocation or time extension. Preserve immutable execution/model bytes,
   unique receipts and any timeout;partial fitting is not completion.
 
+Committed8ea6b30 locally,no push. Controller registered10:14:39.965290UTC:
+maximum1345 seconds including snapshot preparation,1320 child seconds.
+Original10:36:41.063243UTC aggregate cutoff remains unchanged;all transitive
+source hashes frozen,isolated CLI import passed. Earlier-day fitting
+underway;no completed epoch/new AUC/final ALL-training fit result yet.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

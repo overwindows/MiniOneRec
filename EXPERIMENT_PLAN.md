@@ -223,6 +223,29 @@ and unrelated assets/auth preserved. Receipt:
 `jev-cpu-complete-fit-02-rejection-publication.json`. Browser rendering has
 not been verified. No source push,gate reopening or accepted benchmark.
 
+Independent verification COMPLETED November2 09:00:57.929127UTC:
+`jev-cpu-fit02-internal-shards-01\independent-verification.json`. Seven
+serial shards plus independent persisted-score replay verified every431517
+heldout TRAINING-day impression/all17400106 exposures/all671044 positives,
+rejecting omitted/duplicate/reordered source positions and wrong widths.
+Tie-correct AUC0.6827827320372267 exactly matches the reported result;
+both complete earlier-training epoch ledgers and fitted artifact hashes
+also matched. Verification elapsed576.319281 seconds,maximum child peak
+1663619072 bytes <3758096384;completed inside the original allocation.
+Memory-mapped source/checkpoint loading and process-bounded shards solved
+the verification resource block without changing scores,training,model
+weights,gate or caps. This does not prove the cause of the old RSS growth.
+The candidate is now INDEPENDENTLY REJECTED at0.69,not an accepted result:
+no final ALL-training refit or official-dev/test read/evaluation occurred.
+Competition-test0.80 remains unmet.
+
+Verified rejection/page/feed deployed09:03:35UTC November2:
+`jev-cpu-complete-fit-02-verified-rejection-publication.json`,independent
+proof SHA256`b6b11dc722648dca90b4fac9d3519eecb6b4975fc2c37f638f91ed24c27a43d0`.
+All52 prior benchmark cells/unrelated assets/auth unchanged;browser rendering
+not verified. The earlier self-reported publication and failed verification
+remain historical evidence. No source push or overall task completion.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

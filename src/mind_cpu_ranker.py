@@ -550,6 +550,47 @@ def evaluate(source, corpus, priors, groups, model, deadline, rss_limit, score_p
             "exposures": exposures, "positives": positives}
 
 
+def encode_behaviors(behaviors, corpus, impressions, exposures):
+    if impressions < 1 or exposures < 1:
+        raise ValueError("Behavior encoding requires positive exact population bounds")
+    source = object.__new__(Source)
+    source.offsets = np.empty(impressions + 1, dtype=np.uint64)
+    source.offsets[0] = 0
+    source.histories = np.zeros((impressions, 30), dtype=np.int32)
+    source.candidates = np.empty(exposures, dtype=np.int32)
+    source.labels = np.empty(exposures, dtype=np.uint8)
+    source.impression_ids = []
+    seen = set()
+    position = 0
+    with Path(behaviors).open(encoding="utf-8") as handle:
+        for row, line in enumerate(handle):
+            if row >= impressions:
+                raise ValueError("Extra behavior impressions exceed the pinned population")
+            fields = line.rstrip("\r\n").split("\t")
+            if len(fields) != 5 or not fields[0] or fields[0] in seen:
+                raise ValueError("Malformed or duplicate official-dev impression")
+            seen.add(fields[0])
+            source.impression_ids.append(fields[0])
+            history = [corpus.lookup[name] for name in fields[3].split()[-30:]]
+            source.histories[row, 30 - len(history):] = history
+            for token in fields[4].split():
+                if position >= exposures:
+                    raise ValueError("Extra behavior candidates exceed the pinned population")
+                if not token.endswith(("-0", "-1")):
+                    raise ValueError("Official-dev candidate lacks a valid label")
+                identifier, label = token.rsplit("-", 1)
+                source.candidates[position] = corpus.lookup[identifier]
+                source.labels[position] = int(label)
+                position += 1
+            if position == source.offsets[row]:
+                raise ValueError("Empty official-dev impression")
+            source.offsets[row + 1] = position
+    if len(seen) != impressions or position != exposures:
+        raise ValueError("Behavior input omits pinned impressions or candidates")
+    source.folds = np.zeros(impressions, dtype=np.uint8)
+    return source
+
+
 def dev_source(behaviors, news_path, corpus, priors, model, output):
     if (digest(behaviors) != "7031ced7b8de5183c1bf2c4a303018df8a49d858714597421d9489e571d87b45"
             or digest(news_path) != "03ba5f02160672500bf5f1af6dd18e8f99830a845b08ca9fd9fbbc9bdd72baff"):
@@ -558,39 +599,11 @@ def dev_source(behaviors, news_path, corpus, priors, model, output):
     corpus.extend(news)
     priors.extend(corpus)
     model.extend_features(corpus, priors.known)
-    source = object.__new__(Source)
-    offsets = [0]
-    histories, candidates, labels = [], [], []
-    impression_ids = []
-    seen = set()
-    with Path(behaviors).open(encoding="utf-8") as handle:
-        for line in handle:
-            fields = line.rstrip("\r\n").split("\t")
-            if len(fields) != 5 or not fields[0] or fields[0] in seen:
-                raise ValueError("Malformed or duplicate official-dev impression")
-            seen.add(fields[0])
-            impression_ids.append(fields[0])
-            history = [corpus.lookup[name] for name in fields[3].split()[-30:]]
-            histories.append([0] * (30 - len(history)) + history)
-            for token in fields[4].split():
-                if not token.endswith(("-0", "-1")):
-                    raise ValueError("Official-dev candidate lacks a valid label")
-                identifier, label = token.rsplit("-", 1)
-                candidates.append(corpus.lookup[identifier])
-                labels.append(int(label))
-            if len(candidates) == offsets[-1]:
-                raise ValueError("Empty official-dev impression")
-            offsets.append(len(candidates))
-    source.offsets = np.asarray(offsets, dtype=np.uint64)
-    source.histories = np.asarray(histories, dtype=np.int32)
-    source.candidates = np.asarray(candidates, dtype=np.int32)
-    source.labels = np.asarray(labels, dtype=np.uint8)
-    source.folds = np.zeros(len(histories), dtype=np.uint8)
-    source.impression_ids = impression_ids
-    if (len(histories), len(candidates), int(source.labels.sum())) != (376471, 14085557, 574845):
+    source = encode_behaviors(behaviors, corpus, 376471, 14085557)
+    if int(source.labels.sum()) != 574845:
         raise ValueError("Official-dev source population differs")
     write_json(output / "dev_source_coverage.json", {
-        "impressions": len(histories), "exposures": len(candidates),
+        "impressions": len(source.histories), "exposures": len(source.candidates),
         "positives": int(source.labels.sum()), "raw_behaviors_sha256": digest(behaviors),
         "raw_news_sha256": digest(news_path), "source_candidate_order_retained": True,
     })

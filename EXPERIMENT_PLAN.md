@@ -142,6 +142,41 @@ Proof:`jev-cpu-resource-01-partial-coverage-verification.json`. Preserve all
 artifacts;expired original budget is not reset. New execution needs a new,
 explicitly bounded budget;partial epochs are not accepted model results.
 
+## JEV-CPU-COMPLETE-FIT-2: renewed autonomous CPU execution
+
+The user's renewed November2 instruction explicitly directs continued
+autonomous implementation/error recovery rather than stopping at an expired
+attempt. Register a NEW four-elapsed-hour local CPU run,not an extension or
+relabeling of CPU-NATIVE-1. All original terminal results and cutoffs remain
+immutable. No cloud/GPU allocation,source push or permission change.
+
+- Preserve the qualified candidate-aware model,dimensions64,history30,
+  complete-impression CE+0.5 exact BT,seed42,two fixed epochs per fit,
+  256 impressions/batch,2048 candidate chunks and own-fold-excluded priors.
+- Pin the same complete training manifest/raw/encoded hashes and source
+  producer. Nov14 TRAINING-day AUC>=0.69 still gates the unchanged fresh
+  two-epoch refit on ALL2232748 impressions/83507374 exposures/3383656
+  positives,then every official-large-dev impression/candidate. No dev
+  labels used for fitting;no competition-test read or acceptance claim.
+- Four elapsed hours INCLUDING code/data preparation,training,validation,
+  final refit and evaluation;four CPU threads/same3758096384-byte peak-RSS
+  ceiling. Fresh output
+  `Q:\CodeGuru\scratch\jev-cpu-complete-fit-02-20261102`. No automatic repeat.
+- Before launch,replace dev's full Python candidate/history/label lists
+  with bounded typed arrays while retaining exact original row/candidate
+  order,duplicates,history padding,IDs and source counts.33 CPU fixtures
+  cover the new encoder's exact/extra/missing/invalid population behavior
+  plus the existing ranking/gradient/coverage/serialization qualifications.
+  Synthetic news/behaviors only;no new dev/test target reads for preparation.
+- External watchdog consumes only remaining time after snapshot preparation,
+  checks timeout before proc inspection and sleeps no longer than remaining
+  time. Archive the previous watchdog before changing future enforcement;
+  never rewrite old receipts. Independently replay saved scores and complete
+  final-epoch proofs before publishing any new AUC.
+- This is controlled execution of an unchanged ranking recipe after a
+  runtime-censored attempt,NOT evidence of AUC improvement. Competition-test
+  AUC>=0.80 remains the sole acceptance criterion and is still unmet.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

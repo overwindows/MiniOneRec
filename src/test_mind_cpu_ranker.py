@@ -13,7 +13,7 @@ from sklearn.metrics import roc_auc_score
 sys.path.insert(0, str(Path(__file__).parent))
 from mind_cpu_ranker import (
     CandidateHistoryRanker, Corpus, Priors, batch_tensors, candidate_rows,
-    complete_loss, evaluate, limits, train_epochs, validate_groups,
+    complete_loss, encode_behaviors, evaluate, limits, train_epochs, validate_groups,
 )
 
 
@@ -344,3 +344,33 @@ def test_invalid_group_metadata_and_limits_fail():
         limits(time.monotonic() - 1, 10 * 2**30)
     with pytest.raises(MemoryError):
         limits(time.monotonic() + 30, 1)
+
+
+def test_bounded_behavior_encoding_preserves_history_and_duplicate_candidates(tmp_path):
+    corpus = Corpus(news())
+    path = tmp_path / "behaviors.tsv"
+    path.write_text("I1\tU1\ttime\tN1 N4\tN2-1 N2-0 N3-0\n"
+                    "I2\tU2\ttime\t\tN1-0 N4-1\n", encoding="utf-8")
+    source = encode_behaviors(path, corpus, 2, 5)
+    assert source.offsets.tolist() == [0, 3, 5]
+    assert source.candidates.tolist() == [2, 2, 3, 1, 4]
+    assert source.labels.tolist() == [1, 0, 0, 0, 1]
+    assert source.histories[0].tolist() == [0] * 28 + [1, 4]
+    assert source.histories[1].tolist() == [0] * 30
+    assert source.impression_ids == ["I1", "I2"]
+
+
+@pytest.mark.parametrize("rows,count,exposures,error", [
+    ("I1\tU\tt\t\tN1-1 N2-0\n", 2, 2, "omits"),
+    ("I1\tU\tt\t\tN1-1 N2-0\n", 1, 3, "omits"),
+    ("I1\tU\tt\t\tN1-1 N2-0\n", 1, 1, "Extra behavior candidates"),
+    ("I1\tU\tt\t\tN1-1\nI2\tU\tt\t\tN2-0\n", 1, 2, "Extra behavior impressions"),
+    ("I1\tU\tt\t\tN1-1\nI1\tU\tt\t\tN2-0\n", 2, 2, "duplicate"),
+    ("I1\tU\tt\t\tN1-2\n", 1, 1, "valid label"),
+    ("I1\tU\tt\t\t\n", 1, 1, "Empty"),
+])
+def test_bounded_behavior_encoding_rejects_bad_population(tmp_path, rows, count, exposures, error):
+    path = tmp_path / "behaviors.tsv"
+    path.write_text(rows, encoding="utf-8")
+    with pytest.raises(ValueError, match=error):
+        encode_behaviors(path, Corpus(news()), count, exposures)

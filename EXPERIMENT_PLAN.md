@@ -1739,6 +1739,52 @@ Fall back across clusters (`--vm-cluster recall`) and tiers
 
 ### November 1 implementation update: streamed Newton-CG, NOT a running experiment
 
+#### November 2 AUC-first replay: existing caches, NOT a promoted benchmark
+
+The acceptance criterion remains verified competition-test AUC>=0.80.
+Software/source/tokenizer checks do not satisfy it. A new CPU-only diagnostic
+replayed seven existing model score caches against the independently pinned
+COMPLETE official MIND-large dev source7031ced7b8de5183c1bf2c4a303018df8a49d858714597421d9489e571d87b45:
+376471 impressions,14085557 exposures,574845 positives. Every impression ID
+and exact candidate count matched;no intersection-only evaluation,silent
+row dropping,score slicing or weight search. Pairwise AUC handles score ties
+correctly and passed150 tied-score fixtures against sklearn.
+
+Standalone AUC:L13=.7049977574,L17=.6948814188,DUAL=.6145179039,
+4B abstract=.6801869411,SUBCAT=.6961585093,history50 abstract=.6855277677,
+8B=.5478469753. Prespecified equal-weight core L13/L17/DUAL=.7125134639;
+core+SUBCAT=.7129018454,core+8B=.7083251773,all seven=.7061955014.
+The existing8B cache is weak and naive addition worsens the core. Larger
+model size or more ensemble members are NOT evidence of progress toward.80.
+This does not test the newly repaired complete-impression training objective.
+
+Proof:`jev-existing-dev-score-replay-20261102-01.json`. The raw dev source
+hash and complete structural score coverage are verified,but model training
+manifests and candidate-article order provenance are NOT independently
+authenticated. Dev was already used for model/weight selection. These are
+cached-score DIAGNOSTICS,not pristine validation,new model fitting,competition
+test results or eligible benchmark promotion. Original verified JEV metrics
+and all previous scientific gates remain unchanged. No GPU allocation/job,
+old-trial retry or deadline reset occurred.
+
+Fresh read-only workspace observation initially hit unsupported public-SDK
+job entity conversion;the generated ARM SDK transport resolved it without
+skipping unknown payloads. The bounded first16-job observation is NOT absence
+proof for MIND jobs,global GPU health or evidence of this session's allocation.
+No unrelated job was modified. Scope/receipt:
+`jev-recent-jobs-20261102-01-readonly.json`.
+
+Existing8B checkpoint-18432 trainer-state JSON was independently read
+2026-11-02 03:41UTC:global_step18432,epoch0.4733576610,max_steps194695,
+planned num_train_epochs5. This particular checkpoint is NOT a completed
+five-epoch training artifact. Its relationship to the cached8B scores and
+complete-source training coverage is NOT independently authenticated;do not
+claim this observation explains their weak AUC or that all8B training stopped
+there. Receipt:`jev-8b-checkpoint-metadata-20261102-01.json`.
+Score-diagnostic webpage/feed deployed03:39UTC November2;all52 original
+benchmark cells/assets/auth unchanged. Publication:
+`jev-existing-score-replay-20261102-publication.json`.
+
 #### November 1 real-tokenizer stress audit: bounded input evidence, NOT GPU readiness
 
 Pinned public Qwen/Qwen3-8B tokenizer/config revision

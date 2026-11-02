@@ -404,6 +404,68 @@ Lexical-running page/feed deployed09:53:38UTC November2:
 unrelated assets/auth preserved;browser rendering unverified. Neither
 optimizer convergence nor running evaluation establishes a new AUC result.
 
+### Lexical terminal and independent verification, November 2, 2026
+
+The lexical process exited0 at09:59:42.675176UTC after723.719670s,
+peak1669967872 bytes,stage `rejected_internal_gate`. Complete heldout
+TRAINING-day AUC0.6248332157621583,MRR0.2634411899780051,
+nDCG5/10=0.27847158532073246/0.34328652312864866 on
+431517 impressions/17400106 exposures/671044 positives. No final
+ALL-training fit,official-dev/test contents read,evaluation or promotion.
+The earlier "running" record above describes the historical09:53 publication.
+
+Read-only independent verification completed10:02:40.540611UTC,
+153.092578s,peak1687719936 bytes. It audited every candidate's fitted
+likelihood,reconstructed every article posterior/count,verified the fit
+bitmap and restored every saved score bit-exactly. Independently summed
+AUC0.6248332157621582 differs by1e-16 summation roundoff only;other metrics
+match. Proof:`jev-lexical-glm-01-independent-verification.json`.
+All three previous recipes remain rejected;their gates are not reopened.
+
+## JEV-TITLE-RANKER-1: joint supervised title/history representation
+
+This is a different hypothesis,not a retune of the rejected lexical GLM,
+graph or frozen-feature attention ranker. A scalar article likelihood does
+not itself learn a personalized title representation;test whether title
+features jointly trained against complete impression clicks generalize.
+This is a hypothesis,NOT a proven cause of previous failures.
+
+- Frozen label-free TF-IDF vocabulary/IDF and first32 SVD components ONLY
+  initialize a trainable word/bigram embedding bag. All fitted word
+  embeddings,category/subcategory vectors,title intrinsic head,history
+  recency weights and global intercept learn from clicks. No previous
+  fitted model weights,article priors,co-click edges or news-ID embedding.
+- Title-only representation:retain at most64 highest-TF-IDF title features,
+  ties by ascending feature identity;this is feature pruning,NEVER
+  candidate sampling. Last30 histories;normalized title/taxonomy vectors;
+  learned masked recency pooling;10*cosine plus learned intrinsic title
+  logit/global intercept. Empty title/unknown taxonomy gives the learned
+  global/intrinsic bias;invalid identities/metadata fail explicitly.
+- Seed42,exactly ONE complete epoch,256 complete impressions/batch,
+  AdamW lr0.001/weight_decay0.001,gradient norm cap1;unchanged complete
+  group CE+0.5 all-positive/all-negative within-group BT. Every candidate
+  contributes. No post-hoc epoch/weight/gate selection or automatic retry.
+- Same fixed0.69 heldout TRAINING-day gate,431517/17400106/671044.
+  If passed,fresh initialization and ONE complete ALL-training epoch on
+  2232748/83507374/3383656,then pinned full official dev only. No dev
+  feature/vocabulary fitting or test contents read. The0.80 competition
+  acceptance target is unchanged and still unmet.
+- Tie-exact sorted-negative AUC replaces costly per-group sklearn calls
+  in this NEW evaluator only.150 independent sklearn tie fixtures agree
+  within1e-14;undefined AUC fails,never discarded/defaulted.
+- 78 combined fixtures pass,including nonzero finite title-word gradients,
+  dense embedding equivalence,complete epoch/heldout exclusion,cache/
+  serialization equivalence,cold metadata,strict identities and metrics.
+  Synthetic101528-article/32768-feature/8192-group/303104-exposure
+  uniform-identity optimizer probe changed word embeddings in32 steps:
+  6.444446s,peak1682120704 bytes WITH800MB resident ballast. This is NOT
+  a real-training runtime prediction or benchmark result.
+- Four CPU threads,3758096384-byte RSS cap,NO new GPU/cloud allocation.
+  Preparation,fits,evaluations AND independent verification remain inside
+  the existing10:36:41.063243UTC November2 aggregate cutoff. No fresh
+  allocation or time extension. Preserve immutable execution/model bytes,
+  unique receipts and any timeout;partial fitting is not completion.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

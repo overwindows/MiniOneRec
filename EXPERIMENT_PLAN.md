@@ -84,6 +84,18 @@ committed local root/src import dependencies. A separate isolated `--help`
 smoke qualification passed with zero data reads/fits. That repair is not a
 model result or authorization to restart the terminal trial.
 
+User-directed continuation onNovember2 explicitly requested implementation
+and recovery rather than stopping after an error. One manual packaging-only
+recovery registered04:31:48UTC with6890 seconds remaining. Original
+`2026-11-02T06:26:39.324761Z` cutoff is unchanged,failed receipts retained.
+Model/producer byte hashes must match the original;no data/loss/gate change,
+cloud allocation or budget extension. Real complete-impression earlier-day
+training has started. Fresh destination
+`Q:\CodeGuru\scratch\jev-cpu-native-01-recovery-20261102`;no AUC yet.
+The independent saved-score verifier passes150 tied synthetic AUC fixtures
+and must verify full raw-dev identity/order/width/population and both complete
+final epochs before publishing any model metric.
+
 ## JEV-UNIFORM-1: corrected full-support training campaign
 
 Registered2026-10-28 UTC before its first allocation or model fit. This is a

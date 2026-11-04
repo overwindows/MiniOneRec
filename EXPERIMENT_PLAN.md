@@ -306,6 +306,31 @@ BEFORE any real tree fit/heldout quality reads,not after seeing its AUC.
 The unchanged full-size resource gate,.69 training-day gate,ALL-training
 requirement,verification reserve,RSS ceiling and original cutoff remain.
 
+### Pointwise external tree qualified; fixed real-data trial
+
+Full-size synthetic pointwise preflight02 PASSED:83,507,374 rows,
+2,256,957 complete synthetic queries,16 features,three complete identical
+target-hashed native passes,four rounds;68.939s native construction,
+8.349s/four rounds,112.445s child total. Peak3,347,697,664 bytes with
+256MB ballast;controller117.063s/3,347,853,312-byte observed peak.
+This proves only tested native resource behavior,NOT quality or a guarantee
+that every future tree/model will fit. Real-data watchdog remains mandatory.
+Source SHA5d203c7ed9e8fd7ab9e56e8e6cebda6af00818a4b37e3c9a584193f093bb28fe,
+fixed source commit9d1c9a4;17 targeted tree/source/native/cache fixtures pass.
+Prior145 combined regressions passed before the external-engine additions.
+
+Authorize the declared real-data successor under the existing autonomous
+scope only inside the original07:13:37.736409UTC allocation. Freeze source/
+protocol/import closure into`jev-external-tree-01-snapshot`;fresh unique
+`jev-external-tree-01-20261104` output. Four CPU threads,3.5GiB RSS,
+no GPU/cloud/test submission;reserve1200 seconds for independent
+verification. Fixed64-round pointwise recipe above,complete earlier
+training first,.69 full TRAINING-day AUC gate unchanged. Rejection stops
+the recipe;acceptance requires fresh complete ALL-training final fit and
+full official dev,then independent source/pooled-statistics/coverage/
+restored-score/metric verification. No independent boosting-update
+replay claim. The competition-test0.80 goal remains unmet.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

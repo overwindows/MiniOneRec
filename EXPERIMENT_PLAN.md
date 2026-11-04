@@ -609,8 +609,26 @@ created from the unavailable form. The verifier is prepared/tested,NOT an
 actual new-model verification proof:it will restore every score,rebuild
 pooled/OOF recent statistics,cache target hashes,source bitmaps/epoch batch
 populations/metrics and128 NumPy residual reference cases per full phase.
-No optimizer replay,independent base-forward math or full train-feature-cache
-recreation claim. It reuses the authenticated prior public/base proof.
+The prepared verifier now also independently evaluates128 frozen contextual
+base score cases per full phase from public title vectors and saved weights:
+projection,taxonomy,masked recency attention,cosine and exact-erf GELU/head
+math. Its new NumPy reference is included in future immutable snapshots.
+Residual feature checks retain native float32 base scores at float16
+quantization boundaries;this is not a separate full end-to-end numeric path.
+No independent public-transformer math,optimizer replay or full training
+feature-cache recreation claim. It reuses the authenticated prior public/base
+proof. These additions do NOT retroactively change the existing accepted
+model's proof or establish a real successor result.
+Three new NumPy-reference fixtures plus17 allocation/residual verification
+fixtures passed together(20 total). The additional verifier guard rejects
+any trial whose reference source was not frozen before fitting.
+Learned nonzero taxonomy,
+attention and head weights,mixed/empty histories,duplicate/interleaved
+candidates,cached/uncached inference and forbidden native neural forwards
+are covered. Poisoning the native representation cache leaves reference
+scores unchanged;changing a saved head bias changes the reference.
+Fitting remains allocation-blocked;no renewed authorization was inferred
+from an unavailable approval form.
 
 Retain verified contextual full official-dev AUC0.6990437441380181.
 Recency candidate has NO quality result. Competition-test0.80 remains

@@ -173,6 +173,25 @@ use a unique attempt02 source/output/controller inside the SAME original
 07:13:37.736409UTC allocation cutoff with its verification reserve. Do not
 raise RSS, extend the clock or treat a resource failure as a quality result.
 
+Repair02 sourcecbe5437 registered03:22:17UTC; actual complete-impression
+optimization confirmed through267140 impressions/9781291 exposures/402091
+positive targets in epoch1/fold0,peak2231332KiB after surviving the earlier
+failure point. No completed new AUC or model acceptance yet. Independent
+verification scripts are prepared; six fixtures validate separate batch
+packing/epoch-step counts and article-posterior/history-support reconstruction.
+These fixtures are not a completed real-data verification.
+
+Live page/feed publication recovered03:26:31UTC via the existing selected
+account's silent OS broker,with exact CLI account/tenant match and no
+interactive fallback or tokens printed/written by the scripts. Existing
+publisher validation/deployment checks were retained;the deployment
+credential was read from the same existing site's authenticated ARM API.
+No account,permissions,auth configuration or repository credential logic
+changed. Receipt`jev-nov4-pretrained-running-site-deploy.json` confirms
+Succeeded/Deployment Complete with52 historical metric cells and all other
+assets/auth unchanged. Browser rendering remains unverified. Earlier
+failed publication and unavailable-form records remain historical evidence.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

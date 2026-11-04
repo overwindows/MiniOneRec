@@ -89,3 +89,12 @@ def test_tiny_complete_fit_restore_ledgers_and_base_freeze(inputs, tmp_path, mon
 def test_population_guard_rejects_unqualified_base(inputs):
     with pytest.raises(ValueError, match="same fitting population"):
         module.phase_for(inputs[0], np.arange(4))
+
+
+def test_population_guard_checks_exact_source_positions_not_just_counts(inputs, monkeypatch):
+    source = inputs[0]
+    source.days = np.zeros(len(source.histories), dtype=np.int32)
+    monkeypatch.setattr(source, "counts", lambda _: {
+        "impressions": 1801231, "exposures": 66107268, "positives": 2712612})
+    with pytest.raises(ValueError, match="same fitting population"):
+        module.phase_for(source, np.arange(4))

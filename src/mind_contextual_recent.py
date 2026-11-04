@@ -28,6 +28,9 @@ BASE_HASHES = {
         "model.pt": "8aa22656c7df837dfdbab2b39d80d91e33b8b43f35f63f18c4fd922cefef49fb",
         "training_priors.npz": "839d8513d70a0689e97d2a3fbaa9a81bca8633f8615a0b6871d3c280ab5ececd",
         "model_config.json": "8fe11a7c6b760d137488c44cc80300f8ecbba54b90ee4f9ab1c6cab65f91ab94"}}
+BASE_BITMAPS = {
+    "internal_selection": "c2afb72b5a7a94d64e4a1a09d5f2c08df3c7c4ce8a485192b021d3a7a42838bc",
+    "all_training_fit": "04a6c2a411df6923918096ead44a1068c353f2e8693da2047ca6574a05a5bfac"}
 FEATURES = ["contextual_nonprior_score", "article_prior_logit", "last_fitting_day_ctr_logit",
             "last_day_log_exposures_over_10", "all_days_log_exposures_over_10",
             "first_exposure_age_at_fitting_cutoff_over_7", "history_category_share", "history_subcategory_share"]
@@ -47,10 +50,17 @@ def load_base(phase, corpus, public_encoder):
 def phase_for(source, groups):
     counts = source.counts(groups)
     if counts == {"impressions": 1801231, "exposures": 66107268, "positives": 2712612}:
-        return "internal_selection"
-    if counts == {"impressions": 2232748, "exposures": 83507374, "positives": 3383656}:
-        return "all_training_fit"
-    raise ValueError("A base must have exactly the same fitting population, never heldout-trained weights")
+        phase = "internal_selection"
+    elif counts == {"impressions": 2232748, "exposures": 83507374, "positives": 3383656}:
+        phase = "all_training_fit"
+    else:
+        raise ValueError("A base must have exactly the same fitting population, never heldout-trained weights")
+    selected = np.zeros(len(source.days), dtype=bool)
+    selected[groups] = True
+    bitmap = hashlib.sha256(np.packbits(selected).tobytes()).hexdigest()
+    if bitmap != BASE_BITMAPS[phase]:
+        raise ValueError("A base must have exactly the same fitting population, never heldout-trained weights")
+    return phase
 
 
 def recent_statistics(source, corpus, fitting, priors, deadline):

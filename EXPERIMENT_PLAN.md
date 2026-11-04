@@ -445,6 +445,26 @@ This is NOT bit-exact optimizer-update parity.25 new-model/public/
 old-default compatibility fixtures pass. Require fresh variable-query
 resource/throughput qualification before any real fit.
 
+### Equivalent contextual implementation qualified; bounded real fit
+
+Probe02 PASSED32 mixed-query steps+four warmups,800MB ballast,
+1,848,369,152-byte peak.1.716115s timed/.053628588s per step:
+conservative48000-step two-fit projection2574.172s,plus600s source/
+scoring and1200s independent verification. Frozen public vectors unchanged,
+projection updated,all gradients/losses finite. Source commitd2fe97a/
+SHAaaa2213dd7f685f6329c63ead79d9dd273b35ca20a988a6477924f725af4a84d.
+25 targeted/old-default compatibility tests pass. No real fit yet.
+
+Run exactly one fresh contextual-interest trial only if the projection
+plus overhead/reserve still fits remaining original allocation at launch.
+Freeze committed import closure and this protocol;public cache SHA
+be4114bd0e8998e4e3dd5047ed67279ead3e87f906f4a0d6a52882292a8dac8e
+and its metadata proof are immutable external inputs. Four CPU threads,
+3.5GiB RSS,original07:13:37.736409UTC cutoff and1200s verification reserve.
+Earlier complete fitting/two epochs first;unchanged.69 gate;fresh ALL-
+training two-epoch final fit/full official dev only if passed. No source
+push,GPU/cloud allocation or test submission.0.80 remains unmet.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

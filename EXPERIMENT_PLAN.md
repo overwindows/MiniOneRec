@@ -131,6 +131,29 @@ cached-credential decryption WinError87. Updated page/feed are LOCAL
 STAGING ONLY; existing cloud-status observation timestamps are preserved
 and explicitly marked unrefreshed. No live-deployment success is claimed.
 
+### November 4 11:12+08 renewed autonomous execution
+
+The user subsequently explicitly directed continued autonomous
+implementation, resolution of errors/alternatives and decisions without
+waiting on open questions. Under that renewed instruction, proceed with
+a NEW finite local14400-second allocation for this new pretrained recipe
+only. This is an autonomous resource decision, not a claim that the earlier
+unavailable form approved anything. The earlier failed trials and their
+expired cutoffs remain unchanged. No GPU/cloud training or test submission.
+
+Preregister a unique source snapshot/output/controller before real-data
+optimization; at most13200 seconds including preparation/fitting/scoring,
+leaving1200 seconds for read-only independent verification within the same
+14400-second allocation. Four threads/3758096384-byte peak RSS, immutable
+absolute cutoff and own-child timeout/RSS watchdog. Keep the two-epoch
+recipe and0.69 training-day gate unchanged; no gate-dependent tuning.
+Final fitting, if permitted by that gate, consumes ALL2232748 training
+impressions/all83507374 candidates/all3383656 positives per epoch, followed
+by the complete official-dev population. Save a completed internal metric
+immediately, even if a later resource failure prevents a final result.
+Neither a self-reported score nor this new allocation achieves the0.80
+competition-test target.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

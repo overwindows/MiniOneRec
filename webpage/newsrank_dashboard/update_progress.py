@@ -707,7 +707,7 @@ HEADLINE = (
     "4 threads/3.5GiB,absolute cutoff07:13:37UTC unchanged. "
     "2026-11-04 02:59UTC read-only failure diagnosis COMPLETE on all431517 TRAINING-day "
     "impressions/17400106 exposures;all four rejected AUCs reproduced,zero new model fits. "
-    "Public-semantic model preparation completed;current fitting is not a completed model or AUC result. "
+    "The pretrained recipe is independently rejected;no official-dev/test result was produced. "
     "Oracle bounds are NOT model performance;no new official-dev/test result. "
     "Historical November2 joint title/history model source8ea6b30 TERMINAL10:25:11UTC;independently verified "
     "TRAINING-day AUC0.6670103724 FAILED fixed .69 gate. Replay completed10:30:15UTC;"

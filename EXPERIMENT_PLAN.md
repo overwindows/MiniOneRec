@@ -245,6 +245,45 @@ TRAINING-day gate precedes a fresh64-round ALL-training fit and complete
 official-dev evaluation. All work,including verification,must fit inside
 the existing07:13:37UTC cutoff. No GPU/cloud allocation or test submission.
 
+### Native tree memory failure and external-memory alternative
+
+The full83,507,374-row LightGBM preflight FAILED at4,369,494,016-byte observed
+RSS after66.195s;terminated before any MIND fit or quality result. Keep its
+original log/controller immutable. A24,000,000-row phase diagnostic completed
+38.030s:~1.118GB peak during construction,~1.888GB after native round1.
+All4 diagnostic rounds had stable RSS. This partial-size experiment is NOT
+full-size qualification: native resident allocation,not just feature
+streaming,is the bottleneck. Do NOT raise the3,758,096,384-byte ceiling.
+
+Preflight a new disk-backed engine/objective before any quality reads:
+isolated CPU-only XGBoost3.1.1 at
+`Q:\CodeGuru\scratch\jev-xgboost-cpu-3.1.1-20261104`.
+Missing import failed before installation;scientific runtime unchanged.
+`ExtMemQuantileDMatrix` caches binned feature pages on local Linux disk.
+Official API reference:
+https://xgboost.readthedocs.io/en/release_3.1.0/tutorials/external_memory.html .
+Fixed recipe:rank:pairwise,topk8192 covering ALL positions of every query
+(query-size guard<=8192),NO row/negative/pair subsampling,64 rounds,
+eta.1,depth6,31 leaves,lossguide,min-child-weight20,max-bin15,seed42,
+four CPU threads,all column/sample fractions1. This objective differs
+from the resident LightGBM rank_xendcg prototype;no MIND fit of either
+tree recipe has occurred,so this is NOT quality-gate-based tuning.
+
+The same16 explicitly defined features/OOF priors/fitting-only ages apply.
+Build a complete float32 feature/uint8 label cache once,complete queries
+per batch<=8192 candidates. Subsequent native quantile passes must each
+replay identical full candidate counts,positives and label SHA;native
+group_ptr must exactly match every original query boundary. Authenticate
+feature-cache SHA and source bitmap;temporary local caches may be removed
+only after native dataset destruction,while model/statistics/coverage and
+code remain persistent. At least20GB local temporary disk required.
+No training-row/negative sampling;feature quantile sketching alone does
+not drop training targets. Predictions native float32 are converted to
+float64 BEFORE fixed evaluation sorting;record both dtypes explicitly.
+Unchanged.69 TRAINING-day gate,then fresh ALL-training64-round fit/full
+official dev only if passed;retain original07:13:37.736409UTC cutoff,
+four-thread/3.5GiB ceiling and independent-verification reserve.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

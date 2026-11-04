@@ -4,6 +4,7 @@ from datetime import datetime
 import argparse
 import gc
 import hashlib
+import inspect
 import json
 import math
 import mmap
@@ -265,6 +266,11 @@ class FeatureSequence(lgb.Sequence):
     batch_size = 8192
 
     def __init__(self, source, metadata, statistics, groups, training, deadline):
+        groups = np.asarray(groups)
+        if (groups.ndim != 1 or groups.dtype.kind not in "iu" or not len(groups)
+                or np.any(groups < 0) or np.any(groups >= len(source.offsets) - 1)
+                or len(np.unique(groups)) != len(groups)):
+            raise ValueError("Distinct valid source impressions required")
         self.source, self.metadata, self.statistics = source, metadata, statistics
         self.groups, self.training, self.deadline = groups, training, deadline
         self.sizes = (source.offsets[groups + 1] - source.offsets[groups]).astype(np.int32)
@@ -373,7 +379,7 @@ def fit(source, metadata, groups, directory, deadline):
     write_json(directory / "fit_coverage.json", {
         **coverage, "rounds": ROUNDS, "every_candidate_streamed_once": True,
         "source_positions_sha256": hashlib.sha256(np.packbits(mask).tobytes()).hexdigest(),
-        "training_candidate_sampling": "none", "bin_cutpoints_use_unlabeled_metadata_sampling": True})
+        "training_candidate_sampling": "none", "bin_cutpoints_sample_feature_values_only": True})
     write_json(directory / "model_config.json", {
         "lightgbm": lgb.__version__, "parameters": PARAMETERS, "features": FEATURES, "rounds": ROUNDS,
         "priors": "entire_opposite_impression_fold_only", "age_source": "fitting_exposures_only",
@@ -466,7 +472,7 @@ def dev_source(behaviors, metadata, first_training_day):
     return source
 
 
-def main():
+def main(fitter=fit, parameters=PARAMETERS):
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("contract", "encoder", "raw-source", "dev-news", "dev-behaviors", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
@@ -490,10 +496,11 @@ def main():
     args.output.mkdir()
     write_json(args.output / "registration.json", {
         "source_sha256": digest(Path(__file__)), "manifest_sha256": MANIFEST_SHA,
-        "parameters": PARAMETERS, "rounds": ROUNDS, "gate_auc": .69,
+        "fitter_source_sha256": digest(inspect.getsourcefile(fitter)),
+        "parameters": parameters, "rounds": ROUNDS, "gate_auc": .69,
         "seconds": args.seconds, "candidate_sampling": "none",
         "old_fitted_models_or_priors_read": False, "dev_or_test_contents_read": False})
-    model, statistics = fit(source, metadata, earlier, args.output / "internal_selection", deadline)
+    model, statistics = fitter(source, metadata, earlier, args.output / "internal_selection", deadline)
     internal = evaluate(model, source, metadata, statistics, heldout, args.output / "internal_scores.jsonl", deadline)
     write_json(args.output / "internal_validation.json", internal)
     load_contract(args.contract, deadline)
@@ -510,7 +517,7 @@ def main():
     all_groups = np.arange(len(source.days))
     if source.counts(all_groups) != {"impressions": 2232748, "exposures": 83507374, "positives": 3383656}:
         raise ValueError("ALL training candidates required")
-    model, statistics = fit(source, metadata, all_groups, args.output / "all_training_fit", deadline)
+    model, statistics = fitter(source, metadata, all_groups, args.output / "all_training_fit", deadline)
     expected_dev = {
         args.dev_news: "03ba5f02160672500bf5f1af6dd18e8f99830a845b08ca9fd9fbbc9bdd72baff",
         args.dev_behaviors: "7031ced7b8de5183c1bf2c4a303018df8a49d858714597421d9489e571d87b45"}

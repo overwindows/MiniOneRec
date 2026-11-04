@@ -35,6 +35,7 @@ def fit(source, arrays, corpus, public_encoder, groups, directory, deadline):
     tokens, embeddings, vocabulary = load_public_encoder(public_encoder, corpus)
     priors = Priors(source, corpus, groups, deadline, RSS_LIMIT)
     model = PretrainedNewsRanker(corpus, tokens, embeddings, vocabulary, priors)
+    print(json.dumps({"stage": "pretrained_model_initialized", "fitting": source.counts(groups)}), flush=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=.0005, weight_decay=.0001)
     coverage, expected = [], source.counts(groups)
     mask = np.zeros(len(source.days), dtype=bool)
@@ -47,6 +48,8 @@ def fit(source, arrays, corpus, public_encoder, groups, directory, deadline):
             selected = groups[source.folds[groups] == fold]
             if not len(selected):
                 raise ValueError("Both nonempty source folds are required for leakage-free priors")
+            print(json.dumps({"stage": "pretrained_fold_started", "epoch": index + 1,
+                              "fold": fold, "impressions": len(selected)}), flush=True)
             parts.append(epoch(model, selected, arrays, optimizer, 42 + index, deadline))
         record = {key: sum(part[key] for part in parts)
                   for key in ("impressions", "exposures", "positives", "optimizer_steps")}
@@ -54,6 +57,7 @@ def fit(source, arrays, corpus, public_encoder, groups, directory, deadline):
         if any(record[key] != value for key, value in expected.items()):
             raise ValueError("Complete pretrained epoch omitted impressions/candidates/clicks")
         coverage.append(dict(record, epoch=index + 1, consumed_source_positions_sha256=bitmap))
+        print(json.dumps({"stage": "pretrained_complete_epoch", **coverage[-1]}), flush=True)
     directory.mkdir()
     torch.save(model.state_dict(), directory / "model.pt")
     priors.save(directory)
@@ -99,6 +103,7 @@ def main():
         if digest(args.encoder / name) != expected:
             raise ValueError("Frozen label-free metadata corpus changed")
     manifest, arrays = load_contract(args.contract, MANIFEST_SHA, PROOF_SHA, deadline)
+    print(json.dumps({"stage": "pretrained_complete_contract_authenticated"}), flush=True)
     if (manifest["implementation_sha256"] != digest(Path(__file__).with_name("full_impression_contract.py"))
             or digest(args.train_news) != manifest["input_sha256"]["news.tsv"]):
         raise ValueError("Complete-source implementation/raw news changed")

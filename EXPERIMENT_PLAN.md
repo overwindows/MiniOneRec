@@ -154,6 +154,25 @@ immediately, even if a later resource failure prevents a final result.
 Neither a self-reported score nor this new allocation achieves the0.80
 competition-test target.
 
+Resource failure preserved: initial pretrained attempt5aff86a was killed
+03:15:26UTC after109.090431s at3781013504-byte RSS, above3758096384.
+No completed epoch/checkpoint/AUC was produced. Its source/output/controller
+remain immutable. Before repair, a variable-shape synthetic diagnostic
+reproduced growth:96 default-cache updates peaked3389046784 bytes versus
+2307522560 with CPU primitive-cache capacity8, both with800MB ballast.
+Eight-step loss sequences matched bit-exactly, but complete parameter
+hashes did NOT match; do not claim bit-exact optimizer-update parity.
+The synthetic comparison controller correctly flagged that failed stronger
+parity assertion. No benchmark quality metric was used for this repair.
+
+Repair only runtime memory retention: set ONEDNN/DNNL primitive cache and
+legacy LRU capacities to8, add initialization/fold/epoch progress logs.
+Architecture, seed, optimizer, loss, batch limits, complete-source coverage,
+two-epoch recipe and0.69 gate remain unchanged. Preserve failed attempt01;
+use a unique attempt02 source/output/controller inside the SAME original
+07:13:37.736409UTC allocation cutoff with its verification reserve. Do not
+raise RSS, extend the clock or treat a resource failure as a quality result.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

@@ -529,6 +529,47 @@ auth and limitations preserved. Browser rendering unverified. Historical
 publication receipts retain their original metrics;the new receipt's
 `metrics` are the contextual model's complete official-dev result.
 
+### Distinct recency residual implemented after renewed continuation
+
+The user explicitly requested further autonomous implementation after the
+verified contextual result. New `mind_contextual_recent.py` freezes the
+VERIFIED(not rejected) contextual encoder/head,with strictly phase-matched
+earlier/all-training checkpoints pinned by model/prior/config hashes.
+Never use the all-training base for the earlier-training screening phase.
+
+New hypothesis:last-fitting-day click dynamics and history taxonomy add
+information beyond the contextual base. Eight residual inputs:base
+nonprior score,OOF article logit,last-fitting-day CTR logit/exposure,
+all-days exposure,first-exposure age measured AT FITTING CUTOFF,history
+category/subcategory shares. Age is NOT query-time freshness. Click
+statistics always exclude the candidate impression's entire fold;
+first-exposure metadata is label-free within the fitting population.
+The base's learned semantic weights are frozen in-sample fitted features,
+NOT out-of-fold neural predictions;this distinction is explicit.
+
+Fixed8->16 tanh->1 residual,zero last layer,AdamW.001/decay.0001,clip1,
+two complete epochs,seeds42/43,alternating fold order,same full-impression
+mean-positive log-softmax. No candidate sampling. Disk-backed cache keeps
+float32 base scores plus8 float16 features(20 bytes/physical candidate);
+inference uses identical declared feature quantization. Initial zero
+residual preserves the base inference score bit-exactly.
+
+12 residual/base compatibility fixtures pass,including tiny complete
+fit/restore,base freezing,source-population rejection,opposite-fold recent
+statistics and empty/duplicate handling. First fixture attempt correctly
+rejected a five-impression base paired with four-impression residual
+priors;fixture now constructs a genuinely matching four-impression base.
+No production population guard was weakened.
+
+Require full83507374-row cache residency with850MB ballast,finite
+optimizer updates,frozen-base/public checks and measured runtime before
+any real fit. Preserve .69 gate,fresh ALL-training two-epoch final fit/
+full official dev only if passed;retain verified0.6990437441 unless the
+successor improves it. No test submission,cloud/GPU or silent extension
+of original07:13:37.736409UTC cutoff. If measured two-fit optimizer forecast
+plus600s source/cache/scoring plus1200s verification no longer fits,
+DO NOT launch;renewed bounded allocation requires explicit approval.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

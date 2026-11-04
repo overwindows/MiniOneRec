@@ -615,6 +615,11 @@ recreation claim. It reuses the authenticated prior public/base proof.
 Retain verified contextual full official-dev AUC0.6990437441380181.
 Recency candidate has NO quality result. Competition-test0.80 remains
 unmet;overall research is NOT complete.
+Follow-up continuation also added and passed two focused regressions for
+unseen-article inference/unchanged frozen parameters and explicit float16
+feature-overflow rejection. These use synthetic fixtures only;the
+qualified production fitter source remains unchanged. They do not renew
+the allocation or establish a real successor quality result.
 Prepared-only status published successfully with the retained contextual
 result separately authenticated:
 `jev-contextual-recent-01-prepared-site-deploy.json`. Its successor section

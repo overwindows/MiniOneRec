@@ -98,3 +98,41 @@ def test_population_guard_checks_exact_source_positions_not_just_counts(inputs, 
         "impressions": 1801231, "exposures": 66107268, "positives": 2712612})
     with pytest.raises(ValueError, match="same fitting population"):
         module.phase_for(source, np.arange(4))
+
+
+def test_cold_article_extension_preserves_frozen_parameters_and_prior_fallback(inputs, monkeypatch):
+    model = example(inputs)
+    before = {name: value.clone() for name, value in model.state_dict().items()}
+
+    class Encoder:
+        def __init__(self, _):
+            pass
+
+        def encode(self, texts):
+            values = np.zeros((len(texts), 384), dtype=np.float32)
+            values[:, 0] = 1
+            return values
+
+    monkeypatch.setattr(module.contextual, "PublicEncoder", Encoder)
+    model.extend({"N5": {"category": "never", "subcategory": "never",
+                          "title": "Novel title", "abstract": "Novel abstract"}})
+    assert model.statistics.shape == (3, 6, 4)
+    np.testing.assert_array_equal(model.statistics[:, 5, 0],
+                                  np.repeat(model.priors.pooled[5, 1], 3))
+    assert not model.statistics[:, 5, 1:].any()
+    assert not model.priors.known[5]
+    for name, value in model.state_dict().items():
+        assert torch.equal(before[name], value)
+    histories = np.zeros((1, 30), dtype=np.int32)
+    scores = model.scores(histories, np.array([5, 5]), np.array([0, 0]))
+    np.testing.assert_array_equal(scores, model.priors.pooled[[5, 5], 0])
+    model.train()
+    with pytest.raises(ValueError, match="frozen inference"):
+        model.extend({})
+
+
+def test_float16_feature_overflow_fails_explicitly(inputs):
+    model = example(inputs)
+    model.statistics[0, 1, 0] = 1e20
+    with pytest.warns(RuntimeWarning, match="overflow"), pytest.raises(FloatingPointError, match="Quantized"):
+        model.inputs(np.zeros((1, 30), dtype=np.int32), np.array([1]), np.array([0]))

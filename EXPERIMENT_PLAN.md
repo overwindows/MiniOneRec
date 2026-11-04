@@ -110,6 +110,27 @@ has started. A new finite local fitting allocation must be explicitly
 registered before any real-data optimizer execution. Four threads and
 3758096384-byte peak RSS remain the resource ceilings; no GPU/cloud jobs.
 
+Qualification finished03:10:50UTC from committed22436dd under a separate
+1200-second public-data/synthetic-only watchdog; total169.945291s.135
+combined fixtures pass. The frozen public encoder has101528 article rows
+including padding,32768 title words and30499 matched public vectors;
+SHA256`68ca7be295cd15e565ccbb0d39881ab5dc5ecf3972a6e9f5d830f5921ac0dd51`.
+No click labels or official-dev/test data were read during preparation.
+A32-step synthetic stress probe used256 complete groups/8192 candidates,
+15872 distinct article identities per batch and800000000-byte ballast.
+CNN weights changed, public word vectors did not:31.434576 optimizer
+seconds,0.982331s/step,2558980096-byte peak RSS. This proves bounded
+synthetic operation, NOT real-data throughput, model quality or a MIND fit.
+Receipts:`jev-pretrained-01-preparation-controller.json` and
+`jev-pretrained-01-synthetic-probe.json` in the session artifacts.
+
+A fresh4-hour local fitting allocation was requested; the response was
+user unavailable, NOT approval. No real-data optimizer was started.
+November4 live publication was blocked before deployment by Azure CLI
+cached-credential decryption WinError87. Updated page/feed are LOCAL
+STAGING ONLY; existing cloud-status observation timestamps are preserved
+and explicitly marked unrefreshed. No live-deployment success is claimed.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

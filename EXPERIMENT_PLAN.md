@@ -465,6 +465,33 @@ Earlier complete fitting/two epochs first;unchanged.69 gate;fresh ALL-
 training two-epoch final fit/full official dev only if passed. No source
 push,GPU/cloud allocation or test submission.0.80 remains unmet.
 
+### Contextual-interest trial startup and independent-verifier readiness
+
+Source5b74d94 registered2026-11-04 05:45:06.015897UTC;frozen model
+SHAaaa2213dd7f685f6329c63ead79d9dd273b35ca20a988a6477924f725af4a84d.
+Own childPID65 observed alive,first fitting fold consuming complete
+earlier-training impressions/candidates.4083 child seconds;absolute
+07:13:37.736409UTC cutoff and1200s verifier reserve unchanged. No new
+model AUC yet,no final ALL-training fit or official-dev/test reads yet.
+
+Read-only independent contextual verifier/wrapper prepared in session
+files;13 focused guard fixtures pass. An initial pytest ancestor scan
+hit unrelated Windows-file permissions;explicit collection root/conftest
+scope fixed collection without changing tests or accessing that file.
+Verifier authenticates complete contract/raw news/public cache/proof,
+rebuilds pooled priors/known bitmap and both complete epoch/batch counts,
+then bit-exactly restores EVERY saved score and independently recalculates
+AUC/MRR/nDCG using float32 tie sorting. For frozen public inputs,verify
+all identities/padding/norms;re-encode32 evenly-spread ORIGINAL128-title
+batches(including last partial) at rtol1e-5/atol2e-6 and report exact
+agreement/max error. NOT all-public-vector re-encoding,independent
+transformer/neural-forward math or optimizer-gradient replay.
+
+Confirmed-startup webpage/feed publication SUCCEEDED:
+`jev-contextual-interest-01-start-site-deploy.json`. Existing52 historical
+benchmark cells/assets/auth preserved. Browser rendering unverified.
+Official full-dev0.6814457842 and unmet competition-test0.80 unchanged.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

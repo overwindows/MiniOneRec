@@ -21,6 +21,7 @@ def test_external_native_all_rows_groups_save_restore(tree_inputs, tmp_path, mon
     assert coverage["impressions"] == 4 and coverage["exposures"] == 11 and coverage["positives"] == 4
     assert all(item["exposures"] == 11 and item["positives"] == 4 for item in coverage["native_passes"])
     assert coverage["training_candidate_sampling"] == "none"
+    assert coverage["objective_scope"] == "pointwise_all_candidates"
     before = module.core.evaluate(model, source, metadata, stats, np.array([4]),
                                   tmp_path / "scores.jsonl", time.monotonic() + 30)
     restored = module.Model.load(tmp_path / "fit" / "model.ubj")

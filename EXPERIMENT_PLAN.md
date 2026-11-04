@@ -284,6 +284,28 @@ Unchanged.69 TRAINING-day gate,then fresh ALL-training64-round fit/full
 official dev only if passed;retain original07:13:37.736409UTC cutoff,
 four-thread/3.5GiB ceiling and independent-verification reserve.
 
+### External ranking objective also fails; pointwise alternative preflight
+
+The83,507,374-row external rank:pairwise preflight01 constructed its entire
+native dataset in70.753s at1,008,091,136-byte peak,then FAILED before round1
+at4,024,033,280-byte observed RSS/118.186s total. No MIND fit/quality reads.
+The pinned upstream ranking implementation additionally retains a
+size_t prediction-sort index for EVERY candidate:
+https://github.com/dmlc/xgboost/blob/v3.1.1/src/common/ranking_utils.h .
+This is a plausible contributor,not a measured complete allocation
+attribution. Keep both failed full-size native qualification attempts.
+
+Preflight a new fixed pointwise binary:logistic objective using the SAME
+disk-backed engine,16 features,64 rounds and other tree parameters above;
+remove both lambdarank-specific parameters. It optimizes unweighted
+row-level click cross-entropy,NOT impression-normalized ranking loss.
+All candidates/positives/negatives remain;group boundaries are still
+validated for source coverage and macro-AUC evaluation. No pair sampling
+applies to this objective. This resource-driven alternative is declared
+BEFORE any real tree fit/heldout quality reads,not after seeing its AUC.
+The unchanged full-size resource gate,.69 training-day gate,ALL-training
+requirement,verification reserve,RSS ceiling and original cutoff remain.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

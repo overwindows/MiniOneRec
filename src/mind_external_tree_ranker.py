@@ -1,4 +1,4 @@
-"""Disk-backed all-pairs tree fitting without dropping training candidates."""
+"""Disk-backed click-logit tree fitting without dropping training candidates."""
 
 import gc
 import hashlib
@@ -14,12 +14,11 @@ import mind_tree_ranker as core
 
 
 PARAMETERS = {
-    "objective": "rank:pairwise", "tree_method": "hist", "device": "cpu",
+    "objective": "binary:logistic", "tree_method": "hist", "device": "cpu",
     "eta": .1, "max_depth": 6, "max_leaves": 31, "grow_policy": "lossguide",
     "min_child_weight": 20, "max_bin": 15, "nthread": 4, "seed": 42,
     "subsample": 1., "colsample_bytree": 1., "colsample_bylevel": 1.,
-    "colsample_bynode": 1., "lambdarank_pair_method": "topk",
-    "lambdarank_num_pair_per_sample": 8192, "disable_default_eval_metric": 1,
+    "colsample_bynode": 1., "disable_default_eval_metric": 1,
     "max_cached_hist_node": 31}
 ROUNDS = 64
 FEATURE_TYPES = ["c" if name in ("category", "subcategory") else "q" for name in core.FEATURES]
@@ -125,7 +124,7 @@ class CutoffCallback(xgb.callback.TrainingCallback):
     def after_iteration(self, model, epoch, evals_log):
         core.limits(self.deadline)
         if epoch % 8 == 0:
-            print(json.dumps({"stage": "external_all_pairs_tree_fit", "iteration": epoch + 1}), flush=True)
+            print(json.dumps({"stage": "external_all_candidate_tree_fit", "iteration": epoch + 1}), flush=True)
         return False
 
 
@@ -168,7 +167,7 @@ def fit(source, metadata, groups, directory, deadline):
         **coverage, "rounds": ROUNDS, "every_candidate_streamed_once_per_pass": True,
         "source_positions_sha256": hashlib.sha256(np.packbits(mask).tobytes()).hexdigest(),
         "feature_cache_sha256": feature_hash, "native_passes": native_passes,
-        "training_candidate_sampling": "none", "pair_sampling": "none_all_query_positions_topk8192",
+        "training_candidate_sampling": "none", "objective_scope": "pointwise_all_candidates",
         "bin_cutpoints_use_feature_values_only": True})
     core.write_json(directory / "model_config.json", {
         "xgboost": xgb.__version__, "parameters": PARAMETERS, "rounds": ROUNDS, "features": core.FEATURES,

@@ -24,6 +24,40 @@
 > AUC >= 0.80; keep dataset/split/candidate coverage explicit and do not infer
 > a valid target gap by comparing results from different benchmarks.
 
+## November 4 renewed continuation: complete-population failure diagnosis
+
+The user explicitly renewed autonomous implementation onNovember4. Before
+another model,implement read-only error anatomy on the identical431517/
+17400106/671044 heldout TRAINING-day population for all four independently
+rejected candidates. No failed trial restarts,parameter/gate changes,
+official-dev/test reads or GPU/cloud allocation. The expired November2
+allocation is NOT extended or represented as still active.
+
+`mind_rank_diagnostics.py` reconstructs article candidate-exposure support
+from every earlier-training candidate,then aligns all saved score streams
+including the seven independently restored CPU shards. Predefined history
+length/exposure-support cohorts and four positive/negative support-pair
+partitions must reproduce every complete AUC and exact macro-contribution
+additivity. Differences between different recipes are observational,NOT
+causal attributions. An oracle pairwise bound for nonnegative convex
+score mixtures is a diagnostic bound,NOT a deployable result or target
+achievement. Do not select ensemble weights on this heldout day's labels.
+
+87 combined fixtures pass,including disjoint support,full score-population
+guards,source/candidate ordering,paired comparisons and contribution
+additivity. A separately registered November4 READ-ONLY diagnosis is
+limited to600 seconds,four threads,3758096384 bytes,no fitting,unique
+artifacts and an own-child watchdog. Source/proof/score hashes must match
+before and after;all four existing gates remain closed. This permission
+scope is diagnosis and code implementation,not a fresh model-training
+allocation.
+
+Benchmark context checked November4:the official MIND site's displayed
+leaderboard lists dingjian at0.7530 test AUC,datedOctober17,2026. Source:
+https://msnews.github.io/index.html . This is not comparable directly to
+our official-dev score and does not change the user's0.80 competition-test
+acceptance target or imply that more small CPU prototypes will attain it.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

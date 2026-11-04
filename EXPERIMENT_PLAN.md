@@ -570,6 +570,58 @@ of original07:13:37.736409UTC cutoff. If measured two-fit optimizer forecast
 plus600s source/cache/scoring plus1200s verification no longer fits,
 DO NOT launch;renewed bounded allocation requires explicit approval.
 
+### Recency residual qualified but real fitting is allocation-blocked
+
+Source276b7c0 strengthens phase selection to require the EXACT accepted
+source-position bitmap,not just equal counts.13 source/base fixtures and
+16 allocation/independent-verifier fixtures pass. The latter reconstruct
+recent statistics,target-hash ordering and NumPy residual feature/head
+math,and reject missing approval,wrong resource scope,overlong/insufficient
+allocation and non-joint resource qualification.
+Zero,negative,NaN and infinite runtime forecasts also fail closed.
+
+Probe01 passed full physical83507374-row/20-byte cache residency with
+850MB ballast,peak3484610560 bytes,.004420284s/optimizer step. Its
+separate inference timing ran after dropping the owned cache's clean
+resident pages;do NOT claim joint full-cache inference qualification.
+Preserve this earlier evidence. Fresh probe02 DOES keep the full cache
+resident during frozen-base feature generation and residual optimization:
+peak3519193088 bytes,.004106632s/step,48000-step two-fit projection
+197.118333s;synthetic feature generation.015507621s/batch. Frozen base/
+public vectors unchanged;residual updated;no raw click/dev/test data read.
+Already fitted base click-derived priors WERE read transparently.
+Qualified source SHA281a3a4f9f94c24a121ab94f77a9c85e1ade7ff036ccccc043106a9649e5a832.
+Isolated frozen CLI/import closure also passed with zero real-data fitting.
+
+197.118s+600s source/cache/scoring+1200s independent verification requires
+1997.118s/about33.3 minutes. This no longer fits the ORIGINAL
+2026-11-04 07:13:37.736409UTC allocation. A renewal approval form returned
+USER UNAVAILABLE,NOT approval. No new allocation has been registered and
+NO real recency trial/output/registration exists. Do not silently extend
+the old clock,drop epochs/candidates or reduce the verifier reserve.
+
+Prepared persistent session tooling:
+`run_jev_contextual_recent_01.py --allocation <explicitly-approved-allocation.json>`;
+`verify_jev_contextual_recent_01.py`;`run_jev_contextual_recent_verification_01.py`.
+The launcher is fail-closed without explicit approved allocation metadata,
+qualified-source binding and adequate remaining time. No approval file was
+created from the unavailable form. The verifier is prepared/tested,NOT an
+actual new-model verification proof:it will restore every score,rebuild
+pooled/OOF recent statistics,cache target hashes,source bitmaps/epoch batch
+populations/metrics and128 NumPy residual reference cases per full phase.
+No optimizer replay,independent base-forward math or full train-feature-cache
+recreation claim. It reuses the authenticated prior public/base proof.
+
+Retain verified contextual full official-dev AUC0.6990437441380181.
+Recency candidate has NO quality result. Competition-test0.80 remains
+unmet;overall research is NOT complete.
+Prepared-only status published successfully with the retained contextual
+result separately authenticated:
+`jev-contextual-recent-01-prepared-site-deploy.json`. Its successor section
+binds qualified source/resource proof and explicitly records no real fit/
+new allocation. All52 historical cells/assets/auth preserved;browser
+rendering unverified.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

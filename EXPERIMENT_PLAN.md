@@ -331,6 +331,39 @@ full official dev,then independent source/pooled-statistics/coverage/
 restored-score/metric verification. No independent boosting-update
 replay claim. The competition-test0.80 goal remains unmet.
 
+### Next label-free preparation: contextual public title vectors
+
+The fixed pointwise tree completed05:16:35UTC,1294.890s,
+2,972,426,240-byte observed peak and reported rejection at the unchanged
+training-day gate. Independent full verification is in progress;do not
+promote its provisional metric or restart this fitted recipe.
+
+Prepare a genuinely different representation/interaction hypothesis:
+frozen sentence-transformers/all-MiniLM-L6-v2 contextual title vectors,
+then newly trained candidate-conditioned history attention rather than
+the rejected CNN,static sparse lexical features or pointwise tree.
+This is NOT a claimed route guaranteeing0.80. Official model reference:
+https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2 .
+Pin immutable public revision1110a243fdf4706b3f48f1d95db1a4f5529b4d41;
+safetensors90,868,376 bytes/SHA256
+53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db,
+with individually pinned config/tokenizer Git blob fingerprints.
+Download whitelist contains DATA files only;no repository Python code.
+Offline local-only loading,trust_remote_code=False,use_safetensors=True,
+existing Transformers5.21.0/Torch2.6.0/tokenizers0.23.3 runtime.
+
+Before any real preparation or new fitting,require CPU/resource/throughput
+qualification on synthetic public text only,under the SAME four-thread/
+3.5GiB ceiling and remaining original07:13:37UTC cutoff. Freeze64 title
+subwords including special tokens,fixed padding,384 float32 dimensions,
+unquantized eager attention,masked mean pooling plus L2 normalization.
+Train-title cache aligns exactly with pinned101527 article identities;
+padding row0 is zero. No click labels,official-dev or test contents in
+preparation. Immutable vectors/source/protocol/hash proof required.
+Do not silently quantize,change pooling or extend the allocation if slow.
+The new candidate-attention fitting protocol must be frozen and qualified
+separately before any real fit;reserve independent verification time.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

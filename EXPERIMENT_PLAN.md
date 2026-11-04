@@ -645,6 +645,62 @@ binds qualified source/resource proof and explicitly records no real fit/
 new allocation. All52 historical cells/assets/auth preserved;browser
 rendering unverified.
 
+### Nov4 10:02UTC: completed retrospective contextual failure analysis
+
+This is actual descriptive research on the ACCEPTED model's saved scores,
+not another fitted model or a new headline quality result. A bounded,
+read-only pass covered every official-dev impression/candidate/positive
+(376471/14085557/574845),authenticated all six inputs before/after,and
+reproduced AUC0.6990437441380181 exactly.
+
+| Raw history length before last-30 truncation | Impressions | AUC |
+|---|---:|---:|
+| 0 |11270|0.6178968909|
+| 1-5 |55262|0.6645481131|
+| 6-15 |99036|0.7008643708|
+| 16-30 |79792|0.7154333684|
+| 31-100 |108213|0.7130210292|
+| 101+ |22898|0.6911928476|
+
+Every history partition reconstructs the accepted aggregate. Sparse
+histories(0-5) account for17.67254317% of impressions. Even giving those
+impressions PERFECT AUC1 while leaving every other impression unchanged
+would yield overall AUC0.7597231702,NOT0.80. This is a hypothetical
+mathematical upper bound,not an achieved result. Therefore a sparse-user
+fallback alone cannot close the goal;longer-history ranking must also
+improve. The observed101+ history degradation is not causal evidence
+that truncation itself is responsible.
+
+True unseen-candidate support is measured from the pooled training
+log1p candidate-exposure feature being zero,NOT the saved known bitmap:
+the latter also includes history-only encounters. Unexposed articles
+account for757273/14085557 candidate exposures(5.37623752%) and
+50306/574845 positives(8.75122859%). Within-support conditional AUC is
+0.7019574625 on346116 eligible seen-candidate subsets and0.6823024582
+on35900 eligible unseen-candidate subsets. Eligibility requires both
+classes inside the subset;these are not the headline population or a
+matched causal comparison.
+
+Evidence in persistent session files:
+`jev-contextual-interest-01-failure-modes-02.json`,
+SHA558720a883268330056245de10105e4ddf9f56d9fa297fbb88be38ddeddfcae8;
+source `diagnose_jev_contextual_failure_modes_01.py`,
+SHA4baacd9995092d3ab689bb49a00f45922bf50265b7e28ff73386d694263308e1.
+The first diagnostic's candidate-exposure labels incorrectly used the
+broader encounter bitmap;its article-exposure slices were rejected in
+`jev-contextual-interest-01-failure-modes-rejection.json`,and its original
+artifact is preserved. The corrected report above is authoritative.
+Eight diagnostic regressions pass,including candidate-vs-history support
+and raw-history boundaries. Full pass160.812s,peak215257088 bytes.
+
+No parameter updates,new model scoring,raw training-behavior/test reads,
+test submission,renewed allocation or new quality claim. Saved training
+priors and public-cache identities WERE read. Official dev WAS read for this
+retrospective diagnosis;it is not a blind future evaluation. The recency
+residual remains an untested global-ranking hypothesis,with unchanged
+training-day gate and full-training requirements;actual fitting is still
+allocation-blocked. The0.80 objective remains unmet.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

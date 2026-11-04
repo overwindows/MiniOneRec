@@ -387,6 +387,43 @@ within the original allocation,with at least3600 seconds left for
 potential qualified fitting/verification. No click/dev/test data reads,
 no GPU/cloud or new allocation. Preserve all failed models and old receipts.
 
+### Contextual vectors ready; fixed candidate-interest qualification protocol
+
+Label-free train-title preparation COMPLETED05:36:41UTC,563.356s,
+1,391,357,952-byte observed peak;all101527 article identities pluszero
+padding row,384 float32 dimensions. Vector NPZ SHA
+be4114bd0e8998e4e3dd5047ed67279ead3e87f906f4a0d6a52882292a8dac8e.
+No click labels or official-dev/test contents read.
+
+New model is NOT the rejected public-word CNN or pointwise tree:
+frozen contextual384d title vectors;trainable orthogonal-initialized
+384->64 projection,16+16 zero-initialized taxonomy embeddings projected
+to64,dropout.1,normalized article representations. For EVERY candidate,
+compute separate softmax(8*cos(candidate,history)+learned30-position
+recency) over its real history;empty histories yieldzero context.
+Normalize the resulting conditional interest;score is newly rebuilt
+opposite-fold article logit + learnable scalar(initial4)*candidate/context
+cosine + zero-last-layer residual MLP192->32->1. No prior model weights
+or fitted click priors are reused. Padding vectors remain zero.
+
+Fixed AdamW.0005/weight_decay.0001,clip1,seed42/43,two complete epochs,
+alternating opposite-fold partitions;shared complete-impression
+mean-positive log-softmax over ALL candidates. Existing8192-candidate/
+256-impression training batches retained;no truncation or negative
+sampling. Inference chunks flat scores at8192 candidates while preserving
+original complete-query metric groups and float32 tie sorting. Fresh
+ALL-training two-epoch final fit/full official dev only after unchanged
+.69 TRAINING-day gate;new dev article text encoded only after that gate.
+
+Before any real fit,require new-model/old-default-harness compatibility
+tests plus32 variable-shape synthetic optimizer steps/four warmups with
+800MB ballast and the SAME four-thread/3.5GiB ceiling. Preserve frozen
+contextual inputs,finite gradients and actual projection updates.
+Project BOTH complete fitting phases conservatively at48000 optimizer
+steps plus600 seconds source/scoring overhead and1200-second independent
+verification reserve;do not launch if this exceeds the remaining original
+07:13:37UTC cutoff. No GPU/cloud allocation or test submission.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

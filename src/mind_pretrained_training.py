@@ -2,6 +2,7 @@
 
 import argparse
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import time
@@ -88,8 +89,8 @@ def restore(directory, corpus, public_encoder):
     return model
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(fitter=fit):
+    parser = argparse.ArgumentParser(description=inspect.getdoc(inspect.getmodule(fitter)))
     for name in ("contract", "encoder", "public-encoder", "train-news", "dev-news", "dev-behaviors", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--seconds", type=int, required=True)
@@ -134,10 +135,11 @@ def main():
     args.output.mkdir()
     write_json(args.output / "registration.json", {
         "source_sha256": digest(Path(__file__)), "public_encoder_sha256": public_sha,
+        "fitter_source_sha256": digest(Path(inspect.getsourcefile(fitter))),
         "manifest_sha256": MANIFEST_SHA, "epochs": EPOCHS, "gate_auc": .69,
         "seconds": args.seconds, "previous_ranker_weights_or_priors_read": False,
         "dev_or_test_contents_read": False, "new_gpu_or_cloud_allocations": 0})
-    model = fit(source, arrays, corpus, args.public_encoder, earlier, args.output / "internal_selection", deadline)
+    model = fitter(source, arrays, corpus, args.public_encoder, earlier, args.output / "internal_selection", deadline)
     internal = evaluate(model, source, heldout, args.output / "internal_scores.jsonl", deadline)
     write_json(args.output / "internal_validation.json", internal)
     load_contract(args.contract, MANIFEST_SHA, PROOF_SHA, deadline)
@@ -153,7 +155,7 @@ def main():
     all_groups = np.arange(len(source.days))
     if source.counts(all_groups) != {"impressions": 2232748, "exposures": 83507374, "positives": 3383656}:
         raise ValueError("Final fitting requires ALL source impressions/candidates")
-    model = fit(source, arrays, corpus, args.public_encoder, all_groups, args.output / "all_training_fit", deadline)
+    model = fitter(source, arrays, corpus, args.public_encoder, all_groups, args.output / "all_training_fit", deadline)
     if digest(args.dev_news) != DEV_NEWS_SHA or digest(args.dev_behaviors) != DEV_BEHAVIORS_SHA:
         raise ValueError("Pinned full official-dev bytes changed")
     model.eval()

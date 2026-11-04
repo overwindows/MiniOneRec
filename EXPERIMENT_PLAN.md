@@ -192,6 +192,59 @@ Succeeded/Deployment Complete with52 historical metric cells and all other
 assets/auth unchanged. Browser rendering remains unverified. Earlier
 failed publication and unavailable-form records remain historical evidence.
 
+### Pretrained model rejected; distinct streamed tree alternative
+
+Pretrained repair02 COMPLETED04:20:27UTC,3489.909612s,2284883968-byte
+peak RSS. Independent verification completed04:23:19UTC,162.102095s,
+1861218304-byte peak: all431517 TRAINING-day impressions/17400106 exposures/
+671044 positives, AUC0.6828472607646991 < unchanged0.69. MRR0.3104963121,
+nDCG5/10=0.3357456029/0.3982065050. Both complete earlier-training epochs,
+all pooled priors/title tokens/source and deterministic batch ledgers,
+every restored score bit-exact and all metrics verified. This is NOT
+independent optimizer-gradient replay or separate neural-forward math.
+No final ALL-training fit or official-dev/test reads. This recipe is CLOSED;
+the verified full official-dev0.6814457842 and unmet0.80 target remain.
+Terminal rejection published with all52 historical cells/assets/auth intact.
+
+Continue the user's autonomous alternative-search instruction using only
+the REMAINING November4 allocation, absolute07:13:37.736409UTC cutoff
+unchanged. New hypothesis, not a closed-model retune: LightGBM4.6.0 streamed
+query-level rank_xendcg trees over16 explicit candidate/history/age features.
+Public API/objective/Sequence references:
+https://lightgbm.readthedocs.io/en/v4.6.0/Parameters.html
+https://lightgbm.readthedocs.io/en/v4.6.0/Python-API.html .
+The missing-package import failed before isolated installation into
+`Q:\CodeGuru\scratch\jev-lightgbm-4.6.0-20261104`; the pinned NumPy/SciPy/
+Torch environment was NOT changed. The production tree module does not
+import Torch, preserving room for the native full-row dataset.
+
+Fixed proposed recipe:64 boosting rounds,learning-rate0.1,31 leaves,
+max-depth6,min-leaf2000,max-bin15,32MB histogram pool,seed42,four CPU
+threads,deterministic column-wise learning. Feature/bagging fractions1,
+bagging frequency0,no GOSS or negative sampling. Native Sequence streams
+every selected candidate row exactly once; metadata-only sampling finds
+bin cutpoints but does NOT remove any training example. Group boundaries,
+all clicks/negatives and duplicate exposures remain intact.
+
+Features: opposite-impression-fold article/category logit and log exposures;
+category/subcategory IDs; history length/category/subcategory preferences/
+read-again; mean/max/top3/latest frozen unlabeled lexical similarities;
+age since first FITTING candidate exposure; title word count/recent-category
+fraction. First-exposure times use fitting rows only and no click target;
+future/heldout/test labels never enter features or priors. Frozen SVD
+metadata is unsupervised, not a rejected model's trained weights/priors.
+No candidate-position or source-row-position feature is used.
+
+Before any real fitting, require unit qualification and an83507374-row,
+16-feature native synthetic streaming/boosting resource probe under the
+same4-thread/3758096384-byte ceiling and600-second maximum. Do not silently
+drop rows or relax memory to make the experiment fit. Preserve native-data
+label/coverage hashes and source-position bitmap; evict only clean mmap
+pages after dataset construction,not data or model targets. Unchanged0.69
+TRAINING-day gate precedes a fresh64-round ALL-training fit and complete
+official-dev evaluation. All work,including verification,must fit inside
+the existing07:13:37UTC cutoff. No GPU/cloud allocation or test submission.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

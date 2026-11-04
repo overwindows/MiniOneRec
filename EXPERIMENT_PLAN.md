@@ -58,6 +58,58 @@ https://msnews.github.io/index.html . This is not comparable directly to
 our official-dev score and does not change the user's0.80 competition-test
 acceptance target or imply that more small CPU prototypes will attain it.
 
+### November 4 diagnosis completed and public-semantic implementation
+
+Read-only diagnosis completed02:59:18UTC; controller exited normally after
+557.747147s with1755668480-byte observed peak RSS. All four complete AUCs
+were reproduced on431517 impressions/17400106 exposures/671044 positives,
+with unchanged source/proof/score hashes and zero model fits/dev/test reads.
+The best CPU arm remains0.6827827320; its AUC is0.6943874448 on238738
+all-candidate-exposure-supported impressions and0.6051858587 on11393
+empty-history impressions. The title arm has0.6700984986/0.5058068169 on
+those same cohorts. Exactly1036370 exposures and50549 positives lack
+earlier candidate exposure: cold candidates alone do not describe the
+observed error population. These are observational differences, not
+causal ablations. The0.8695322856 pairwise convex-mixture oracle bound is
+NOT a deployable model result and does not establish achievable AUC0.80.
+
+New, not-yet-fitted hypothesis: frozen public GloVe6B300d ordered titles,
+learned300-to32 projection,64-channel kernel3 CNN/additive title pooling,
+16-dimensional category/subcategory embeddings and64-dimensional news
+vectors; four-head history self-attention over the last30 clicks. Titles
+retain their first30 ordered tokens; vocabulary is32768 training-title
+words plus padding/OOV. Dropout0.2 follows the word projection. A zero-last-
+layer192-to64-to1 residual head combines candidate/user/product features
+with newly constructed training-only article priors. Entire opposite
+BLAKE2b impression-ID folds supply priors during training; inference uses
+pooled fitting priors. No rejected model weights or fitted priors are read.
+The prior baseline addresses an observed weak empty-history regime without
+claiming the diagnosis proves which component caused prior failures.
+
+Fixed proposed recipe: two complete epochs, seeds42/43, alternating order
+of the two disjoint source folds; shared complete-impression mean-positive
+log-softmax, AdamW0.0005/weight-decay0.0001, gradient norm cap1, at most
+256 impressions/8192 candidates per batch, no sampling or truncation.
+Each epoch must consume every selected impression/candidate/positive.
+The unchanged0.69 heldout-TRAINING-day gate precedes a fresh two-epoch
+ALL-training fit and complete official-dev scoring. Official dev is not
+used for fitting. Competition-test AUC0.80 remains unmet.
+
+The downloaded public archive is pinned by SHA256
+`6471382cdd837544bf3ac72497a38715e845897d265b2b424b4761832009c837`.
+Its300d member has400000 word rows plus one trailing reserved `<unk>`
+row; the first preparation correctly failed the original400000-total-row
+assumption and produced no encoder. Inspection verified400001 unique rows
+with301 fields each. The corrected loader explicitly validates the optional
+single trailing reserved row; model OOV initialization remains the mean of
+matched public word vectors. Preserve this failure, not a purported fit.
+
+Code/preprocessing/synthetic qualification are not authorization for a new
+real-data fit. The November2 cutoff remains expired; no new model training
+has started. A new finite local fitting allocation must be explicitly
+registered before any real-data optimizer execution. Four threads and
+3758096384-byte peak RSS remain the resource ceilings; no GPU/cloud jobs.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

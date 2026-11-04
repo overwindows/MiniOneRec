@@ -492,6 +492,43 @@ Confirmed-startup webpage/feed publication SUCCEEDED:
 benchmark cells/assets/auth preserved. Browser rendering unverified.
 Official full-dev0.6814457842 and unmet competition-test0.80 unchanged.
 
+### Contextual-interest COMPLETE; full official-dev independently verified
+
+Source5b74d94 completed2026-11-04 06:26:13.086266UTC,2466.116256s,
+peak2,578,255,872 bytes. Earlier-training selection AUC0.6906231148269862
+PASSED the preregistered.69 gate on431517 impressions/17400106 exposures/
+671044 positives. Fresh final fitting then used ALL2232748 training
+impressions/83507374 candidates/3383656 positives in EACH of two epochs;
+optimizer steps10245/10244,full-source bitmap
+04a6c2a411df6923918096ead44a1068c353f2e8693da2047ca6574a05a5bfac.
+
+COMPLETE official MIND-large DEV376471 impressions/14085557 candidates/
+574845 positives:AUC0.6990437441380181,MRR0.34208554450454404,
+nDCG5/10 .3782918463690498/.4397851624674992.
+Independent verifier completed06:32:50.018341UTC(controller06:32:51),
+388.185362s,peak2,636,898,304 bytes. BOTH phases:every restored score
+bit-exact,all pooled priors/known bitmaps,deterministic complete epoch/
+batch populations and AUC/MRR/nDCG independently reconstructed.
+Public vector cache fully authenticated and3991 vectors/32 original
+encoder batches re-encoded BIT-EXACT(max error0);not all-vector
+re-encoding,gradient replay or independent transformer/neural-forward math.
+
+New verified DEV improvement0.0175979599332835 AUC/1.759796 percentage
+points over prior frozen JEV dev0.6814457842047346. This is NOT a
+competition-test result or SOTA claim;0.80 remains unmet. No model fitting
+now running,no test submission/GPU/cloud allocation,and original cutoff/
+four threads/3.5GiB unchanged. Preserve both fitted phases and all inputs.
+Result SHA33f0a04616df2a20019daab952b68822c2af45b410180e1a184edb865acebf30;
+proof`jev-contextual-interest-01-independent-verification.json`.
+
+Terminal webpage/feed publication SUCCEEDED. New contextual-evidence-bound
+receipt:`jev-contextual-interest-01-result-site-deploy.json`,separately
+authenticating the new metrics/coverage/result/independent proof and the
+actual deployment receipt. All52 historical benchmark cells,other assets/
+auth and limitations preserved. Browser rendering unverified. Historical
+publication receipts retain their original metrics;the new receipt's
+`metrics` are the contextual model's complete official-dev result.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

@@ -424,6 +424,27 @@ steps plus600 seconds source/scoring overhead and1200-second independent
 verification reserve;do not launch if this exceeds the remaining original
 07:13:37UTC cutoff. No GPU/cloud allocation or test submission.
 
+### Contextual throughput repair before any real fit
+
+Optimizer probe01 passed memory(2,042,163,200 bytes with800MB ballast)
+and32 finite updates/frozen-input checks but took.145494s/step:
+conservative two-fit projection6983.723s exceeds the remaining original
+allocation after overhead/verification. Therefore NO real fit started.
+Do not extend the cutoff or weaken the preregistered throughput gate.
+
+Root implementation issue:repeating each30x64 history for every candidate
+creates large gather/scatter autograd tensors. Equivalent implementation
+now buckets queries by power-of-two candidate counts,pads each bucket at
+less than2x rows and uses batched matrix products for the SAME candidate-
+conditioned attention. Complete candidates,history masks,temperature8,
+parameters/loss/optimizer/epochs/seeds/gate are unchanged;arbitrary
+candidate/group order is restored exactly as an indexing operation.
+Forward/gradient comparisons against the original expression pass
+2e-5/1e-4 float tolerances,including empty history and shuffled groups.
+This is NOT bit-exact optimizer-update parity.25 new-model/public/
+old-default compatibility fixtures pass. Require fresh variable-query
+resource/throughput qualification before any real fit.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

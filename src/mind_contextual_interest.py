@@ -19,6 +19,36 @@ EPOCHS = 2
 RSS_LIMIT = 3758096384
 
 
+def conditional_context(history, candidate, groups, mask, recency):
+    counts = torch.bincount(groups, minlength=len(history))
+    offsets = torch.cumsum(counts, dim=0) - counts
+    order = torch.argsort(groups, stable=True)
+    positions = torch.empty_like(groups)
+    positions[order] = torch.arange(len(groups)) - offsets[groups[order]]
+    indices_parts, context_parts = [], []
+    width = 1
+    while width <= 1 << (int(counts.max()) - 1).bit_length():
+        selected = torch.nonzero((counts > width // 2) & (counts <= width), as_tuple=True)[0]
+        if len(selected):
+            mapping = torch.full((len(history),), -1, dtype=torch.long)
+            mapping[selected] = torch.arange(len(selected))
+            indices = torch.nonzero(mapping[groups] >= 0, as_tuple=True)[0]
+            row, column = mapping[groups[indices]], positions[indices]
+            padded = torch.zeros((len(selected), width, candidate.shape[1]), dtype=candidate.dtype)
+            padded[row, column] = candidate[indices]
+            values, valid = history[selected], mask[selected]
+            logits = 8 * torch.bmm(padded, values.transpose(1, 2)) + recency
+            logits = logits.masked_fill(~valid[:, None, :], -torch.inf)
+            logits = torch.where(valid.any(dim=1)[:, None, None], logits, torch.zeros_like(logits))
+            attention = torch.softmax(logits, dim=-1) * valid[:, None, :]
+            context = F.normalize(torch.bmm(attention, values), dim=-1)
+            indices_parts.append(indices)
+            context_parts.append(context[row, column])
+        width *= 2
+    permutation = torch.argsort(torch.cat(indices_parts))
+    return torch.cat(context_parts)[permutation]
+
+
 def load_vectors(path, corpus):
     proof = json.loads(path.with_suffix(".json").read_bytes())
     if (proof["vectors_sha256"] != digest(path) or proof["revision"] != REVISION
@@ -101,12 +131,7 @@ class CandidateInterest(nn.Module):
             candidate = encoded[inverse[histories.numel():]]
         else:
             history, candidate = self.cached[histories], self.cached[candidates]
-        selected_history, mask = history[groups], (histories != 0)[groups]
-        similarity = torch.einsum("nd,nhd->nh", candidate, selected_history)
-        logits = (8 * similarity + self.recency).masked_fill(~mask, -torch.inf)
-        logits = torch.where(mask.any(dim=1, keepdim=True), logits, torch.zeros_like(logits))
-        attention = torch.softmax(logits, dim=1) * mask
-        context = F.normalize((selected_history * attention[:, :, None]).sum(dim=1), dim=1)
+        context = conditional_context(history, candidate, groups, histories != 0, self.recency)
         interest = (candidate * context).sum(dim=1)
         residual = self.head(torch.cat((candidate, context, candidate * context), dim=1)).squeeze(-1)
         prior = (self.fold_logits[1 - self.prior_fold, candidates] if self.training

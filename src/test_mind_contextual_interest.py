@@ -65,6 +65,30 @@ def test_empty_history_starts_at_exact_pooled_prior(inputs):
     np.testing.assert_array_equal(scores, model.priors.pooled[[1, 2], 0])
 
 
+def test_bucketed_attention_matches_reference_values_and_gradients():
+    torch.manual_seed(4)
+    histories = torch.randn(4, 30, 64, requires_grad=True)
+    candidates = torch.randn(11, 64, requires_grad=True)
+    groups = torch.tensor([2, 0, 3, 0, 2, 3, 3, 0, 0, 3, 2])
+    mask = torch.ones(4, 30, dtype=torch.bool)
+    mask[0, :20] = False
+    mask[2] = False
+    recency = torch.randn(30, requires_grad=True)
+    reference_history, reference_mask = histories[groups], mask[groups]
+    logits = 8 * torch.einsum("nd,nhd->nh", candidates, reference_history) + recency
+    logits = logits.masked_fill(~reference_mask, -torch.inf)
+    logits = torch.where(reference_mask.any(dim=1, keepdim=True), logits, torch.zeros_like(logits))
+    attention = torch.softmax(logits, dim=1) * reference_mask
+    expected = torch.nn.functional.normalize((reference_history * attention[:, :, None]).sum(1), dim=1)
+    actual = module.conditional_context(histories, candidates, groups, mask, recency)
+    torch.testing.assert_close(actual, expected, rtol=2e-5, atol=2e-5)
+    weight = torch.randn_like(actual)
+    expected_grad = torch.autograd.grad((expected * weight).sum(), (histories, candidates, recency), retain_graph=True)
+    actual_grad = torch.autograd.grad((actual * weight).sum(), (histories, candidates, recency))
+    for left, right in zip(actual_grad, expected_grad, strict=True):
+        torch.testing.assert_close(left, right, rtol=1e-4, atol=1e-4)
+
+
 def test_training_requires_fold_and_extension_requires_inference(inputs):
     model = build(inputs)
     model.prior_fold = None

@@ -364,6 +364,29 @@ Do not silently quantize,change pooling or extend the allocation if slow.
 The new candidate-attention fitting protocol must be frozen and qualified
 separately before any real fit;reserve independent verification time.
 
+### Tree rejection verified; contextual preparation qualified
+
+Tree independent verification completed05:24:49UTC:full431517/17400106/
+671044 TRAINING-day AUC0.6663588466485082,MRR0.3033153837766822,
+nDCG5/10=.32436913931003747/.3879594236431871. Every restored score
+bit-exact,pooled priors/first-fitting times/all raw timestamps/source
+bitmap and all native-pass target hashes reconstructed.64 spread-group
+feature-arithmetic rows checked independently;NOT full training-feature
+cache recreation,boosting-update replay or separate native-forward math.
+Verifier481.222s,peak1,177,202,688 bytes;5 verifier fixtures pass.
+Recipe CLOSED,no final ALL-training fit or official-dev/test reads.
+
+Public contextual preflight PASSED:1024 synthetic64-token titles,
+5.34251 timed seconds,~529.696s projected101527-title encoding,
+1,936,535,552-byte peak with800MB ballast.Identical-batch replay
+bit-exact and vectors unit-normalized.Three pooling/pinning fixtures pass;
+real used BERT weights restored under the existing pinned runtime.
+Freeze source6ed00c9/SHA7cb43e92d42e766f86e38f834cc7d0e782373a70639fa2b48f343e716b3671f4.
+Allow one bounded label-free train-title preparation,at most900 seconds
+within the original allocation,with at least3600 seconds left for
+potential qualified fitting/verification. No click/dev/test data reads,
+no GPU/cloud or new allocation. Preserve all failed models and old receipts.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

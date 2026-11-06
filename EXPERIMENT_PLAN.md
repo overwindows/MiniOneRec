@@ -701,6 +701,45 @@ residual remains an untested global-ranking hypothesis,with unchanged
 training-day gate and full-training requirements;actual fitting is still
 allocation-blocked. The0.80 objective remains unmet.
 
+### Nov6: primary literature screened against the actual evaluation contract
+
+Retrieved and read the primary Co-NAML-LSTUR(2025),GreenRec(2024),and
+Only Encode Once(2023) papers. This is literature research,not another
+trained model or evidence that0.80 has been achieved.
+
+Co-NAML-LSTUR reports MIND-large AUC0.6931,but trains on MIND-small plus
+selectively constructed MINDtiny and uses three sampled negatives per
+positive. Its recipe does not meet our full-training/all-candidate contract.
+No superiority comparison with our different evaluation population is made.
+Source: `https://arxiv.org/html/2507.20210v1`,sections3.2/5.1/5.2.
+
+GreenRec and OLEO repartition the official validation data equally into
+their own validation and testing sets. Their reported MIND-large test
+metrics are therefore NOT the full official dev or competition-test metric
+required here. GreenRec distinguishes sampled matching approaches from
+CTR feature-interaction approaches retaining training samples. Source:
+`https://arxiv.org/pdf/2403.04736`,sections2.3/3.2.
+
+OLEO decouples cached news representations from downstream training and
+uses learned projections;its multi-field pretraining combines title,
+abstract and category. Our campaign already caches frozen title vectors:
+caching itself is not a new idea or proof that we reproduced OLEO.
+Source: `https://arxiv.org/pdf/2308.14155`,sections3/4.1.
+
+Research implication:structured cross-feature CTR ranking is a distinct
+future hypothesis for broad discrimination,not a promised improvement or
+permission to retune a closed recipe. It would need separate frozen
+protocol,full-source training,resource qualification and complete verified
+evaluation. Do not transplant paper scores or sampling/split shortcuts.
+The currently prepared recency residual remains untested;no further model
+recipe was launched.
+
+Retrieved primary files/extracted text and hash-bound screening receipt
+persist in session files: `jev-primary-paper-screen-20261106.json`.
+No local training allocation was renewed,model fitted,benchmark score
+changed or competition-test submission made. This review does not claim
+to establish the latest global SOTA or a validated route to0.80.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

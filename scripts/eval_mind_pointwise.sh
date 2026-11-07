@@ -87,6 +87,9 @@ USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Use chat template for instruct mo
 BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates (only used with PREFIX_CACHE=0)
 PREFIX_CACHE="${PREFIX_CACHE:-1}"  # Run the shared history prefix once per impression (same scores, much faster)
 PACK_TOKENS="${PACK_TOKENS:-8192}"  # Max candidate-suffix tokens per forward with PREFIX_CACHE=1
+PREFIX_CACHE_MODE="${PREFIX_CACHE_MODE:-packed}"  # packed = full-attention backbones; hybrid = GatedDeltaNet backbones
+PREFIX_GROUP_SIZE="${PREFIX_GROUP_SIZE:-16}"  # Candidates per forward in hybrid prefix-cache mode
+RIGHT_PAD="${RIGHT_PAD:-0}"  # 1 = right-pad the plain path (diagnostic: matches the hybrid path's padding)
 LEGACY_BF16_SCORES="${LEGACY_BF16_SCORES:-0}"  # 1 = old bf16 scoring (tied scores), only to compare with pre-fix AUCs
 TEMPERATURE="${TEMPERATURE:-1.0}"  # Logit temperature (1.0=off; tune for ensemble calibration)
 USE_RECENCY="${USE_RECENCY:-0}"  # Mark 5 most recent history items with "(recent)"
@@ -122,7 +125,7 @@ echo "  Use abstract: ${USE_ABSTRACT}"
 echo "  Max history: ${MAX_HISTORY:-unlimited}"
 echo "  Max impressions: ${MAX_IMPRESSIONS:-all}"
 echo "  Flash Attention: ${FLASH_ATTN}"
-echo "  Prefix cache: ${PREFIX_CACHE} (pack ${PACK_TOKENS} tokens; batch size ${BATCH_SIZE} when off)"
+echo "  Prefix cache: ${PREFIX_CACHE} (mode ${PREFIX_CACHE_MODE}; pack ${PACK_TOKENS} tokens; group ${PREFIX_GROUP_SIZE}; batch size ${BATCH_SIZE} when off)"
 echo "========================================="
 echo ""
 
@@ -180,6 +183,8 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
       --history_format ${HISTORY_FORMAT} \
       --batch_size ${BATCH_SIZE} \
       --pack_tokens ${PACK_TOKENS} \
+      --prefix_cache_mode ${PREFIX_CACHE_MODE} \
+      --prefix_group_size ${PREFIX_GROUP_SIZE} \
       --output_file \"${TEMP_DIR}/${gpu_id}.txt\""
 
     if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
@@ -204,6 +209,10 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     if [[ "${LEGACY_BF16_SCORES}" -eq 1 ]]; then
       cmd="${cmd} --legacy_bf16_scores"
+    fi
+
+    if [[ "${RIGHT_PAD}" -eq 1 ]]; then
+      cmd="${cmd} --right_pad"
     fi
 
     if [[ -n "${MAX_IMPRESSIONS}" ]] && [[ "${MAX_IMPRESSIONS}" -gt 0 ]]; then
@@ -331,7 +340,9 @@ else
     --history_selection ${HISTORY_SELECTION} \
     --history_format ${HISTORY_FORMAT} \
     --batch_size ${BATCH_SIZE} \
-    --pack_tokens ${PACK_TOKENS}"
+    --pack_tokens ${PACK_TOKENS} \
+    --prefix_cache_mode ${PREFIX_CACHE_MODE} \
+    --prefix_group_size ${PREFIX_GROUP_SIZE}"
 
   if [[ "${USE_ABSTRACT}" -eq 1 ]]; then
     CMD="${CMD} --use_abstract"
@@ -367,6 +378,10 @@ else
 
   if [[ "${LEGACY_BF16_SCORES}" -eq 1 ]]; then
     CMD="${CMD} --legacy_bf16_scores"
+  fi
+
+  if [[ "${RIGHT_PAD}" -eq 1 ]]; then
+    CMD="${CMD} --right_pad"
   fi
 
   if [[ "${TEMPERATURE}" != "1.0" ]]; then

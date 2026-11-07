@@ -106,6 +106,102 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
+def answer_token_len(tokenizer) -> int:
+    """Number of tokens the Yes/No target occupies (1 for every backbone here).
+
+    The dataset appends the target to the prompt and sets the labels to
+    [-100]*len(prompt) + target_ids, so the answer always occupies the LAST
+    positions of the (left-padded) sequence.
+    """
+    return max(
+        len(tokenizer.encode(t, add_special_tokens=False))
+        for t in (" Yes", " No")
+    )
+
+
+class PointwiseTrainer(transformers.Trainer):
+    """Trainer that scores only the answer positions.
+
+    Every point-wise example is `prompt + " Yes"|" No"`, so the answer is a
+    single token at the END of the sequence and exactly ONE logit row matters:
+    the one at position L-2, which predicts the answer token at L-1.
+
+    The default path asks the model for the full (B, L, V) logit tensor.
+    `ForCausalLMLoss` then upcasts it to fp32 and flattens it, which for
+    V=248320 / B=4 / L=2048 is a 4.1 GB bf16 tensor plus an 8.1 GB fp32 copy
+    (and the same again for the backward pass), and the lm_head GEMM over all
+    L positions is ~11% of the forward FLOPs (~25% of the step with backward).
+
+    Passing `logits_to_keep=answer_len+1` makes the model compute only the
+    last few logit rows. The loss is still computed by the MODEL's own
+    `loss_function`, so the reduction (mean, or sum/num_items_in_batch) is
+    exactly the one the default path used and the gradient scale is unchanged.
+
+    The labels are re-shaped to match the sliced logits: a -100 slot is
+    PREPENDED, so the model's internal label shift lines kept logit j up with
+    answer label j (kept logit j predicts position L-keep-1+j+1).
+
+    Falls back to the stock path when the backbone has no `logits_to_keep`
+    parameter, when label smoothing is on, or when a custom compute_loss_func
+    is installed -- in those cases the loss is computed from the full logits
+    and slicing them would change the result.
+    """
+
+    def __init__(self, *args, answer_len: int = 0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.answer_len = int(answer_len)
+        self._logits_to_keep = self.answer_len + 1 if self.answer_len > 0 else 0
+        self._supports_logits_to_keep = self._check_logits_to_keep_support()
+
+    def _check_logits_to_keep_support(self) -> bool:
+        if self._logits_to_keep <= 0:
+            return False
+        # Kill switch: MINIONEREC_NO_ANSWER_ONLY_LOGITS=1 forces the stock
+        # full-logits path. The answer-only path is numerically exact (verified
+        # against ForCausalLMLoss), but this keeps a way to A/B it -- and to
+        # fall back instantly if a backbone ever computes the loss differently.
+        if os.environ.get("MINIONEREC_NO_ANSWER_ONLY_LOGITS", "") == "1":
+            return False
+        try:
+            import inspect
+            unwrapped = self.accelerator.unwrap_model(self.model)
+            # A PEFT wrapper's forward only declares **kwargs, so the parameter
+            # has to be looked up on the wrapped base model.
+            try:
+                from transformers.trainer_utils import unwrap_peft_model
+                unwrapped = unwrap_peft_model(unwrapped)
+            except Exception:
+                pass
+            params = inspect.signature(unwrapped.forward).parameters
+            return "logits_to_keep" in params
+        except Exception:
+            return False
+
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        if (
+            self._supports_logits_to_keep
+            and "labels" in inputs
+            and inputs["labels"] is not None
+            and self.label_smoother is None
+            and self.compute_loss_func is None
+            # With compute_metrics set the Trainer keeps the returned logits
+            # (sliced ones would be misaligned with the labels), so fall back
+            # to the stock full-logits path there.
+            and self.compute_metrics is None
+        ):
+            labels = inputs["labels"]
+            keep = self.answer_len
+            shifted = torch.cat(
+                [labels.new_full((labels.shape[0], 1), -100), labels[:, -keep:]], dim=1
+            )
+            inputs = dict(inputs)
+            inputs["labels"] = shifted
+            inputs["logits_to_keep"] = self._logits_to_keep
+        return super().compute_loss(
+            model, inputs, return_outputs=return_outputs, num_items_in_batch=num_items_in_batch
+        )
+
+
 def train(
     local_rank: int = -1,  # injected by DeepSpeed launcher; ignored here
     base_model: str = "",
@@ -217,6 +313,11 @@ def train(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
+
+    # Number of tokens the Yes/No answer occupies. The dataset appends the
+    # target to the prompt and sets labels = [-100]*len(prompt) + target_ids,
+    # so with LEFT padding the answer tokens are still the last ones.
+    _answer_len = answer_token_len(tokenizer)
 
     # LoRA: wrap the loaded model with PEFT adapters. The base weights stay
     # frozen; only adapters train. trainer.save_model() on a PeftModel writes
@@ -396,17 +497,24 @@ def train(
         def on_train_begin(self, args, state, control, **kwargs):
             return self.inner.on_train_begin(args, state, control, **kwargs)
 
-    trainer = transformers.Trainer(
+    trainer = PointwiseTrainer(
         model=model,
         train_dataset=train_data,
         eval_dataset=val_data if val_data else None,
         args=training_args,
+        answer_len=_answer_len,
         **({"optimizers": (optimizer_obj, None)} if optimizer_obj is not None else {}),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
         callbacks=[_EpochGatedEarlyStopping(early_stopping_patience)] if val_data else None,
     )
+    if trainer._supports_logits_to_keep:
+        print(f"  Answer-only logits: ON (logits_to_keep={trainer._logits_to_keep}, "
+              f"answer_len={_answer_len}) — skips the full (B,L,V) logit tensor")
+    else:
+        print(f"  Answer-only logits: OFF (backbone has no logits_to_keep / "
+              f"label smoothing / custom loss) — using the stock full-logits path")
 
     # Length-grouped training batches (opt-in via MINIONEREC_LENGTH_GROUPED=1).
     # transformers 5.x removed `group_by_length`; without it every micro-batch pads

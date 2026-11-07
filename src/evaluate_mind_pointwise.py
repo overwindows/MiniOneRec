@@ -25,6 +25,7 @@ Usage:
 
 import argparse
 import json
+import os
 import random
 from typing import List
 
@@ -154,6 +155,294 @@ def _score_with_prefix_cache(model, all_prompt_ids, device, yes_token_id, no_tok
     return scores
 
 
+_LINEAR_STATE_FP32_PATCHED = False
+
+
+def _patch_recurrent_state_fp32():
+    """Make the linear-attention cache keep the recurrent state in fp32.
+
+    The chunked delta-rule kernel computes the state in fp32 and returns an
+    fp32 final state, but `LinearAttentionLayer.lazy_initialization` sizes the
+    recurrent-state buffer from `self.dtype`, which was set from the CONV
+    state (bf16), so `update_recurrent_state`'s `copy_` rounds it to bf16.
+
+    In the plain path no cache is involved, so the state stays fp32 end to
+    end. In the prefix path the prefix's state is written to the cache and
+    read back as the suffix's `initial_state`, so without this the ~1100-token
+    prefix would be rounded to bf16 (0.4% relative error) before it reaches
+    the suffix — and that state feeds the output directly.
+
+    The patch must be installed BEFORE the prefix forward, otherwise the
+    prefix's own state has already been rounded on the way into the cache.
+
+    The conv state stays bf16: it is a 4-token sliding window of projections
+    (not an accumulated sum), and the plain path computes it in bf16 too.
+    """
+    global _LINEAR_STATE_FP32_PATCHED
+    if _LINEAR_STATE_FP32_PATCHED:
+        return
+    from transformers.cache_utils import LinearAttentionAndFullAttentionLayer, LinearAttentionLayer
+
+    def _update_recurrent_state(self, recurrent_states, **kwargs):
+        if not self.is_recurrent_states_initialized:
+            self.lazy_initialization(recurrent_states=recurrent_states)
+        # Assign rather than copy_: the buffer's dtype is bf16 (inherited from
+        # the conv state), and `copy_` would round the fp32 state on the way in.
+        self.recurrent_states = recurrent_states.to(torch.float32).clone()
+        return self.recurrent_states
+
+    LinearAttentionLayer.update_recurrent_state = _update_recurrent_state
+    # `LinearAttentionAndFullAttentionLayer` (the "hybrid" layer type) defines
+    # its OWN `update_recurrent_state`, so patching only the base class would
+    # leave those layers rounding to bf16. Patch both.
+    if hasattr(LinearAttentionAndFullAttentionLayer, "update_recurrent_state"):
+        LinearAttentionAndFullAttentionLayer.update_recurrent_state = _update_recurrent_state
+    _LINEAR_STATE_FP32_PATCHED = True
+
+
+def _expand_cache_batch(cache, batch_size):
+    """Replicate a batch-1 cache across the batch dimension, in place.
+
+    Returns a snapshot that `_restore_cache_batch` puts back.
+
+    Linear-attention layers keep a conv state and a recurrent state instead of
+    a KV tensor, and their `crop()` is a no-op, so they are expanded here
+    explicitly.
+
+    The full-attention KV is expanded as a VIEW: `DynamicLayer.update` cats
+    the new keys onto it, which materialises a fresh tensor anyway, so copying
+    the prefix KV up front would only double the peak memory. The linear
+    states must be real copies, because `update_conv_state` /
+    `update_recurrent_state` write into them with `copy_`, which is undefined
+    on a stride-0 expanded view.
+    """
+    from transformers.cache_utils import LinearAttentionCacheLayerMixin
+
+    saved = []
+    for layer in cache.layers:
+        linear = isinstance(layer, LinearAttentionCacheLayerMixin)
+        conv = getattr(layer, "conv_states", None) if linear else None
+        rec = getattr(layer, "recurrent_states", None) if linear else None
+        # A "hybrid" layer carries BOTH a linear state and a full-attention KV.
+        keys = getattr(layer, "keys", None)
+        values = getattr(layer, "values", None)
+        if keys is not None and keys.dim() != 4:
+            keys = values = None
+        saved.append((layer, conv, rec, keys, values))
+
+        if conv is not None:
+            layer.conv_states = conv.expand(batch_size, *([-1] * (conv.dim() - 1))).contiguous()
+        if rec is not None:
+            layer.recurrent_states = rec.expand(batch_size, *([-1] * (rec.dim() - 1))).contiguous()
+        if keys is not None:
+            layer.keys = keys.expand(batch_size, *([-1] * (keys.dim() - 1)))
+        if values is not None:
+            layer.values = values.expand(batch_size, *([-1] * (values.dim() - 1)))
+    return saved
+
+
+def _restore_cache_batch(cache, saved):
+    """Undo `_expand_cache_batch`, so the next group starts from the prefix state.
+
+    The linear states were written in place (`copy_` into the expanded copy),
+    and the full-attention KV was replaced by a fresh concatenated tensor, so
+    restoring the saved references puts the cache back to the batch-1 prefix.
+    """
+    for layer, conv, rec, keys, values in saved:
+        if conv is not None:
+            layer.conv_states = conv
+        if rec is not None:
+            layer.recurrent_states = rec
+        if keys is not None:
+            layer.keys = keys
+        if values is not None:
+            layer.values = values
+
+
+def _score_with_prefix_cache_hybrid(model, all_prompt_ids, device, yes_token_id, no_token_id,
+                                     pad_token_id, group_size, temperature, legacy_bf16):
+    """Shared-prefix scoring for hybrid (GatedDeltaNet + full attention) backbones.
+
+    The full-attention path packs the candidate suffixes into ONE sequence and
+    masks them apart. That is impossible here: the linear-attention layers
+    carry a causal conv state and a recurrent state, both sequential over the
+    token axis, so a packed sequence would let one candidate's suffix bleed
+    into the next.
+
+    Instead each candidate's suffix is its own batch row. The prefix is still
+    run once (batch 1) and its states are replicated across the batch:
+      * full-attention layers: the prefix KV is expanded to (G, H, P, D);
+      * linear-attention layers: `conv_states` (G, conv_dim, K) and
+        `recurrent_states` (G, HV, K, V) are expanded to match.
+    Every row therefore sees exactly the prefix it would have seen in the plain
+    path, and the suffix is causally masked within its own row.
+
+    The suffix is RIGHT-padded. The linear-attention recurrence is exactly
+    causal (a position's state depends only on the tokens at or before it), so
+    trailing pads cannot affect the hidden state we read back (each row's last
+    real token). Left padding would instead push the pads in FRONT of the real
+    tokens, where the recurrence would consume them first.
+
+    The cache is restored from the batch-1 snapshot before every group, so a
+    group's padding tokens can never leak into the next group's conv or
+    recurrent state.
+    """
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+
+    p = max(min(_common_prefix_len(all_prompt_ids),
+                min(len(s) for s in all_prompt_ids) - 1), 0)
+    decoder = model.get_decoder()
+
+    # cuDNN SDPA rebuilds an execution plan for every new shape (~1 ms CPU per
+    # call here, since shapes change every impression); flash/mem-efficient don't.
+    with torch.no_grad(), sdpa_kernel(
+        [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH]
+    ):
+        cache = None
+        if p > 0:
+            # Patch the cache layer CLASS before the prefix forward, so the
+            # prefix's own recurrent state is stored in fp32 (the kernel's
+            # native precision) instead of being rounded to bf16 on the way in.
+            _patch_recurrent_state_fp32()
+            prefix = torch.tensor([all_prompt_ids[0][:p]], dtype=torch.long, device=device)
+            cache = decoder(input_ids=prefix, use_cache=True).past_key_values
+
+        scores = []
+        for start in range(0, len(all_prompt_ids), group_size):
+            group = all_prompt_ids[start:start + group_size]
+            suffixes = [ids[p:] for ids in group]
+            lens = [len(s) for s in suffixes]
+            L = max(lens)
+            G = len(group)
+
+            rows = [list(sfx) + [pad_token_id] * (L - len(sfx)) for sfx in suffixes]
+            input_ids = torch.tensor(rows, dtype=torch.long, device=device)
+            # The suffix continues the prefix's positions, exactly as in the
+            # plain path (where the whole prompt is one contiguous sequence).
+            position_ids = (torch.arange(L, device=device) + p).expand(G, L).contiguous()
+
+            if p > 0:
+                # 4-D block mask: every row attends to the whole prefix, and to
+                # the suffix tokens at or before its own position.
+                mask = (torch.arange(p + L, device=device) - p)[None, :] <= torch.arange(L, device=device)[:, None]
+                mask = mask[None, None].expand(G, 1, L, p + L)
+                saved = _expand_cache_batch(cache, G)
+                hidden = decoder(
+                    input_ids=input_ids,
+                    position_ids=position_ids,
+                    attention_mask=mask,
+                    past_key_values=cache,
+                    use_cache=True,
+                ).last_hidden_state
+                _restore_cache_batch(cache, saved)
+            else:
+                # No shared prefix (the prompts disagree from the first token):
+                # score the group as plain right-padded full prompts.
+                mask = torch.ones(L, L, dtype=torch.bool, device=device).tril()
+                mask = mask[None, None].expand(G, 1, L, L)
+                hidden = decoder(
+                    input_ids=input_ids,
+                    position_ids=position_ids,
+                    attention_mask=mask,
+                    use_cache=False,
+                ).last_hidden_state
+
+            last = hidden[torch.arange(G, device=device), torch.tensor(lens, device=device) - 1]
+            scores.extend(_yes_no_scores(
+                model, last, yes_token_id, no_token_id, temperature, legacy_bf16).cpu().tolist())
+    return scores
+
+
+def _build_parity_prompt_ids(
+    tokenizer, history, candidate, max_prompt,
+    use_chat_template=False, use_subcategory=False, use_recency=False,
+    use_profile_summary=False, impression_timestamp=None, history_format="flat",
+):
+    """Token ids for ONE (history, candidate) pair, shrunk exactly like training.
+
+    Training (data.py `encode_example`) renders the prompt, and if it does not
+    fit `max_len - len(target_ids)` it drops the OLDEST ~1/8 of the history and
+    re-renders, until it fits or the history is empty; if it still overflows
+    (giant abstract) it keeps the TAIL so the candidate block, the question and
+    the answer survive.
+
+    Eval never did this: it scored the FULL history. So every impression whose
+    prompt overflows 2048 tokens was scored on a prompt shape the model had
+    never seen in training.
+
+    The shrink is PER CANDIDATE (each training example has one candidate), so
+    the candidates of a single impression can end up with different history
+    lengths. That is reproduced here rather than approximated per impression.
+
+    Returns:
+        List[int]: the prompt token ids (no answer token).
+    """
+    h = list(history)
+    while True:
+        if use_subcategory:
+            prompt = build_pointwise_prompt_subcategory(
+                h, candidate, tokenizer=tokenizer, use_chat_template=use_chat_template)
+        else:
+            prompt = build_pointwise_prompt(
+                h, candidate, tokenizer=tokenizer, use_chat_template=use_chat_template,
+                use_recency=use_recency, use_profile_summary=use_profile_summary,
+                impression_timestamp=impression_timestamp, history_format=history_format,
+            )
+        ids = tokenizer.encode(prompt, add_special_tokens=(not use_chat_template))
+        if len(ids) <= max_prompt or not h:
+            break
+        # Too long: drop the oldest ~1/8 of the history and re-render.
+        h = h[max(1, len(h) // 8):]
+
+    if len(ids) > max_prompt:
+        # Even with no history the prompt overflows: keep the TAIL so the
+        # candidate + question survive (same as training).
+        ids = ids[-max_prompt:]
+    return ids
+
+
+def _build_parity_prompt_ids_batch(
+    tokenizer, history, candidates, max_prompt,
+    use_chat_template=False, use_subcategory=False, use_recency=False,
+    use_profile_summary=False, impression_timestamp=None, history_format="flat",
+):
+    """Batched version of `_build_parity_prompt_ids` over all candidates.
+
+    The overwhelming majority of impressions fit in `max_prompt` on the first
+    render, so those are encoded in ONE batched tokenizer call (the Rust fast
+    tokenizer parallelises that; one call per candidate does not). Only the
+    candidates that actually overflow are re-rendered through the shrink loop.
+
+    The result is identical to calling `_build_parity_prompt_ids` per candidate:
+    the first render is the same string, and the shrink loop only runs for
+    candidates that did not fit.
+    """
+    def _render(h, cand):
+        if use_subcategory:
+            return build_pointwise_prompt_subcategory(
+                h, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
+        return build_pointwise_prompt(
+            h, cand, tokenizer=tokenizer, use_chat_template=use_chat_template,
+            use_recency=use_recency, use_profile_summary=use_profile_summary,
+            impression_timestamp=impression_timestamp, history_format=history_format,
+        )
+
+    prompts = [_render(history, cand) for cand in candidates]
+    all_ids = tokenizer(prompts, add_special_tokens=(not use_chat_template))["input_ids"]
+
+    # Re-render only the candidates that overflowed, through the shrink loop.
+    for i, ids in enumerate(all_ids):
+        if len(ids) <= max_prompt:
+            continue
+        all_ids[i] = _build_parity_prompt_ids(
+            tokenizer, history, candidates[i], max_prompt,
+            use_chat_template=use_chat_template, use_subcategory=use_subcategory,
+            use_recency=use_recency, use_profile_summary=use_profile_summary,
+            impression_timestamp=impression_timestamp, history_format=history_format,
+        )
+    return all_ids
+
+
 def batch_score_candidates_pointwise(
     model,
     tokenizer,
@@ -173,6 +462,12 @@ def batch_score_candidates_pointwise(
     prefix_cache: bool = False,
     pack_tokens: int = 8192,
     legacy_bf16_scores: bool = False,
+    prefix_cache_mode: str = "packed",
+    prefix_group_size: int = 16,
+    right_pad: bool = False,
+    prompt_parity: bool = False,
+    parity_max_len: int = 2048,
+    answer_len: int = 1,
 ) -> List[float]:
     """
     Score multiple candidates in batches for efficiency.
@@ -185,26 +480,44 @@ def batch_score_candidates_pointwise(
         List of scores for each candidate
     """
     # Build all prompts
-    if use_subcategory:
-        prompts = [
-            build_pointwise_prompt_subcategory(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
-            for cand in candidates
-        ]
+    if prompt_parity:
+        # Train/eval parity: reproduce data.py `encode_example`'s shrink loop
+        # PER CANDIDATE, so each candidate is scored on the same prompt shape
+        # the model was trained on. Per candidate (not per impression), because
+        # each training example has exactly one candidate.
+        max_prompt = parity_max_len - answer_len
+        all_prompt_ids = _build_parity_prompt_ids_batch(
+            tokenizer, history, candidates, max_prompt,
+            use_chat_template=use_chat_template, use_subcategory=use_subcategory,
+            use_recency=use_recency, use_profile_summary=use_profile_summary,
+            impression_timestamp=impression_timestamp, history_format=history_format,
+        )
     else:
-        prompts = [
-            build_pointwise_prompt(
-                history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template,
-                use_recency=use_recency, use_profile_summary=use_profile_summary,
-                impression_timestamp=impression_timestamp, history_format=history_format,
-            )
-            for cand in candidates
-        ]
+        if use_subcategory:
+            prompts = [
+                build_pointwise_prompt_subcategory(history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template)
+                for cand in candidates
+            ]
+        else:
+            prompts = [
+                build_pointwise_prompt(
+                    history, cand, tokenizer=tokenizer, use_chat_template=use_chat_template,
+                    use_recency=use_recency, use_profile_summary=use_profile_summary,
+                    impression_timestamp=impression_timestamp, history_format=history_format,
+                )
+                for cand in candidates
+            ]
 
-    # Tokenize all prompts (batched call -> parallel Rust fast tokenizer)
-    # For chat templates, add_special_tokens is already handled
-    all_prompt_ids = tokenizer(prompts, add_special_tokens=(not use_chat_template))["input_ids"]
+        # Tokenize all prompts (batched call -> parallel Rust fast tokenizer)
+        # For chat templates, add_special_tokens is already handled
+        all_prompt_ids = tokenizer(prompts, add_special_tokens=(not use_chat_template))["input_ids"]
 
     if prefix_cache:
+        if prefix_cache_mode == "hybrid":
+            return _score_with_prefix_cache_hybrid(
+                model, all_prompt_ids, device, yes_token_id, no_token_id,
+                tokenizer.pad_token_id, prefix_group_size, temperature, legacy_bf16_scores,
+            )
         return _score_with_prefix_cache(
             model, all_prompt_ids, device, yes_token_id, no_token_id,
             pack_tokens, temperature, legacy_bf16_scores,
@@ -223,19 +536,36 @@ def batch_score_candidates_pointwise(
 
         for ids in batch_ids:
             pad_len = max_len - len(ids)
-            # Left padding
-            padded_ids.append([tokenizer.pad_token_id] * pad_len + ids)
-            attention_masks.append([0] * pad_len + [1] * len(ids))
+            if right_pad:
+                # RIGHT padding: the linear-attention recurrence is causal, so
+                # trailing pads are never consumed by the positions we read
+                # back (each row's last real token). LEFT padding instead puts
+                # the pads BEFORE the real tokens, where the recurrence
+                # consumes them first and they shift the whole history.
+                padded_ids.append(list(ids) + [tokenizer.pad_token_id] * pad_len)
+                attention_masks.append([1] * len(ids) + [0] * pad_len)
+            else:
+                # Left padding
+                padded_ids.append([tokenizer.pad_token_id] * pad_len + ids)
+                attention_masks.append([0] * pad_len + [1] * len(ids))
 
         input_ids = torch.tensor(padded_ids, dtype=torch.long, device=device)
         attention_mask = torch.tensor(attention_masks, dtype=torch.long, device=device)
 
         with torch.no_grad():
-            # Left-padded, so the answer position (after "Answer:") is the last
-            # column; lm_head is applied there only (see _yes_no_scores).
-            hidden = model.get_decoder()(
-                input_ids=input_ids, attention_mask=attention_mask
-            ).last_hidden_state[:, -1, :]
+            if right_pad:
+                hidden = model.get_decoder()(
+                    input_ids=input_ids, attention_mask=attention_mask
+                ).last_hidden_state
+                # The answer position is each row's last REAL token.
+                last_idx = torch.tensor([len(ids) - 1 for ids in batch_ids], device=device)
+                hidden = hidden[torch.arange(len(batch_ids), device=device), last_idx]
+            else:
+                # Left-padded, so the answer position (after "Answer:") is the last
+                # column; lm_head is applied there only (see _yes_no_scores).
+                hidden = model.get_decoder()(
+                    input_ids=input_ids, attention_mask=attention_mask
+                ).last_hidden_state[:, -1, :]
             batch_scores = _yes_no_scores(
                 model, hidden, yes_token_id, no_token_id, temperature, legacy_bf16_scores)
             scores.extend(batch_scores.cpu().tolist())
@@ -256,6 +586,13 @@ def main():
     parser.add_argument("--history_format", choices=["flat", "grouped_profile", "two_block", "title_only"], default="flat",
                         help="History rendering format (must match training)")
     parser.add_argument("--max_impressions", type=int, default=0)
+    parser.add_argument("--prompt_parity", action="store_true",
+                        help="Reproduce training's prompt-shrink loop per candidate: if the rendered "
+                             "prompt exceeds --parity_max_len, drop the oldest ~1/8 of the history and "
+                             "re-render (exactly data.py encode_example). Off by default because it "
+                             "changes the scores of every over-length impression.")
+    parser.add_argument("--parity_max_len", type=int, default=2048,
+                        help="Training cutoff_len the parity path reproduces (default 2048)")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for scoring candidates")
     parser.add_argument("--no_prefix_cache", action="store_true",
                         help="Disable shared-prefix KV caching (score every full prompt independently)")
@@ -263,6 +600,17 @@ def main():
                         help="Old bf16 full-vocab scoring (many tied scores, lower AUC); only for comparing with earlier results")
     parser.add_argument("--pack_tokens", type=int, default=8192,
                         help="Max candidate-suffix tokens packed into one forward when prefix caching is on")
+    parser.add_argument("--prefix_cache_mode", choices=["auto", "packed", "hybrid"], default="auto",
+                        help="auto = pick from the backbone's layer types (hybrid for GatedDeltaNet/hybrid "
+                             "backbones, packed for full-attention ones); packed = pack candidate suffixes "
+                             "into one sequence (full-attention backbones); hybrid = one batch row per "
+                             "candidate (GatedDeltaNet/hybrid backbones)")
+    parser.add_argument("--prefix_group_size", type=int, default=16,                        help="Candidates per forward in hybrid prefix-cache mode")
+    parser.add_argument("--right_pad", action="store_true",
+                        help="Right-pad the plain path instead of left-padding it. Diagnostic only: the linear-"
+                             "attention layers zero the pad hidden states (apply_mask_to_padding_states), so the "
+                             "pads contribute nothing to the recurrence either way. Used to confirm that the "
+                             "hybrid prefix path and the plain path agree.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output_file", help="Output prediction file for MIND leaderboard")
     parser.add_argument("--output_scores_file", help="Output raw scores file for ensemble (impression_id score1 score2 ...)")
@@ -277,6 +625,17 @@ def main():
     parser.add_argument("--cf_scores_file", default="", help="TSV file with CF scores (impression_id, news_id, cf_score) to blend with LLM scores")
     parser.add_argument("--cf_alpha", type=float, default=0.3, help="Blend weight for CF: final = (1-alpha)*LLM + alpha*CF (default 0.3)")
     args = parser.parse_args()
+
+    # Env-var override for the parity switch, so the shell wrappers that are
+    # CURRENTLY RUNNING under six test-scoring jobs do not have to be edited
+    # (editing a script a running job is executing corrupts its byte offsets).
+    # MINIONEREC_PROMPT_PARITY=1 turns the train/eval parity path on.
+    _env_parity = os.environ.get("MINIONEREC_PROMPT_PARITY", "").strip().lower()
+    if _env_parity in ("1", "true", "yes", "on"):
+        args.prompt_parity = True
+    _env_parity_len = os.environ.get("MINIONEREC_PARITY_MAX_LEN", "").strip()
+    if _env_parity_len.isdigit():
+        args.parity_max_len = int(_env_parity_len)
 
     # Quick mode overrides max_impressions
     if args.quick and args.max_impressions == 0:
@@ -405,21 +764,55 @@ def main():
     model.eval()
     device = next(model.parameters()).device
     print(f"Model loaded on device: {device}")
+    # device_map="auto" silently falls back to CPU when the target GPU is
+    # unhealthy (a node with a faulted GPU reports 0 MiB used and the model
+    # lands in RAM). Scoring a 9B model on CPU takes days, so fail fast
+    # instead of hanging the whole multi-GPU job on one bad device.
+    if device.type == "cpu" and _os.environ.get("CUDA_VISIBLE_DEVICES"):
+        raise RuntimeError(
+            f"Model loaded on CPU but CUDA_VISIBLE_DEVICES="
+            f"{_os.environ.get('CUDA_VISIBLE_DEVICES')}. The target GPU is "
+            "likely unhealthy -- aborting instead of scoring on CPU."
+        )
 
-    # Prefix caching assumes plain full-attention KV layers. Hybrid backbones
-    # (Qwen3.5 GatedDeltaNet) and sliding-window layers keep other state.
+    # Prefix caching assumes plain full-attention KV layers for the PACKED
+    # path (it packs the candidate suffixes into one sequence). Hybrid
+    # backbones (Qwen3.5 GatedDeltaNet) keep a causal conv state and a
+    # recurrent state instead, which cannot be packed; they use the "hybrid"
+    # mode, which runs one batch row per candidate and replicates the prefix
+    # state across the batch.
     # It also requires SDPA: the packed path feeds a custom 4-D bool block
     # mask, which flash_attention_2 (and eager's additive-float mask path)
     # does not honor — packed candidates would attend to each other.
     _layer_types = set(getattr(model.config.get_text_config(), "layer_types", None) or ["full_attention"])
     _attn_impl = str(getattr(model.config, "_attn_implementation", "sdpa"))
-    prefix_cache = (not args.no_prefix_cache and not _is_qwen35
-                    and _layer_types == {"full_attention"} and _attn_impl == "sdpa")
+    _has_linear = "linear_attention" in _layer_types
+    # "auto" picks the mode the backbone can actually run: the packed path
+    # needs plain full-attention KV layers, so a GatedDeltaNet backbone gets
+    # the hybrid (one batch row per candidate) path. Resolving it here keeps
+    # the caller from having to know the backbone's internals.
+    _mode = args.prefix_cache_mode
+    if _mode == "auto":
+        _mode = "hybrid" if _has_linear else "packed"
+        print(f"Prefix cache mode 'auto' -> {_mode} "
+              f"(layer types: {sorted(_layer_types)})")
+    if _has_linear and _mode != "hybrid":
+        print("Prefix KV cache disabled: this backbone has linear-attention "
+              "(GatedDeltaNet) layers, which the packed path cannot use "
+              "(set PREFIX_CACHE_MODE=hybrid to use the per-candidate path)")
+        prefix_cache = False
+    else:
+        prefix_cache = (not args.no_prefix_cache
+                        and _attn_impl == "sdpa"
+                        and (("full_attention" in _layer_types) or _mode == "hybrid"))
     if not prefix_cache and not args.no_prefix_cache and _attn_impl != "sdpa":
         print(f"Prefix KV cache disabled: attn_implementation={_attn_impl} does not honor "
               "the packed block mask (set FLASH_ATTN=0 to enable the fast path)")
     print(f"Prefix KV cache: {prefix_cache}"
-          + (f" (pack {args.pack_tokens} tokens)" if prefix_cache else ""))
+          + (f" (mode={_mode}"
+             + (f", pack {args.pack_tokens} tokens)" if _mode == "packed"
+                else f", group {args.prefix_group_size})")
+             if prefix_cache else ""))
 
     # Get Yes/No token IDs
     yes_tokens = tokenizer.encode(" Yes", add_special_tokens=False)
@@ -440,12 +833,30 @@ def main():
     def _avg(xs):
         return float(np.mean(xs)) if xs else 0.0
 
+    def _metric(xs, fmt="{:.4f}"):
+        """Format a metric, or 'n/a' when the split has no labels.
+
+        The MIND test split has no ground-truth labels, so every metric stays
+        empty and `_avg` would report 0.0000 — which reads like a broken run
+        rather than "no labels to score against". Report 'n/a' instead.
+        """
+        return fmt.format(_avg(xs)) if xs else "n/a"
+
     aucs = []
     mrrs = []
     ndcg5 = []
     ndcg10 = []
     predictions = []
     raw_scores = []
+
+    # Stream raw scores to disk as they are produced. Long test-split scoring
+    # runs can hit the scheduler wall limit, and a buffered write would then
+    # lose every score. Appending + flushing keeps partial results usable.
+    scores_fh = None
+    if args.output_scores_file:
+        import os as _os2
+        _os2.makedirs(_os2.path.dirname(_os2.path.abspath(args.output_scores_file)), exist_ok=True)
+        scores_fh = open(args.output_scores_file, "w", encoding="utf-8")
 
     # Count total lines for progress bar
     total_lines = None
@@ -543,6 +954,12 @@ def main():
                 prefix_cache=prefix_cache,
                 pack_tokens=args.pack_tokens,
                 legacy_bf16_scores=args.legacy_bf16_scores,
+                prefix_cache_mode=_mode,
+                prefix_group_size=args.prefix_group_size,
+                right_pad=args.right_pad,
+                prompt_parity=args.prompt_parity,
+                parity_max_len=args.parity_max_len,
+                answer_len=len(yes_tokens),
             )
 
             # Blend with CF scores if available
@@ -578,8 +995,9 @@ def main():
                 predictions.append((impression_id, ranked_news_ids))
 
             # Save raw scores for ensemble
-            if args.output_scores_file:
+            if scores_fh is not None:
                 scores_str = "\t".join(f"{s:.6f}" for s in scores)
+                scores_fh.write(f"{impression_id}\t{scores_str}\n")
                 raw_scores.append(f"{impression_id}\t{scores_str}")
 
             count += 1
@@ -589,16 +1007,18 @@ def main():
             # sed which fully buffers, so without this a healthy run looks hung.
             if count % 25 == 0:
                 print(f"[heartbeat] impressions={count} "
-                      f"AUC={_avg(aucs):.4f} MRR={_avg(mrrs):.4f} "
-                      f"nDCG@10={_avg(ndcg10):.4f}", flush=True)
+                      f"AUC={_metric(aucs)} MRR={_metric(mrrs)} "
+                      f"nDCG@10={_metric(ndcg10)}", flush=True)
+                if scores_fh is not None:
+                    scores_fh.flush()
 
             # Update progress bar
             pbar.update(1)
             pbar.set_postfix({
-                'AUC': f'{_avg(aucs):.4f}',
-                'MRR': f'{_avg(mrrs):.4f}',
-                'nDCG@5': f'{_avg(ndcg5):.4f}',
-                'nDCG@10': f'{_avg(ndcg10):.4f}'
+                'AUC': _metric(aucs),
+                'MRR': _metric(mrrs),
+                'nDCG@5': _metric(ndcg5),
+                'nDCG@10': _metric(ndcg10)
             })
 
             if args.max_impressions and count >= args.max_impressions:
@@ -627,15 +1047,10 @@ def main():
                 f.write(f"{impression_id} {' '.join(ranked_news_ids)}\n")
         print(f"Wrote {len(predictions)} predictions")
 
-    # Write raw scores for ensemble
-    if args.output_scores_file and raw_scores:
-        import os as _os2
-        _os2.makedirs(_os2.path.dirname(_os2.path.abspath(args.output_scores_file)), exist_ok=True)
-        print(f"\nWriting raw scores to: {args.output_scores_file}")
-        with open(args.output_scores_file, "w", encoding="utf-8") as f:
-            for line in raw_scores:
-                f.write(line + "\n")
-        print(f"Wrote {len(raw_scores)} score lines")
+    # Raw scores were streamed to disk during the run (see scores_fh above).
+    if scores_fh is not None:
+        scores_fh.close()
+        print(f"\nWrote {len(raw_scores)} score lines to: {args.output_scores_file}")
 
 
 if __name__ == "__main__":

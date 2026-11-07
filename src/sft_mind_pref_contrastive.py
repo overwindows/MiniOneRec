@@ -204,6 +204,12 @@ def train(
     warmup_steps: int = 50,
     deepspeed_config: str = "",
     wandb_project: str = "",
+    adapter_path: str = "",             # existing PEFT adapter to continue from
+    use_lora: bool = False,             # add a NEW adapter on top of a full model
+    lora_r: int = 16,
+    lora_alpha: int = 32,
+    lora_dropout: float = 0.05,
+    lora_target_modules: str = "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj",
 ):
     """Contrastive fine-tune (DPO or RLCD) on top of a pointwise SFT checkpoint."""
 
@@ -223,6 +229,20 @@ def train(
     _base_model_arg = _Path(base_model) if _local else base_model
     _local_kwargs = {"local_files_only": True} if _local else {}
 
+    # A PEFT adapter dir has no config.json -- only adapter_config.json with a
+    # base_model_name_or_path field. AutoModelForCausalLM cannot load it, so
+    # resolve the real base weights and load the adapter on top.
+    _adapter_cfg = _base_model_arg / "adapter_config.json" if _local else None
+    if _adapter_cfg is not None and _adapter_cfg.is_file() and \
+            not (_base_model_arg / "config.json").is_file():
+        import json as _json
+        _base_name = _json.load(open(_adapter_cfg)).get("base_model_name_or_path")
+        if not _base_name:
+            raise ValueError(f"{base_model} is an adapter dir but its "
+                             "adapter_config.json has no base_model_name_or_path")
+        _base_model_arg = _Path(_base_name) if os.path.isabs(_base_name) else _Path(_base_name)
+        print(f"{base_model} is a PEFT adapter; base weights = {_base_model_arg}")
+
     model = AutoModelForCausalLM.from_pretrained(
         _base_model_arg,
         torch_dtype=torch.bfloat16,
@@ -234,18 +254,76 @@ def train(
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
 
+    # PEFT handling. Two mutually exclusive modes:
+    #
+    #   adapter_path set -> CONTINUE an existing adapter. The policy is that
+    #     adapter (trainable) and the DPO reference is a frozen copy of the
+    #     SAME adapter, so the reference is exactly the SFT model the policy
+    #     started from. This is the standard "DPO on top of a LoRA SFT" setup
+    #     and is what the lg_9b run needs (its checkpoint is an adapter dir,
+    #     not a full model).
+    #
+    #   use_lora set -> add a NEW adapter on top of a full base model.
+    #
+    # In both cases the adapter is MERGED into the base weights at save time,
+    # so final_checkpoint is a plain CausalLM dir the eval pipeline consumes
+    # unchanged.
+    if adapter_path and use_lora:
+        raise ValueError("use --adapter_path OR --use_lora, not both")
+
+    if adapter_path:
+        from peft import PeftModel
+        _adapter_arg = _Path(adapter_path) if (os.path.isabs(adapter_path)
+                                               or os.path.isdir(adapter_path)) else adapter_path
+        model = PeftModel.from_pretrained(model, _adapter_arg, is_trainable=True)
+        # Gradient checkpointing + frozen base: inputs to checkpointed blocks
+        # no longer require grad, which silently zeroes the adapter gradients.
+        model.enable_input_require_grads()
+        model.print_trainable_parameters()
+        print(f"Continuing adapter from: {adapter_path}")
+    elif use_lora:
+        from peft import LoraConfig, get_peft_model
+        lora_config = LoraConfig(
+            r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=[m.strip() for m in
+                            (lora_target_modules.split(",") if isinstance(lora_target_modules, str)
+                             else lora_target_modules) if m.strip()],
+        )
+        model = get_peft_model(model, lora_config)
+        model.enable_input_require_grads()
+        model.print_trainable_parameters()
+
     # Reference model for DPO: frozen copy of the SFT checkpoint. Placed on
     # the same device as the policy (Trainer only moves `model`; a bare
     # ref_model stays on CPU and the first ref forward fails with a
     # device-mismatch error).
     ref_model = None
     if objective == "dpo":
-        ref_model = AutoModelForCausalLM.from_pretrained(
-            _base_model_arg,
-            torch_dtype=torch.bfloat16,
-            attn_implementation="sdpa",
-            **_local_kwargs,
-        )
+        if adapter_path:
+            from peft import PeftModel
+            _adapter_arg = _Path(adapter_path) if (os.path.isabs(adapter_path)
+                                                   or os.path.isdir(adapter_path)) else adapter_path
+            ref_model = PeftModel.from_pretrained(
+                AutoModelForCausalLM.from_pretrained(
+                    _base_model_arg,
+                    torch_dtype=torch.bfloat16,
+                    attn_implementation="sdpa",
+                    **_local_kwargs,
+                ),
+                _adapter_arg,
+                is_trainable=False,
+            )
+        else:
+            ref_model = AutoModelForCausalLM.from_pretrained(
+                _base_model_arg,
+                torch_dtype=torch.bfloat16,
+                attn_implementation="sdpa",
+                **_local_kwargs,
+            )
         ref_model.eval()
         for p in ref_model.parameters():
             p.requires_grad_(False)
@@ -329,11 +407,34 @@ def train(
         data_collator=PairwisePrefCollator(tokenizer, pad_to_multiple_of=8),
     )
 
+    model.config.use_cache = False
+
     trainer.train()
 
     final_checkpoint_path = os.path.join(output_dir, "final_checkpoint")
-    trainer.save_model(final_checkpoint_path)
-    tokenizer.save_pretrained(final_checkpoint_path)
+    if adapter_path or use_lora:
+        # Merge adapters into the base weights so final_checkpoint is a plain
+        # CausalLM directory loadable by the standard eval pipeline. Only rank 0
+        # writes (all ranks writing the same dir on NFS corrupts shards). ZeRO-3
+        # partitions params, so gather them before merging on that path.
+        zero3 = trainer.is_deepspeed_enabled and \
+            trainer.accelerator.state.deepspeed_plugin.zero_stage == 3
+        if zero3:
+            import deepspeed
+            gather = deepspeed.zero.GatheredParameters(list(model.parameters()), modifier_rank=0)
+        else:
+            import contextlib
+            gather = contextlib.nullcontext()
+        with gather:
+            if trainer.is_world_process_zero():
+                merged = model.merge_and_unload()
+                merged.save_pretrained(final_checkpoint_path)
+                tokenizer.save_pretrained(final_checkpoint_path)
+        trainer.accelerator.wait_for_everyone()
+    else:
+        trainer.save_model(final_checkpoint_path)
+        if trainer.is_world_process_zero():
+            tokenizer.save_pretrained(final_checkpoint_path)
     print(f"  Model saved to: {final_checkpoint_path}")
     print(f"Next: TE_USE_RECENCY={1 if use_recency else 0} bash scripts/eval_mind_pointwise.sh {final_checkpoint_path} dev")
 

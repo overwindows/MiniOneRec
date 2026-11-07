@@ -26,6 +26,32 @@ export MINIONEREC_NUM_WORKERS=8
 export MINIONEREC_EVAL_STEPS=500
 export MINIONEREC_SAVE_STEPS=500
 
+# ---- CUDA driver compatibility -------------------------------------------
+# The cu130 torch build needs driver >= 595.71.05. Some A100/H100 nodes still
+# carry 565.57.01, where torch.cuda.is_available() is False and the model would
+# load on CPU. The CUDA forward-compat package ships a newer libcuda that works
+# against the old kernel driver. It must ONLY be preloaded on old-driver nodes:
+# on a new-driver node it shadows the real libcuda and breaks CUDA entirely.
+COMPAT_DIR=/import/ml-sc-scratch1/chenw/cuda-compat-13.0
+if ! python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+  if [ -f "${COMPAT_DIR}/libcuda.so.1" ]; then
+    echo "=== driver too old for cu130 torch; preloading CUDA forward-compat ==="
+    export LD_LIBRARY_PATH=${COMPAT_DIR}:${LD_LIBRARY_PATH:-}
+    if ! python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+      echo "FATAL: CUDA still unavailable after forward-compat preload -- aborting"
+      exit 1
+    fi
+  else
+    echo "FATAL: driver too old and no forward-compat lib available -- aborting"
+    exit 1
+  fi
+fi
+
+# Number of GPUs in this allocation. B200 nodes have 8, A100 nodes have 4.
+# The launcher and the gradient-accumulation math both depend on it.
+NGPU=${TE_NGPU:-$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)}
+echo "=== training on ${NGPU} GPUs ==="
+
 RUN_TAG=$1
 MODEL=$2
 shift 2
@@ -76,7 +102,7 @@ MIND_ROOT="${MIND_ROOT:-/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_small}
 MIND_TAG=$(basename "${MIND_ROOT}")
 
 echo "=== [${RUN_TAG}] TRAIN (${MIND_TAG}) ==="
-deepspeed --num_gpus=8 --master_port=29500 src/sft_mind_pointwise_ds.py \
+deepspeed --num_gpus=${NGPU} --master_port=29500 src/sft_mind_pointwise_ds.py \
   --base_model ${MODEL} \
   --train_behaviors_path ${MIND_ROOT}/train/behaviors.tsv \
   --train_news_path ${MIND_ROOT}/train/news.tsv \
@@ -99,7 +125,7 @@ USE_SUBCATEGORY=${TE_USE_SUBCATEGORY} \
 USE_ENTITY=${TE_USE_ENTITY} \
 HISTORY_SELECTION=${TE_HISTORY_SELECTION} \
 HISTORY_FORMAT=${TE_HISTORY_FORMAT} \
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((NGPU - 1))) \
 bash scripts/eval_mind_pointwise.sh ${OUT}/final_checkpoint dev 2>&1 | tee logs/eval_${RUN_TAG}.log
 
 AUC=$(grep -aoE "AUC: +[0-9.]+" logs/eval_${RUN_TAG}.log | tail -1 | grep -oE "[0-9.]+$" || true)

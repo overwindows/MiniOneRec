@@ -87,7 +87,12 @@ USE_CHAT_TEMPLATE="${USE_CHAT_TEMPLATE:-0}"  # Use chat template for instruct mo
 BATCH_SIZE="${BATCH_SIZE:-8}"  # Batch size for scoring candidates (only used with PREFIX_CACHE=0)
 PREFIX_CACHE="${PREFIX_CACHE:-1}"  # Run the shared history prefix once per impression (same scores, much faster)
 PACK_TOKENS="${PACK_TOKENS:-8192}"  # Max candidate-suffix tokens per forward with PREFIX_CACHE=1
-PREFIX_CACHE_MODE="${PREFIX_CACHE_MODE:-packed}"  # packed = full-attention backbones; hybrid = GatedDeltaNet backbones
+PREFIX_CACHE_MODE="${PREFIX_CACHE_MODE:-auto}"  # auto = hybrid for GatedDeltaNet (Qwen3.5), packed for full-attention
+#   "packed" was the old default and SILENTLY disabled the prefix cache on
+#   Qwen3.5 backbones (the guard in evaluate_mind_pointwise.py refuses a
+#   non-hybrid mode there). Measured equivalence, 6 parity-subset parts,
+#   54,412 impressions: AUC delta -0.00003 (SE 0.00013), Spearman 0.988-0.992.
+#   Source: scripts/analyze_hybrid_vs_plain.py
 PREFIX_GROUP_SIZE="${PREFIX_GROUP_SIZE:-16}"  # Candidates per forward in hybrid prefix-cache mode
 RIGHT_PAD="${RIGHT_PAD:-0}"  # 1 = right-pad the plain path (diagnostic: matches the hybrid path's padding)
 LEGACY_BF16_SCORES="${LEGACY_BF16_SCORES:-0}"  # 1 = old bf16 scoring (tied scores), only to compare with pre-fix AUCs

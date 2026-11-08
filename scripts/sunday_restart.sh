@@ -119,9 +119,13 @@ echo "--- B) no training resumes here (see comment); the real jobs are already s
 # longer starts those runs, so the watchers had nothing to watch and would
 # have RESUBMITTED them from scratch -- including the lg_dedupbf watcher,
 # which carried `--use_dedup_backfill True`, a flag that is NOT one of
-# train()'s parameters (fire silently drops it, so the run would have trained
-# `history_selection=recent` under a "dedup_backfill" name -- exactly the
-# false label that made the 9B dedupbf runs duplicates of lg_9b).
+# train()'s parameters. Fire's behaviour here is subtle and was measured
+# (fire 0.7.1, /tmp/firetest3.py): it CALLS train() FIRST with the unknown
+# flag dropped, and only raises "Could not consume arg" + exit 2 AFTER
+# train() returns. So the run trains to completion under a "dedup_backfill"
+# name but with train()'s default `history_selection='recent'` -- exactly
+# the false label that made the 9B dedupbf runs duplicates of lg_9b. The
+# error is therefore INVISIBLE in the middle of a healthy training log.
 #
 # On top of that, all four runs provably cannot finish in the time available
 # (measured in the Section B comment: 170 h / 190 h / 197 h / 396 h

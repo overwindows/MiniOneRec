@@ -646,4 +646,10 @@ def train(
 
 
 if __name__ == "__main__":
+    # Reject unknown flags BEFORE training starts. fire.Fire() calls train()
+    # first and only errors on the unconsumed flag afterwards (exit 2), so an
+    # unknown flag would otherwise train to completion with the default value
+    # and only then fail -- invisibly inside a Slurm log. See src/cli_guard.py.
+    from cli_guard import check_unknown_flags
+    check_unknown_flags(train)
     fire.Fire(train)

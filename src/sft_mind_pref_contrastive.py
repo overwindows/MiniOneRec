@@ -440,4 +440,7 @@ def train(
 
 
 if __name__ == "__main__":
+    # Reject unknown flags BEFORE training starts -- see src/cli_guard.py.
+    from cli_guard import check_unknown_flags
+    check_unknown_flags(train)
     fire.Fire(train)

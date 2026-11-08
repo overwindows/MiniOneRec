@@ -6,9 +6,12 @@
 # The MAX_HISTORY lever was measured paired on 40,000 dev impressions:
 # lifting the inference-side history cap from 30 to unlimited, with the SAME
 # ckpt-45500 weights, gained +0.00392 AUC (SE 0.00036, t=+10.77) at the LLM
-# level, and +0.00333 AUC (SE 0.00035, t=+9.47) after the v6 stack ranker
-# (scripts/verify_mh0_stack.py). Zero retraining: the cap was an inference-side
-# choice hardcoded in the production scorers to match the TRAINING budget.
+# level. On the FULL dev split (376,471 impressions) the same change is worth
+# +0.00305 AUC (SE 0.00013, t=+22.78) after the v6 stack ranker
+# (scripts/verify_mh0_stack.py; artifact
+# results/ranker/mh0v6_paired_dev_summary.json). Zero retraining: the cap was
+# an inference-side choice hardcoded in the production scorers to match the
+# TRAINING budget.
 #
 # This re-scores dev / test / train with EVAL_MAX_HISTORY=0 so the whole
 # pipeline (LLM scores -> ranker features -> ranker -> submission) is

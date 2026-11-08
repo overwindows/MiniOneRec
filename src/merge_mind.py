@@ -25,8 +25,11 @@ def merge(input_path, output_path=None, cuda_list=None, calculate_metrics=True):
         # Auto-detect: find all .txt files whose stem is a plain GPU ID (integer)
         txt_files = [f for f in os.listdir(input_path)
                      if f.endswith('.txt') and f[:-4].isdigit()]
-        cuda_list = [int(f[:-4]) for f in txt_files]
-        print(f"Auto-detected GPU files: {sorted(cuda_list)}")
+        # Auto-detect mode carries no shard-order information, so ascending is
+        # the only defensible convention (and matches the historical
+        # behaviour of this function).
+        cuda_list = sorted(int(f[:-4]) for f in txt_files)
+        print(f"Auto-detected GPU files: {cuda_list}")
     elif isinstance(cuda_list, str):
         cuda_list = [int(x.strip()) for x in cuda_list.split(',') if x.strip() and x.strip().isdigit()]
 
@@ -35,8 +38,14 @@ def merge(input_path, output_path=None, cuda_list=None, calculate_metrics=True):
 
     print(f"Merging predictions from {len(cuda_list)} GPU(s)...")
 
-    # Read prediction files from each GPU
-    for gpu_id in tqdm(sorted(cuda_list), desc="Reading prediction files"):
+    # Read prediction files from each GPU.
+    #
+    # The ORDER of cuda_list is the SHARD ORDER: split_mind.py assigns the
+    # impression ranges to the GPUs in that order, and the feature-table join
+    # assumes the merged file is in impression order. Sorting the list here
+    # would silently permute the shards whenever the caller's list is not
+    # ascending -- so the caller's order is preserved verbatim.
+    for gpu_id in tqdm(cuda_list, desc="Reading prediction files"):
         pred_file = os.path.join(input_path, f'{gpu_id}.txt')
 
         if not os.path.exists(pred_file):

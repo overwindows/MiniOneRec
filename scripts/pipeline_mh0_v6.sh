@@ -3,12 +3,19 @@
 #
 # WHY THIS EXISTS SEPARATELY FROM pipeline_mh0_v7.sh
 # ---------------------------------------------------
-# The +0.00333 stack-level win was MEASURED with the EXISTING v6 ranker:
+# The mh0 win was MEASURED with the EXISTING v6 ranker:
 # scripts/verify_mh0_stack.py swapped only the llm_score column of the
 # canonical dev feature table between the cap-30 and unlimited dumps and
-# re-applied the v6 ranker to both arms:
+# re-applied the v6 ranker to both arms. The FULL-DEV run of that comparison
+# is the artifact of record:
 #
-#   STACK v6  0.72672 -> 0.73004, paired delta +0.00333 (SE 0.00035, t=+9.47)
+#   results/ranker/mh0v6_paired_dev_summary.json
+#   STACK v6 on the full dev split (376,471 impressions)
+#     0.72337 -> 0.72642, paired delta +0.00305 (SE 0.00013, t=+22.78)
+#
+# (An earlier 40,000-impression subset run of the same script reported
+# +0.00333 / t=+9.47, but its log crashed before writing a summary and the
+# number was never reproduced -- the full-dev figure above supersedes it.)
 #
 # So the v6 ranker applied to mh0 scores is a MEASURED configuration, and it
 # needs NO train re-score at all -- only dev + test scores. The train
@@ -31,8 +38,20 @@
 # EVALUATION PROTOCOL
 # -------------------
 # The ranker is FITTED on TRAIN labels (already done: the v6 model file).
-# Dev is touched exactly once, at step 3, to produce the single reportable
-# number. There is no validation split and no model selection on dev.
+# The ranker is NOT refitted here, so dev plays no part in fitting and the
+# number produced at step 3 is a measurement, not a selection.
+#
+# ONE QUALIFICATION, stated honestly: the history cap itself (30 vs 0 vs
+# 50 vs 100) was chosen on a 40,000-impression uniform random SUBSET of dev
+# (chunk_90, seed 42) -- that subset is ~10.6% of dev, so it is a mild
+# double-dip, not a clean held-out selection. The subset screen ranked
+# unlimited > 100 > 50 > 30, but the 0-vs-100 difference was NOT significant
+# (paired delta -0.00036, t=-1.75), so the choice among the top arms rests on
+# the monotone dose-response and on the mechanism (see
+# memory/project_max_history_lever.md), not on a significant pairwise win.
+# The figure this pipeline reports (+0.00305, t=+22.78) is measured on the
+# FULL 376,471-impression dev split and is not the number that was selected
+# on.
 set -e
 cd /import/ml-sc-scratch5/chenw/MiniOneRec
 export PATH="/import/snvm-sc-scratch2/chenw/miniconda3/envs/streaming/bin:$PATH"
@@ -59,10 +78,14 @@ MODEL=results/ranker/ranker_v6_train_popwit.txt
 # a plausible line count, so the guard has to compare counts.
 wait_sub () {
   local dir=$1 fname=$2 chunk=$3
-  local want=$(wc -l < "${chunk}")
+  # `local want=$(...)` masks a failure: if wc cannot read the chunk, `want`
+  # becomes the empty string and the comparison below is never true, so the
+  # loop spins forever. Bind first, then check the exit status.
+  local want
+  want=$(wc -l < "${chunk}") || { echo "FATAL: cannot read ${chunk}"; exit 1; }
   while true; do
     if [ -f "${dir}/${fname}" ]; then
-      n=$(wc -l < "${dir}/${fname}")
+      n=$(wc -l < "${dir}/${fname}") || { echo "FATAL: cannot read ${dir}/${fname}"; exit 1; }
       if [ "$n" -eq "$want" ]; then
         echo "${fname} OK: n=$n (want $want)"
         return 0
@@ -100,6 +123,7 @@ echo "--- swapping llm_score into the dev feature table ---"
 python src/swap_llm_score.py \
   --features results/ranker/ck45500_dev_features_causalpop.tsv \
   --scores ${DEV_MERGED} \
+  --behaviors data/MIND_large/dev/behaviors.tsv \
   --output results/ranker/mh0v6_dev_features_causalpop.tsv
 
 echo "--- applying ranker v6 to dev (the single honest eval) ---"
@@ -133,6 +157,7 @@ echo "--- swapping llm_score into the test feature table ---"
 python src/swap_llm_score.py \
   --features results/ranker/ck45500_test_features_devpopcat.tsv \
   --scores ${TEST_MERGED} \
+  --behaviors data/MIND_large/test/behaviors.tsv \
   --output results/ranker/mh0v6_test_features_devpopcat.tsv
 
 echo "--- applying ranker v6 to test ---"

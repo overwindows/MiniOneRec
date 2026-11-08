@@ -26,7 +26,12 @@
 #SBATCH --output=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/%x_%j.log
 #SBATCH --error=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/%x_%j.err
 
-set -e
+# pipefail is REQUIRED here, not optional: the scoring step is piped into
+# `tee`, and without pipefail the pipeline's exit status is `tee`'s (always
+# 0), so `set -e` would NOT catch a failed scoring run. The job would exit
+# "successfully" while leaving a truncated score file behind -- exactly the
+# failure mode the caller's line-count guard has to catch.
+set -eo pipefail
 cd /import/ml-sc-scratch5/chenw/MiniOneRec
 export PATH="/import/snvm-sc-scratch2/chenw/miniconda3/envs/streaming/bin:$PATH"
 export HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1

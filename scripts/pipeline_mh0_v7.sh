@@ -8,12 +8,15 @@
 #
 #   LLM level : +0.00392 AUC (SE 0.00036, t=+10.77), paired on 40,000 dev
 #               impressions with the SAME ckpt-45500 weights.
-#   STACK     : +0.00333 AUC (SE 0.00035, t=+9.47) after the v6 ranker
-#               (scripts/verify_mh0_stack.py, zero GPU).
+#   STACK v6  : +0.00305 AUC (SE 0.00013, t=+22.78) on the FULL dev split
+#               (376,471 impressions), the EXISTING v6 ranker, artifact
+#               results/ranker/mh0v6_paired_dev_summary.json.
 #
-# The mechanism is verified, not assumed: the delta is bit-identically 0.00000
-# on the 26,088 impressions with <=30 history items and grows monotonically
-# with history length (31-50: +0.00551, 51-100: +0.01317, >100: +0.02091).
+# The mechanism is verified, not assumed: on the full dev split the paired
+# delta is statistically zero on the 245,360 impressions with <=30 history
+# items (whose prompt is byte-identical under both caps: -0.000031, SE
+# 0.000099, t=-0.31) and grows monotonically with history length
+# (31-50: +0.003850, 51-100: +0.011101, >100: +0.015727).
 #
 # WHAT THIS PIPELINE DOES
 # -----------------------
@@ -46,7 +49,8 @@
 # rebuilding all three tables (10 GB + 2.5 GB + 17 GB) for a change that
 # touches only ~6.8% of the v6 model's gain (the history-derived features),
 # versus 37.6% for the LLM columns -- and it would make the v7 configuration
-# DIFFERENT from the one verify_mh0_stack.py actually measured (+0.00333).
+# DIFFERENT from the one that was actually measured (+0.00305 on the full dev
+# split).
 # Keeping the cap at 30 keeps train/dev/test consistent AND keeps v7 equal to
 # the measured configuration.
 #
@@ -55,6 +59,15 @@
 # The ranker is fitted on TRAIN labels only. Dev is touched exactly once, at
 # step 4, to produce the single reportable number. There is no validation
 # split and no model selection on dev.
+#
+# ONE QUALIFICATION, stated honestly: the history cap itself (30 vs 0 vs
+# 50 vs 100) was chosen on a 40,000-impression uniform random SUBSET of dev
+# (chunk_90, seed 42) -- that subset is ~10.6% of dev, so it is a mild
+# double-dip, not a clean held-out selection. The subset screen ranked
+# unlimited > 100 > 50 > 30, but the 0-vs-100 difference was NOT significant
+# (paired delta -0.00036, t=-1.75), so the choice among the top arms rests on
+# the monotone dose-response and on the mechanism, not on a significant
+# pairwise win.
 set -e
 cd /import/ml-sc-scratch5/chenw/MiniOneRec
 export PATH="/import/snvm-sc-scratch2/chenw/miniconda3/envs/streaming/bin:$PATH"
@@ -84,10 +97,14 @@ MODEL=results/ranker/ranker_v7_mh0_train_popwit.txt
 # a plausible line count, so the guard has to compare counts.
 wait_sub () {
   local dir=$1 fname=$2 chunk=$3
-  local want=$(wc -l < "${chunk}")
+  # `local want=$(...)` masks a failure: if wc cannot read the chunk, `want`
+  # becomes the empty string and the comparison below is never true, so the
+  # loop spins forever. Bind first, then check the exit status.
+  local want
+  want=$(wc -l < "${chunk}") || { echo "FATAL: cannot read ${chunk}"; exit 1; }
   while true; do
     if [ -f "${dir}/${fname}" ]; then
-      n=$(wc -l < "${dir}/${fname}")
+      n=$(wc -l < "${dir}/${fname}") || { echo "FATAL: cannot read ${dir}/${fname}"; exit 1; }
       if [ "$n" -eq "$want" ]; then
         echo "${fname} OK: n=$n (want $want)"
         return 0

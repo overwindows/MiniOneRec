@@ -37,11 +37,20 @@ trap 'rm -rf "$TMPD"' EXIT
 # name in a temp dir and zip from there.
 cp "$TXT" "$TMPD/prediction.txt"
 
-rm -f "$OUT"
-( cd "$TMPD" && zip -q -X "$OLDPWD/$OUT" prediction.txt )
+# The zip target must be an ABSOLUTE path, because zip is run from inside
+# $TMPD. "$OLDPWD/$OUT" breaks in two ways: it resolves against the CALLER's
+# directory rather than this script's, and an already-absolute $OUT becomes
+# "/path//abs/path.zip".
+case "$OUT" in
+  /*) OUT_ABS="$OUT" ;;
+  *)  OUT_ABS="$PWD/$OUT" ;;
+esac
+
+rm -f "$OUT_ABS"
+( cd "$TMPD" && zip -q -X "$OUT_ABS" prediction.txt )
 
 # ---- verify: exactly one member, named prediction.txt, same byte count ----
-python3 - "$OUT" "$TXT" <<'PY'
+python3 - "$OUT_ABS" "$TXT" <<'PY'
 import sys, zipfile, os
 zpath, txt = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(zpath) as z:

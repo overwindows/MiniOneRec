@@ -293,7 +293,11 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
   mkdir -p "$(dirname "$OUTPUT_FILE")"
 
   echo "Merging predictions..."
-  actual_cuda_list=$(ls "${TEMP_DIR}"/*.txt 2>/dev/null | sed 's/.*\///g' | grep -E '^[0-9]+\.txt$' | sed 's/\.txt//g' | tr '\n' ',' | sed 's/,$//')
+  # Pass the GPU list in SHARD ORDER (the order split_mind.py assigned the
+  # impression ranges in), not the ls order. merge_mind.py preserves the
+  # order it is given, so this keeps the predictions in the same order as the
+  # impression ranges -- which is what the feature-table join assumes.
+  actual_cuda_list=$(echo "${cudalist}" | tr ' ' ',' | sed 's/,$//')
 
   "${PYTHON}" src/merge_mind.py \
     --input_path "${TEMP_DIR}" \
@@ -362,7 +366,17 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
     mkdir -p "$(dirname "${OUTPUT_SCORES_FILE}")"
     echo "Merging score files..."
-    cat "${TEMP_DIR}"/*_scores.txt 2>/dev/null > "${OUTPUT_SCORES_FILE}.tmp" || true
+    # Concatenate in SHARD ORDER, not glob order. split_mind.py assigns the
+    # impression ranges in cuda_list order, so the merge must follow that
+    # same order. A glob sorts as STRINGS, so "10_scores.txt" would sort
+    # before "2_scores.txt" and every impression after the 9th would be
+    # misaligned with the feature table it is joined against later. Harmless
+    # with <= 9 GPUs (single digits), a silent data-corruption bug at 10+.
+    : > "${OUTPUT_SCORES_FILE}.tmp"
+    for gpu_id in ${cudalist}; do
+      [[ -f "${TEMP_DIR}/${gpu_id}_scores.txt" ]] || continue
+      cat "${TEMP_DIR}/${gpu_id}_scores.txt" >> "${OUTPUT_SCORES_FILE}.tmp"
+    done
     mv -f "${OUTPUT_SCORES_FILE}.tmp" "${OUTPUT_SCORES_FILE}"
     echo "✓ Scores saved to: ${OUTPUT_SCORES_FILE} ($(wc -l < "${OUTPUT_SCORES_FILE}") lines)"
   fi

@@ -81,6 +81,7 @@ else
 fi
 HS=${DE_HISTORY_SELECTION:-recent}
 REC=${DE_USE_RECENCY:-1}
+MAXH=${DE_MAX_HISTORY:-30}
 MAXIMP=${DE_MAX_IMPRESSIONS:-0}
 
 # ---- CUDA driver compatibility (A100/H100 nodes may carry an old driver) ---
@@ -119,7 +120,7 @@ for g in ${GPUS//,/ }; do
 done
 echo "=== NODE=$(hostname) $(date) ==="
 nvidia-smi --query-gpu=index,name,driver_version,memory.total,memory.used --format=csv,noheader
-echo "=== part=${PART} ckpt=${CKPT} mode=${MODE} ngpu=${NGPU} hs=${HS} recency=${REC} ==="
+echo "=== part=${PART} ckpt=${CKPT} mode=${MODE} ngpu=${NGPU} hs=${HS} recency=${REC} maxhist=${MAXH} ==="
 
 # Per-job Triton cache: /dev/shm is small and shared on some nodes.
 export TRITON_CACHE_DIR=/dev/shm/triton_hs_${MODE}_${PART}_${SLURM_JOB_ID:-$$}
@@ -137,8 +138,25 @@ mkdir -p ${OUTDIR}
 # The parity switch is read by src/evaluate_mind_pointwise.py straight from the
 # environment (MINIONEREC_PROMPT_PARITY), so no running script needs editing.
 export MINIONEREC_PROMPT_PARITY=${PARITY}
+# MAX_HISTORY: how many history items the prompt may carry.
+#
+# Training used --max_history 30, and this line used to hardcode the same 30.
+# That made the history cap look like a training-fidelity constraint when it is
+# really an INFERENCE-TIME knob. Two separate facts motivate sweeping it:
+#
+#   1. The 6-part paired prompt-parity A/B (54,412 impressions) showed that
+#      truncating the prompt to the training token budget HURTS
+#      (-0.00049, SE 0.00020, t=-2.37): the model handles more context than
+#      training gave it. (That A/B is about TOKEN truncation -- both arms
+#      capped at 30 items -- so it does NOT by itself prove that more history
+#      ITEMS help. The item-count sweep is the separate experiment below.)
+#   2. 35.78% of dev impressions carry MORE than 30 true history items and
+#      are silently cut to 30 at eval time.
+#
+# DE_MAX_HISTORY (default 30, 0 = unlimited) lets a screen arm sweep the cap
+# without touching the trainer.
 MIND_ROOT=/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_large/dev/chunks/sub \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 MAX_HISTORY=30 \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 MAX_HISTORY=${MAXH} \
 USE_RECENCY=${REC} \
 HISTORY_SELECTION=${HS} \
 HISTORY_FORMAT=flat \

@@ -27,6 +27,7 @@
 #   DE_NODE   (default sc3-c128) -- just for the log line; Slurm picks the node
 #   DE_NGPU   (default 8)  number of GPUs to use
 #   DE_PART   (default 90) chunk index
+#   DE_MAX_HISTORY (default 30) history items in the prompt; 0 = unlimited
 #
 # IMPORTANT: a PEFT adapter dir has NO config.json -- the scorer detects
 # adapter_config.json and loads base_model_name_or_path from it. Verify with
@@ -79,6 +80,7 @@ fi
 echo "=== ckpt=${CKPT} tag=${TAG} part=${PART} ngpu=${NGPU} $(date) ==="
 DE_PART=${PART} DE_CKPT=${CKPT} DE_MODE=hybrid DE_NGPU=${NGPU} \
   DE_OUTDIR=${OUTDIR}/${TAG} DE_TAG=_${TAG} \
+  DE_MAX_HISTORY=${DE_MAX_HISTORY:-30} \
   bash scripts/eval_dev_chunk_hs.sh
 
 echo "=== screen arm ${TAG} DONE $(date) ==="

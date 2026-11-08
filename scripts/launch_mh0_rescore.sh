@@ -5,12 +5,10 @@
 # ---
 # The MAX_HISTORY lever was measured paired on 40,000 dev impressions:
 # lifting the inference-side history cap from 30 to unlimited, with the SAME
-# ckpt-45500 weights, gained +0.00392 AUC (SE 0.00036, t=+10.77). The delta
-# is bit-identically 0.00000 on the 65% of impressions that carry <=30 items
-# and grows monotonically with history length (31-50: +0.00551, 51-100:
-# +0.01317, >100: +0.02091). The cap was an inference-side choice hardcoded
-# in the production scorers to match the TRAINING budget; the model actually
-# handles more context than training gave it.
+# ckpt-45500 weights, gained +0.00392 AUC (SE 0.00036, t=+10.77) at the LLM
+# level, and +0.00333 AUC (SE 0.00035, t=+9.47) after the v6 stack ranker
+# (scripts/verify_mh0_stack.py). Zero retraining: the cap was an inference-side
+# choice hardcoded in the production scorers to match the TRAINING budget.
 #
 # This re-scores dev / test / train with EVAL_MAX_HISTORY=0 so the whole
 # pipeline (LLM scores -> ranker features -> ranker -> submission) is
@@ -21,27 +19,47 @@
 #   bash scripts/launch_mh0_rescore.sh test           # 36 test sub-chunks
 #   bash scripts/launch_mh0_rescore.sh train          # 34 train sub-chunks
 #   bash scripts/launch_mh0_rescore.sh all
+#   bash scripts/launch_mh0_rescore.sh test --dry-run # print, submit nothing
 #
 # Env:
 #   MH0_CKPT   (default results/ranker/lg_9b_ckpt45500_snapshot)
-#   MH0_NODES  (default "sc3-c126 sc3-c127 sc3-c128 sc3-c129 sc-c96 sc3-c98")
-#   MH0_NODE_GPUS  (default "8 8 8 8 8 4")  GPUs to request per node
-#   MH0_RESERVATION (default "sn40-hdi-1 sn40-hdi-0 - - - -")  per node
+#   MH0_POOL   node pool, "node:gpus:reservation" entries separated by spaces.
+#               Reservation "-" means no --reservation flag. Units are assigned
+#               to pool slots round-robin.
+#   MH0_MAXJOBS (default 0 = no limit)
+#   MH0_ONLY   comma-separated unit ids to restrict to (e.g. test_c00_03)
 #
-# Jobs are PINNED to a node with --nodelist, so Slurm serialises the queue
-# on that node: N pinned jobs on one node still occupy exactly ONE node and
-# one GPU set at a time. The footprint is (number of nodes in MH0_NODES),
-# not (number of jobs).
+#   Default pool: 3x B200 (8 GPU, needs the sn50-hdi-1 reservation), 1x A100
+#   (8 GPU), 1x A100 (4 GPU), 1x H100 (2 GPU).
+#
+#   The B200 nodes REQUIRE --reservation=sn50-hdi-1: without it sbatch leaves
+#   the job PENDING with ReqNodeNotAvail (verified by probe 16393545/16393547).
+#
+# JOBS ARE PINNED TO A NODE with --nodelist, so Slurm serialises the queue on
+# that node: N pinned jobs on one node still occupy exactly ONE node and one
+# GPU set at a time. The footprint is (number of nodes in the pool), not
+# (number of jobs).
+#
+# IDEMPOTENT: a unit is skipped when its output file already exists OR when a
+# job for it is already queued/running, so re-running the launcher after a
+# partial failure only submits what is missing.
 set -e
 cd /import/ml-sc-scratch5/chenw/MiniOneRec
 export PATH="/import/snvm-sc-scratch2/chenw/miniconda3/envs/streaming/bin:$PATH"
 
-WHICH=${1:?usage: launch_mh0_rescore.sh dev|test|train|all}
+WHICH=${1:?usage: launch_mh0_rescore.sh dev|test|train|all [--dry-run]}
+shift || true
+DRYRUN=0
+for a in "$@"; do
+  [ "$a" = "--dry-run" ] && DRYRUN=1
+done
+
 CKPT=${MH0_CKPT:-results/ranker/lg_9b_ckpt45500_snapshot}
-NODES=(${MH0_NODES:-sc3-c126 sc3-c127 sc3-c128 sc3-c129 sc-c96 sc3-c98})
-NODE_GPUS=(${MH0_NODE_GPUS:-8 8 8 8 8 4})
-RESERVATIONS=(${MH0_RESERVATION:-sn40-hdi-1 sn40-hdi-0 - - - -})
+# node:gpus:reservation
+POOL=(${MH0_POOL:-sc3-cp105:8:sn50-hdi-1 sc3-cp107:8:sn50-hdi-1 sc3-cp108:8:sn50-hdi-1 \
+                 sc-c96:8:- sc3-c98:4:- sc-c120:2:-})
 MAXJOBS=${MH0_MAXJOBS:-0}          # 0 = no limit
+ONLY=${MH0_ONLY:-}
 
 if [ ! -d "${CKPT}" ]; then
   echo "FATAL: checkpoint dir ${CKPT} does not exist"
@@ -53,6 +71,7 @@ if [ -f "${CKPT}/adapter_config.json" ] && [ ! -f "${CKPT}/adapter_model.safeten
 fi
 
 # ---- build the unit list --------------------------------------------------
+# id|kind|script|envs|outdir|filename
 UNITS=()
 add_units () {
   local kind=$1
@@ -60,14 +79,14 @@ add_units () {
     dev)
       local p
       for p in 00 01 02 03 04 05; do
-        UNITS+=("dev|scripts/eval_dev_subchunk_large.sh|DE_PART=${p}|results/ranker/dev_scores/mh0")
+        UNITS+=("dev_${p}|dev|scripts/eval_dev_subchunk_large.sh|DE_PART=${p}|results/ranker/dev_scores/mh0|sub_d00_${p}.tsv")
       done
       ;;
     test)
       local s p
       for s in c00 c01 c02 c03 c04 c05; do
         for p in 00 01 02 03 04 05; do
-          UNITS+=("test|scripts/eval_test_subchunk_large.sh|TE_SUB=${s},TE_PART=${p}|results/ranker/test_scores/mh0")
+          UNITS+=("test_${s}_${p}|test|scripts/eval_test_subchunk_large.sh|TE_SUB=${s},TE_PART=${p}|results/ranker/test_scores/mh0|sub_${s}_${p}.tsv")
         done
       done
       ;;
@@ -75,7 +94,7 @@ add_units () {
       local p
       for p in 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 \
                16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33; do
-        UNITS+=("train|scripts/eval_train_subchunk_large.sh|TR_PART=${p}|results/ranker/train_scores/mh0")
+        UNITS+=("train_${p}|train|scripts/eval_train_subchunk_large.sh|TR_PART=${p}|results/ranker/train_scores/mh0|sub_tr00_${p}.tsv")
       done
       ;;
   esac
@@ -91,23 +110,48 @@ esac
 
 echo "=== mh0 re-score: ${WHICH} -- ${#UNITS[@]} units ==="
 echo "=== ckpt=${CKPT}  EVAL_MAX_HISTORY=0 (unlimited history) ==="
+echo "=== pool: ${POOL[*]} ==="
+[ -n "${ONLY}" ] && echo "=== restricted to: ${ONLY} ==="
+[ "$DRYRUN" = "1" ] && echo "=== DRY RUN: nothing will be submitted ==="
 
 i=0
+skipped=0
 for u in "${UNITS[@]}"; do
+  IFS='|' read -r uid kind script envs outdir fname <<< "$u"
+
+  # MH0_ONLY filter.
+  if [ -n "${ONLY}" ] && [[ ",${ONLY}," != *",${uid},"* ]]; then
+    continue
+  fi
   if [ "$MAXJOBS" -gt 0 ] && [ "$i" -ge "$MAXJOBS" ]; then break; fi
-  IFS='|' read -r kind script envs outdir <<< "$u"
-  n=${NODES[$((i % ${#NODES[@]}))]}
-  g=${NODE_GPUS[$((i % ${#NODE_GPUS[@]}))]}
-  r=${RESERVATIONS[$((i % ${#RESERVATIONS[@]}))]}
+
+  # Idempotency: skip a unit whose output already exists, or whose job is
+  # already queued/running. Both the current per-unit job name and the older
+  # per-kind name (mh0_dev) are checked, so a re-run never duplicates work
+  # that an earlier version of this launcher already submitted.
+  if [ -s "${outdir}/${fname}" ]; then
+    echo "  SKIP ${uid} (${outdir}/${fname} exists)"
+    skipped=$((skipped+1)); i=$((i+1)); continue
+  fi
+  if squeue -h -n "mh0_${uid}" 2>/dev/null | grep -q . \
+     || squeue -h -n "mh0_${kind}" 2>/dev/null | grep -q .; then
+    echo "  SKIP ${uid} (job mh0_${uid} already queued)"
+    skipped=$((skipped+1)); i=$((i+1)); continue
+  fi
+
+  # Round-robin over the pool.
+  slot=$((i % ${#POOL[@]}))
+  IFS=':' read -r n g r <<< "${POOL[$slot]}"
 
   mkdir -p "${outdir}"
   RES=""
   if [ "$r" != "-" ]; then RES="--reservation=${r}"; fi
 
-  # 8 GPUs on an H200 finish a 62k-impression sub-chunk in ~1 h with the
-  # hybrid prefix cache; a 4-GPU A100 needs ~4-5 h. Keep the limits generous
-  # -- the jobs are serialised per node, so a timeout would stall the queue.
-  if [ "$g" -ge 8 ]; then TL=08:00:00; else TL=14:00:00; fi
+  # 8 GPUs on an H200 finish a 62k-impression sub-chunk in ~30 min with the
+  # hybrid prefix cache; an A100 is ~2x slower per GPU and a 2-GPU H100 ~8x.
+  # Keep the limits generous -- the jobs are serialised per node, so a timeout
+  # would stall the queue.
+  if [ "$g" -ge 8 ]; then TL=10:00:00; else TL=16:00:00; fi
 
   # --export takes COMMA-separated VAR=VAL pairs (no spaces).
   EXPORT="ALL,EVAL_MAX_HISTORY=0,EVAL_LOG_TAG=_mh0"
@@ -115,9 +159,14 @@ for u in "${UNITS[@]}"; do
   EXPORT="${EXPORT},DE_OUTDIR=${outdir},TE_OUTDIR=${outdir},TR_OUTDIR=${outdir}"
   EXPORT="${EXPORT},${envs}"
 
+  if [ "$DRYRUN" = "1" ]; then
+    echo "  ${uid} -> node=${n} gres=${g} res=${r}  [dry-run]"
+    i=$((i+1)); continue
+  fi
+
   # shellcheck disable=SC2086
   JOB=$(sbatch \
-    --job-name=mh0_${kind} \
+    --job-name=mh0_${uid} \
     --partition=gpuonly \
     --nodes=1 \
     --gres=gpu:${g} \
@@ -126,13 +175,13 @@ for u in "${UNITS[@]}"; do
     --time=${TL} \
     --nodelist="${n}" \
     ${RES} \
-    --output=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/mh0_${kind}_%j.log \
-    --error=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/mh0_${kind}_%j.err \
+    --output=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/mh0_${uid}_%j.log \
+    --error=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/mh0_${uid}_%j.err \
     --export="${EXPORT}" \
     "${script}")
 
-  echo "  ${kind} ${envs} -> node=${n} gres=${g} res=${r}  ${JOB}"
+  echo "  ${uid} -> node=${n} gres=${g} res=${r}  ${JOB}"
   i=$((i+1))
 done
 
-echo "=== submitted ${i} job(s) ==="
+echo "=== submitted ${i} job(s), skipped ${skipped} already-done/queued unit(s) ==="

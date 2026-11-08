@@ -322,10 +322,49 @@ if [[ "${PARALLEL_MODE}" == "true" ]]; then
 
   # Merge raw score files if requested
   if [[ -n "${OUTPUT_SCORES_FILE}" ]]; then
+    # A failed GPU means its shard of the impressions was never scored, so the
+    # merged score file would be SILENTLY TRUNCATED. That is worse than a
+    # crash: the caller only checks the line count, a truncated file still
+    # parses, and every impression after the gap would be misaligned with the
+    # feature table it is later joined against.
+    #
+    # Write to a temp path and rename only when the merge is complete, so a
+    # partial file can never appear at OUTPUT_SCORES_FILE.
+    if [[ ${#failed_gpus[@]} -gt 0 ]]; then
+      echo "FATAL: ${#failed_gpus[@]} GPU(s) failed (${failed_gpus[*]})"
+      echo "FATAL: refusing to write a truncated score file; ${OUTPUT_SCORES_FILE} NOT written"
+      echo "FATAL: re-run this sub-chunk"
+      exit 1
+    fi
+
+    # Per-shard check: every GPU's score file must have exactly as many lines
+    # as the shard it scored. Only meaningful for a full run -- with
+    # --max_impressions the worker legitimately stops early.
+    if [[ "${MAX_IMPRESSIONS}" -eq 0 ]]; then
+      for gpu_id in ${cudalist}; do
+        shard="${TEMP_DIR}/${gpu_id}.tsv"
+        shard_scores="${TEMP_DIR}/${gpu_id}_scores.txt"
+        [[ -f "${shard}" ]] || continue
+        if [[ ! -f "${shard_scores}" ]]; then
+          echo "FATAL: GPU ${gpu_id} produced no score file (${shard_scores} missing)"
+          echo "FATAL: refusing to write a truncated score file; ${OUTPUT_SCORES_FILE} NOT written"
+          exit 1
+        fi
+        want_shard=$(wc -l < "${shard}")
+        got_shard=$(wc -l < "${shard_scores}")
+        if [[ "${got_shard}" -ne "${want_shard}" ]]; then
+          echo "FATAL: GPU ${gpu_id} scored ${got_shard} lines but its shard has ${want_shard}"
+          echo "FATAL: refusing to write a truncated score file; ${OUTPUT_SCORES_FILE} NOT written"
+          exit 1
+        fi
+      done
+    fi
+
     mkdir -p "$(dirname "${OUTPUT_SCORES_FILE}")"
     echo "Merging score files..."
-    cat "${TEMP_DIR}"/*_scores.txt 2>/dev/null > "${OUTPUT_SCORES_FILE}" || true
-    echo "✓ Scores saved to: ${OUTPUT_SCORES_FILE}"
+    cat "${TEMP_DIR}"/*_scores.txt 2>/dev/null > "${OUTPUT_SCORES_FILE}.tmp" || true
+    mv -f "${OUTPUT_SCORES_FILE}.tmp" "${OUTPUT_SCORES_FILE}"
+    echo "✓ Scores saved to: ${OUTPUT_SCORES_FILE} ($(wc -l < "${OUTPUT_SCORES_FILE}") lines)"
   fi
 
   # Cleanup temp files

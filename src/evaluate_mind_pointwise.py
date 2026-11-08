@@ -29,6 +29,53 @@ import os
 import random
 from typing import List
 
+# ---------------------------------------------------------------------------
+# Triton JIT cache must live on a NODE-LOCAL filesystem.
+#
+# WHY
+# ---
+# The parallel scorer starts one process PER GPU (scripts/eval_mind_pointwise.sh
+# loops over the GPU list and backgrounds each worker). Every worker compiles
+# the same Triton kernels (the FLA gated-delta-rule chunk kernels) at startup,
+# and they all race to write the same cache directory.
+#
+# The default cache is $HOME/.triton, and $HOME is on the SHARED NFS mount
+# (sc-netapp1-h:/rs_home3/chenw). Concurrent compiles on NFS corrupt the
+# directory handle, and the loser dies with:
+#
+#     OSError: [Errno 116] Stale file handle
+#     at triton/compiler/compiler.py:424  (CompiledKernel.__init__)
+#
+# This killed 4 of 8 GPU workers on dev jobs 16381792/16381793 and 1 worker on
+# test jobs 16396164/166/170/171/173, which silently produced TRUNCATED score
+# files (the bash wrapper only WARNED about a failed GPU and merged whatever
+# shards existed).
+#
+# FIX: point TRITON_CACHE_DIR at a node-local path (/tmp is node-local NVMe).
+# This MUST happen before torch/triton are imported, because the cache
+# directory is resolved once at import time.
+# ---------------------------------------------------------------------------
+def _redirect_triton_cache() -> None:
+    if os.environ.get("TRITON_CACHE_DIR"):
+        return  # caller already chose a location
+    for root in ("/tmp/triton_cache_minionerec", "/dev/shm/triton_cache_minionerec"):
+        try:
+            os.makedirs(root, exist_ok=True)
+            probe = os.path.join(root, ".writable")
+            with open(probe, "w") as f:
+                f.write("x")
+            os.unlink(probe)
+        except OSError:
+            continue
+        os.environ["TRITON_CACHE_DIR"] = root
+        print(f"Triton cache: {root} (node-local)", flush=True)
+        return
+    print("WARNING: no writable node-local dir for the Triton cache; "
+          "on shared NFS this can fail with 'Stale file handle'", flush=True)
+
+
+_redirect_triton_cache()
+
 import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer

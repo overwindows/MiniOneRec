@@ -71,7 +71,12 @@ if [ -f "${CKPT}/adapter_config.json" ] && [ ! -f "${CKPT}/adapter_model.safeten
 fi
 
 # ---- build the unit list --------------------------------------------------
-# id|kind|script|envs|outdir|filename
+# id|kind|script|envs|outdir|filename|chunk
+#
+# The chunk path is the behaviors file the unit scores. Its line count is the
+# EXPECTED line count of the score file, which the launcher uses to tell a
+# finished unit from a truncated one (a GPU crash mid-run leaves a partial
+# score file behind -- see the failed_gpus guard in eval_mind_pointwise.sh).
 UNITS=()
 add_units () {
   local kind=$1
@@ -79,14 +84,14 @@ add_units () {
     dev)
       local p
       for p in 00 01 02 03 04 05; do
-        UNITS+=("dev_${p}|dev|scripts/eval_dev_subchunk_large.sh|DE_PART=${p}|results/ranker/dev_scores/mh0|sub_d00_${p}.tsv")
+        UNITS+=("dev_${p}|dev|scripts/eval_dev_subchunk_large.sh|DE_PART=${p}|results/ranker/dev_scores/mh0|sub_d00_${p}.tsv|data/MIND_large/dev/chunks/sub/d00/chunk_${p}.tsv")
       done
       ;;
     test)
       local s p
       for s in c00 c01 c02 c03 c04 c05; do
         for p in 00 01 02 03 04 05; do
-          UNITS+=("test_${s}_${p}|test|scripts/eval_test_subchunk_large.sh|TE_SUB=${s},TE_PART=${p}|results/ranker/test_scores/mh0|sub_${s}_${p}.tsv")
+          UNITS+=("test_${s}_${p}|test|scripts/eval_test_subchunk_large.sh|TE_SUB=${s},TE_PART=${p}|results/ranker/test_scores/mh0|sub_${s}_${p}.tsv|data/MIND_large/test/chunks/sub/${s}/chunk_${p}.tsv")
         done
       done
       ;;
@@ -94,7 +99,7 @@ add_units () {
       local p
       for p in 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 \
                16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33; do
-        UNITS+=("train_${p}|train|scripts/eval_train_subchunk_large.sh|TR_PART=${p}|results/ranker/train_scores/mh0|sub_tr00_${p}.tsv")
+        UNITS+=("train_${p}|train|scripts/eval_train_subchunk_large.sh|TR_PART=${p}|results/ranker/train_scores/mh0|sub_tr00_${p}.tsv|data/MIND_large/train/chunks/sub/tr00/chunk_${p}.tsv")
       done
       ;;
   esac
@@ -116,8 +121,55 @@ echo "=== pool: ${POOL[*]} ==="
 
 i=0
 skipped=0
+
+# Which unit is a queued/running job working on?
+#
+# New jobs are named mh0_<uid>, so the name identifies the unit exactly. But
+# the OLDER launcher submitted one job per KIND (all six dev jobs were named
+# "mh0_dev"), so the name alone cannot say which part each one is scoring.
+# Those jobs do record it in their log header ("=== dev sub-chunk d00/03 ..."),
+# so read it back instead of guessing.
+unit_of_job () {
+  local jid=$1 kind=$2
+  local log="logs/mh0_${kind}_${jid}.log"
+  [ -f "$log" ] || return 1
+  # "=== dev sub-chunk d00/03 ckpt=..."  /  "=== test sub-chunk c00/03 ..."
+  #                             "=== train sub-chunk tr00/03 ..."
+  local sub part
+  sub=$(sed -n 's/^=== [a-z]* sub-chunk \([a-z0-9]*\)\/\([0-9]*\) .*/\1/p' "$log" | head -1)
+  part=$(sed -n 's/^=== [a-z]* sub-chunk \([a-z0-9]*\)\/\([0-9]*\) .*/\2/p' "$log" | head -1)
+  [ -z "$part" ] && return 1
+  case "$kind" in
+    dev)   echo "dev_${part}" ;;
+    test)  echo "test_${sub}_${part}" ;;
+    train) echo "train_${part}" ;;
+    *)     return 1 ;;
+  esac
+}
+
+# Is any queued/running job already covering this unit?
+unit_is_busy () {
+  local uid=$1 kind=$2
+  local jid
+  # exact per-unit name (new-style jobs)
+  for jid in $(squeue -h -n "mh0_${uid}" -o "%i" 2>/dev/null); do
+    echo "    (job ${jid} mh0_${uid})"
+    return 0
+  done
+  # legacy per-kind name: match on the unit the job's log says it is scoring
+  for jid in $(squeue -h -n "mh0_${kind}" -o "%i" 2>/dev/null); do
+    local u
+    u=$(unit_of_job "$jid" "$kind" 2>/dev/null || true)
+    if [ "$u" = "$uid" ]; then
+      echo "    (job ${jid} mh0_${kind} is scoring ${uid})"
+      return 0
+    fi
+  done
+  return 1
+}
+
 for u in "${UNITS[@]}"; do
-  IFS='|' read -r uid kind script envs outdir fname <<< "$u"
+  IFS='|' read -r uid kind script envs outdir fname chunk <<< "$u"
 
   # MH0_ONLY filter.
   if [ -n "${ONLY}" ] && [[ ",${ONLY}," != *",${uid},"* ]]; then
@@ -125,17 +177,28 @@ for u in "${UNITS[@]}"; do
   fi
   if [ "$MAXJOBS" -gt 0 ] && [ "$i" -ge "$MAXJOBS" ]; then break; fi
 
-  # Idempotency: skip a unit whose output already exists, or whose job is
-  # already queued/running. Both the current per-unit job name and the older
-  # per-kind name (mh0_dev) are checked, so a re-run never duplicates work
-  # that an earlier version of this launcher already submitted.
+  # Idempotency: skip a unit whose output is COMPLETE, or whose job is
+  # already queued/running.
+  #
+  # "Complete" means the score file has exactly as many lines as the chunk it
+  # scores -- NOT merely that the file exists. A GPU crash mid-run leaves a
+  # truncated score file behind (jobs 16381792/16381793 wrote 31,372 and
+  # 47,059 of 62,745 lines), and treating "exists" as "done" would skip those
+  # units forever and silently ship a short score table.
   if [ -s "${outdir}/${fname}" ]; then
-    echo "  SKIP ${uid} (${outdir}/${fname} exists)"
-    skipped=$((skipped+1)); i=$((i+1)); continue
+    want=$(wc -l < "${chunk}")
+    got=$(wc -l < "${outdir}/${fname}")
+    if [ "$got" -eq "$want" ]; then
+      echo "  SKIP ${uid} (${outdir}/${fname} complete: ${got} lines)"
+      skipped=$((skipped+1)); i=$((i+1)); continue
+    fi
+    echo "  RE-RUN ${uid} (${outdir}/${fname} is TRUNCATED: ${got}/${want} lines)"
+    # The scoring script truncates its output file before writing, so the
+    # stale partial file needs no explicit removal. (Deleting it here would
+    # also make --dry-run destructive, which it must not be.)
   fi
-  if squeue -h -n "mh0_${uid}" 2>/dev/null | grep -q . \
-     || squeue -h -n "mh0_${kind}" 2>/dev/null | grep -q .; then
-    echo "  SKIP ${uid} (job mh0_${uid} already queued)"
+  if busy=$(unit_is_busy "$uid" "$kind"); then
+    echo "  SKIP ${uid} (already queued: ${busy})"
     skipped=$((skipped+1)); i=$((i+1)); continue
   fi
 

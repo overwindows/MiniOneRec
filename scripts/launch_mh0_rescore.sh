@@ -125,6 +125,7 @@ for u in "${UNITS[@]}"; do
     --mem=400000 \
     --time=${TL} \
     --nodelist="${n}" \
+    ${RES} \
     --output=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/mh0_${kind}_%j.log \
     --error=/import/ml-sc-scratch5/chenw/MiniOneRec/logs/mh0_${kind}_%j.err \
     --export="${EXPORT}" \

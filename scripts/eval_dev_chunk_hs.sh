@@ -62,8 +62,23 @@ if [ -n "${TAG}" ]; then
 else
   OUT=${OUTDIR}/hs_${MODE}_${PART}.tsv
 fi
-NGPU=${DE_NGPU:-$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)}
-GPUS=$(seq -s, 0 $((NGPU - 1)))
+# ---- GPU selection --------------------------------------------------------
+# Slurm exports CUDA_VISIBLE_DEVICES with the ALLOCATED device indices, which
+# on a shared node are NOT 0..N-1. Honour them: overriding them would land
+# two processes on a GPU another job owns. torch.cuda.device_count() already
+# respects CUDA_VISIBLE_DEVICES, so it is the number of GPUs we may use.
+NTORCH=$(python -c "import torch; print(torch.cuda.device_count())")
+NGPU=${DE_NGPU:-$NTORCH}
+if [ "$NGPU" -gt "$NTORCH" ]; then
+  echo "FATAL: asked for ${NGPU} GPUs but torch sees only ${NTORCH}"
+  exit 1
+fi
+if [ -n "${CUDA_VISIBLE_DEVICES:-}" ]; then
+  # Take the first NGPU entries of what Slurm gave us.
+  GPUS=$(echo "${CUDA_VISIBLE_DEVICES}" | cut -d, -f1-${NGPU})
+else
+  GPUS=$(seq -s, 0 $((NGPU - 1)))
+fi
 HS=${DE_HISTORY_SELECTION:-recent}
 REC=${DE_USE_RECENCY:-1}
 MAXIMP=${DE_MAX_IMPRESSIONS:-0}
@@ -88,7 +103,14 @@ fi
 # ---- GPU health pre-check -------------------------------------------------
 # device_map="auto" silently falls back to CPU when a GPU is unhealthy, which
 # burns hours on a CPU forward pass. Refuse to start instead.
-for g in $(seq 0 $((NGPU - 1))); do
+#
+# The check must look at the PHYSICAL devices we were allocated, not at
+# physical 0..NGPU-1: on a shared node Slurm hands out an arbitrary subset of
+# the node's GPUs (e.g. 2,3,4,5), so probing 0..NGPU-1 both misses a busy GPU
+# of ours and aborts on a busy GPU that belongs to somebody else.
+# nvidia-smi always lists every physical GPU of the node and ignores
+# CUDA_VISIBLE_DEVICES, so ${GPUS} (the physical indices) is what to query.
+for g in ${GPUS//,/ }; do
   used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits -i "$g")
   if [ "$used" -gt 100 ]; then
     echo "FATAL: GPU $g has ${used} MiB in use (busy or faulted)"
@@ -96,7 +118,7 @@ for g in $(seq 0 $((NGPU - 1))); do
   fi
 done
 echo "=== NODE=$(hostname) $(date) ==="
-nvidia-smi --query-gpu=index,name,driver_version,memory.total --format=csv,noheader
+nvidia-smi --query-gpu=index,name,driver_version,memory.total,memory.used --format=csv,noheader
 echo "=== part=${PART} ckpt=${CKPT} mode=${MODE} ngpu=${NGPU} hs=${HS} recency=${REC} ==="
 
 # Per-job Triton cache: /dev/shm is small and shared on some nodes.
@@ -128,6 +150,13 @@ bash scripts/eval_mind_pointwise.sh ${CKPT} d00/split_${PART} ${MAXIMP} 2>&1 | t
 # ---- verify: line count and per-impression candidate count ----
 # With DE_MAX_IMPRESSIONS the scorer only processes the first N impressions of
 # the chunk, so the expected line count is min(N, chunk size).
+#
+# The candidate-count check must NOT restrict `want` to the first N entries:
+# in parallel mode the scorer splits the chunk into contiguous per-GPU blocks
+# and caps EACH block at N/num_gpus, so the scored impressions are NOT the
+# first N of the chunk (they are N/num_gpus from the start of each block).
+# Building `want` from the whole chunk checks each scored line against its
+# own true candidate count regardless of which impressions were picked.
 python3 - "$PART" "$OUT" "$MAXIMP" <<'PY'
 import sys
 part, out, maximp = sys.argv[1], sys.argv[2], int(sys.argv[3])
@@ -136,18 +165,23 @@ with open(f"data/MIND_large/dev/chunks/sub/d00/chunk_{part}.tsv") as f:
     for line in f:
         p = line.rstrip("\n").split("\t")
         want[p[0]] = len(p[4].split())
-        if maximp > 0 and len(want) >= maximp:
-            break
-n = bad = 0
+n_total = len(want)
+n = bad = unknown = 0
 with open(out) as f:
     for line in f:
         p = line.rstrip("\n").split("\t")
-        if len(p) - 1 != want.get(p[0], -1):
+        exp = want.get(p[0])
+        if exp is None:
+            unknown += 1
+        elif len(p) - 1 != exp:
             bad += 1
         n += 1
-print(f"VERIFY {out}: lines={n} (want {len(want)})  mismatches={bad}")
-assert n == len(want), f"line count {n} != {len(want)}"
+expect_lines = min(maximp, n_total) if maximp > 0 else n_total
+print(f"VERIFY {out}: lines={n} (want {expect_lines})  "
+      f"mismatches={bad}  unknown_ids={unknown}")
+assert n == expect_lines, f"line count {n} != {expect_lines}"
 assert bad == 0, f"{bad} candidate-count mismatches"
+assert unknown == 0, f"{unknown} scored impression ids are not in the chunk"
 PY
 
 echo "=== dev chunk ${PART} (${MODE}) DONE $(date) ==="

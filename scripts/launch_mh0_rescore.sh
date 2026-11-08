@@ -55,11 +55,31 @@ for a in "$@"; do
 done
 
 CKPT=${MH0_CKPT:-results/ranker/lg_9b_ckpt45500_snapshot}
-# node:gpus:reservation
+# node:gpus:reservation[:speed]
+#
+# `speed` is the relative per-GPU throughput of that node's GPU, used to
+# balance the queue. Measured impressions/s per GPU on the 9B scoring path
+# (hybrid prefix cache, ckpt-45500, unlimited history), scaled by 10:
+#
+#   B200  ~67 (6.7 imp/s)   H200 ~28 (2.8)   H100 ~17 (1.7)   A100 ~11 (1.1)
+#
+# It is OPTIONAL, defaults to 1, and MUST be an INTEGER (the comparison is
+# done in integer arithmetic). Units are assigned to the slot with the lowest
+# units / (gpus * speed), which minimises the makespan: Slurm serialises our
+# jobs per node (each takes a --nodelist and the node's --gres), so a node
+# with capacity C finishes k units in k*W/C.
 POOL=(${MH0_POOL:-sc3-cp105:8:sn50-hdi-1 sc3-cp107:8:sn50-hdi-1 sc3-cp108:8:sn50-hdi-1 \
                  sc-c96:8:- sc3-c98:4:- sc-c120:2:-})
 MAXJOBS=${MH0_MAXJOBS:-0}          # 0 = no limit
 ONLY=${MH0_ONLY:-}
+
+# Normalise the pool to exactly 4 fields (node:gpus:reservation:speed) so the
+# parsing below is uniform. A missing speed defaults to 1.
+for _ps in "${!POOL[@]}"; do
+  IFS=':' read -r _pn _pg _pr _psp <<< "${POOL[$_ps]}"
+  [ -z "${_psp:-}" ] && _psp=1
+  POOL[$_ps]="${_pn}:${_pg}:${_pr}:${_psp}"
+done
 
 if [ ! -d "${CKPT}" ]; then
   echo "FATAL: checkpoint dir ${CKPT} does not exist"
@@ -121,6 +141,31 @@ echo "=== pool: ${POOL[*]} ==="
 
 i=0
 skipped=0
+
+# SLOT_UNITS[s] = the number of mh0 units already queued (or running) on pool
+# slot s. Seeded from the jobs that are ALREADY pending/running, so a re-run
+# does not pile new units onto a node that is already backlogged.
+#
+# The scheduling metric is UNITS PER GPU, not raw unit count. Slurm serialises
+# our jobs per node (each requests the whole node's --gres and a --nodelist),
+# so a node with g GPUs finishes k units in k*W/g, where W is the GPU-work of
+# one unit. Minimising max(k/g) over the pool minimises the makespan.
+declare -A SLOT_UNITS=()
+for s in "${!POOL[@]}"; do SLOT_UNITS[$s]=0; done
+for pj in $(squeue -h -u "$(id -un)" -o "%i" 2>/dev/null); do
+  pname=$(scontrol show job "$pj" 2>/dev/null | tr ' ' '\n' | grep "^JobName=" | cut -d= -f2)
+  case "$pname" in mh0_*) ;; *) continue;; esac
+  pnode=$(scontrol show job "$pj" 2>/dev/null | tr ' ' '\n' | grep "^NodeList=" | cut -d= -f2)
+  [ "${pnode}" = "(null)" ] && pnode=$(scontrol show job "$pj" 2>/dev/null | tr ' ' '\n' | grep "^ReqNodeList=" | cut -d= -f2)
+  [ -z "$pnode" ] && continue
+  for s in "${!POOL[@]}"; do
+    IFS=':' read -r pn _ _ <<< "${POOL[$s]}"
+    if [ "$pn" = "$pnode" ]; then
+      SLOT_UNITS[$s]=$(( ${SLOT_UNITS[$s]} + 1 ))
+      break
+    fi
+  done
+done
 
 # Which unit is a queued/running job working on?
 #
@@ -202,9 +247,32 @@ for u in "${UNITS[@]}"; do
     skipped=$((skipped+1)); i=$((i+1)); continue
   fi
 
-  # Round-robin over the pool.
-  slot=$((i % ${#POOL[@]}))
-  IFS=':' read -r n g r <<< "${POOL[$slot]}"
+  # Assign to the pool slot with the lowest UNITS-PER-GPU.
+  #
+  # A flat round-robin (slot = i % n_slots) gives every node the same number
+  # of UNITS regardless of how many GPUs it has, so a 2-GPU H100 ends up with
+  # the same backlog as an 8-GPU B200. Measured: 17 units were queued on the
+  # three slowest nodes (sc-c96 8xA100, sc3-c98 4xA100, sc-c120 2xH100)
+  # while 40 GPUs on six faster nodes sat completely idle.
+  #
+  # Minimising max(units/gpu) over the pool minimises the makespan, because
+  # Slurm serialises our jobs per node (each requests the whole node's --gres
+  # and a --nodelist), so a node with g GPUs finishes k units in k*W/g.
+  slot=-1
+  best_u=0
+  best_c=1
+  for s in "${!POOL[@]}"; do
+    IFS=':' read -r _ g _ sp <<< "${POOL[$s]}"
+    u=${SLOT_UNITS[$s]:-0}
+    c=$(( g * sp ))
+    # keep the slot with the smaller u/c, comparing u1/c1 vs u2/c2 as
+    # u1*c2 vs u2*c1 to stay in integer arithmetic
+    if [ "$slot" -lt 0 ] || [ $((u * best_c)) -lt $((best_u * c)) ]; then
+      slot=$s; best_u=$u; best_c=$c
+    fi
+  done
+  IFS=':' read -r n g r sp <<< "${POOL[$slot]}"
+  SLOT_UNITS[$slot]=$(( ${SLOT_UNITS[$slot]:-0} + 1 ))
 
   mkdir -p "${outdir}"
   RES=""

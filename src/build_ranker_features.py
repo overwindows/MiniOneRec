@@ -35,16 +35,30 @@ from mind_utils import _parse_timestamp_dt
 
 
 def load_news(path):
+    """news_id -> {category, subcategory, title}.
+
+    The title column is OPTIONAL. It is never read by this script, but an
+    earlier version required >= 4 columns and silently skipped every line of
+    the 3-column union file `data/MIND_large/news_all.tsv`
+    (news_id, category, subcategory). That made load_news() return 0 entries
+    for the dev feature table, which collapsed cat_match_frac,
+    subcat_match_frac, hist_uniq_cats and hist_top_cat_frac to identically
+    zero across the whole dev table while they were live on train and test --
+    a train/eval feature mismatch for 4 of the ranker's 33 features.
+
+    Accept >= 3 columns so both the 8-column per-split news.tsv and the
+    3-column union file work.
+    """
     news = {}
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split("\t")
-            if len(parts) < 4:
+            if len(parts) < 3:
                 continue
             news[parts[0]] = {
                 "category": parts[1],
                 "subcategory": parts[2] if len(parts) > 2 else "",
-                "title": parts[3],
+                "title": parts[3] if len(parts) > 3 else "",
             }
     return news
 

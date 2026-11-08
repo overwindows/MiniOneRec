@@ -1,14 +1,234 @@
 # MIND ensemble + SOTA-push handoff runbook
 
-**Author:** CodeGuru (Chen's assistant) · **Date:** 2026-10-19
-**Repo:** `Q:\MiniOneRec` (GitHub `overwindows/MiniOneRec`, branch `dev`)
-**Goal context:** Beat team-best **0.7144 AUC** on Codabench MIND comp #13967; SOTA = `zetik` **0.7326**, top-5 = 0.7226.
+**Author:** CodeGuru (Chen's assistant) · **Date:** 2026-10-19, updated 2026-11-08
+**Repo:** `/import/ml-sc-scratch5/chenw/MiniOneRec` (GitHub `overwindows/MiniOneRec`, branch `sota`)
 
-This runbook hands off the *current in-flight work* and the *offline evaluation toolkit* so a successor can pick up where I left off without re-deriving anything.
+Section 0 is the 2026-11-08 rank fusion of the current submission candidates. Sections 1–8 are the 2026-10-19 handoff and are historical (team best then was 0.7144; that number is no longer current).
 
 ---
 
-## 1. TL;DR — where things stand right now
+## 0. Rank fusion of the current candidates (2026-11-08)
+
+Full-dev per-impression AUC on all 376,471 dev impressions. Test files cover all 2,370,727 test impressions. None of these zips have been submitted. The best previously submitted test score is still the v6 stack at 0.7232. Live leaderboard #1 on 2026-11-08 was dingjian at 0.7530.
+
+Script: `results/ensemble/fuse_candidates.py`. Dev table: `results/ensemble/dev_auc.txt`.
+
+### 0.1 Members
+
+Each member is turned into a rank per candidate in the original behaviors order. Rank 1 is best. Score files are ranked by score descending, with ties broken by original position. Rank files are best-first news ids mapped back onto that same candidate list.
+
+| Member | What it is | Dev source | Test source | Dev AUC |
+|---|---|---|---|---|
+| v6ens | v6 ranker on the ensemble feature table | `results/ranker/v6ens_dev_predictions.txt` | `results/ranker/v6ens_test_predictions.txt` | 0.724815 |
+| v6 | v6 ranker, causal popularity | `results/ranker/v6_dev_predictions_causalpop.txt` | `results/ranker/v6_test_predictions.txt` | 0.723369 |
+| ck45500 | 9B checkpoint 45500, raw LLM scores | `results/ranker/lg9b_ckpt45500_dev_scores.tsv` | `results/ranker/lg9b_ck45500_test_scores_all.tsv` | 0.718056 |
+| ep082 | 9B epoch 082, the `lg9b_llmonly` submission | `results/ranker/lg9b_ep082_dev_scores.tsv` | `results/ranker/lg9b_ep082_test_scores_all.tsv` | 0.713363 |
+| l13 | early LightGBM ranker (`ranker_l13_large.txt`) | `results/ranker/dev_ranker_preds.npy` | `results/ranker/test_ranker_predictions.txt` | 0.707374 |
+
+Left out on purpose:
+
+- `MINDlarge_test_ck45500_llmonly.zip` is a constant ranking (`[17,17,17,…]`). The fusion uses the score file, whose dev AUC is 0.718056.
+- `lg9b_v3` and `lg9b_v4` were fit on all 376,471 dev impressions, so they have no held-out dev ranking to fuse or to score.
+- `mh0v6` dev AUC is 0.726416, higher than any single member above, but its test rescore was not finished, so it is not in these zips.
+
+Dev and test use the same representation. ck45500 and ep082 contribute raw scores. v6ens, v6, and l13 contribute ranks on both splits. The L13 dev `.npy` is used only to build those ranks; its raw values are not mixed into the z-score fusion, because the L13 test file is a ranking.
+
+### 0.2 Pools
+
+| Pool | Members | Test zip |
+|---|---|---|
+| core | v6ens, v6, ck45500 | yes |
+| plus | core + ep082 | no; diagnostic only |
+| wide | plus + l13 | yes |
+
+`plus` exists to separate the two weaker members. Adding ep082 on top of core reaches at most 0.726465. Adding l13 is what moves the wide pool to 0.728388.
+
+### 0.3 Methods
+
+For one impression, member `m` has rank `r[m, i]` for candidate `i` (1 = best). The fused score is higher-is-better. The written rank is that score sorted descending, ties broken by original position.
+
+**Borda (equal mean rank).** `s[i] = -sum_m r[m, i]`. A one-step rank change counts the same at the top of the list and at the bottom.
+
+**Reciprocal-rank fusion, k = 60.** `s[i] = sum_m 1/(60 + r[m, i])`. Unweighted. A move from rank 1 to rank 2 changes the score more than a move from rank 30 to rank 31, so agreement at the top dominates the tail.
+
+**Weighted Borda.** `s[i] = -sum_m w[m] * r[m, i]`. The weight is `max(AUC[m] - 0.70, 0.001)`, then renormalized to sum to 1. Measured weights:
+
+| Pool | v6ens | v6 | ck45500 | ep082 | l13 |
+|---|---|---|---|---|---|
+| core | 0.375 | 0.353 | 0.273 | — | — |
+| plus | 0.312 | 0.294 | 0.227 | 0.168 | — |
+| wide | 0.285 | 0.269 | 0.208 | 0.154 | 0.085 |
+
+Unnormalized weights are `max(AUC - 0.70, 0.001)`: v6ens 0.024815, v6 0.023369, ck45500 0.018056, ep082 0.013363, l13 0.0074. The L13 input is the prior 0.7074, not the recomputed 0.707374. That difference does not change the three-decimal weights above. Pool sums before renormalizing: core 0.06624, plus 0.079603, wide 0.087003.
+
+**Within-impression z-score.** For ck45500 and ep082, z-score the raw scores inside the impression. For v6ens, v6, and l13, z-score `-r[m, i]`. `s[i]` is the sum of those z-scores, with equal member weight. Mean and variance are the population values (`variance = sum((x - mean)^2) / n`). If that variance is below `1e-12`, the member contributes zeros for that impression. This is the one method that keeps an LLM margin: a candidate far ahead of the others stays far ahead, instead of being collapsed to a one-step rank gap. A rank-only member still contributes a standardized rank, because that is all it has on both splits. L13's dev `.npy` holds raw scores, but those raw scores are not z-scored. Test L13 is a ranking, and the two splits have to use the same representation.
+
+### 0.4 Dev AUC
+
+| Fusion | Dev AUC |
+|---|---|
+| wide z-score | **0.728388** |
+| wide RRF k=60 | 0.728255 |
+| wide Borda | 0.728112 |
+| wide weighted Borda | 0.727685 |
+| plus weighted Borda | 0.726465 |
+| plus z-score | 0.725846 |
+| plus RRF k=60 | 0.725818 |
+| core z-score | 0.725686 |
+| core weighted Borda | 0.725577 |
+| plus Borda | 0.725569 |
+| core RRF k=60 | 0.725568 |
+| core Borda | 0.725466 |
+
+Best single member in the fusion is v6ens at 0.724815. Wide z-score is +0.0036 over that. Core z-score, which does not use ep082 or l13, is only +0.0009.
+
+### 0.5 Test submissions
+
+Text files are `results/ensemble/{pool}_{method}.txt`. Codabench zips, one member named `prediction.txt`, are `results/submissions/MINDlarge_test_ens_{pool}_{method}.zip`.
+
+| Zip | Dev AUC |
+|---|---|
+| `results/submissions/MINDlarge_test_ens_wide_zscore.zip` | **0.728388** |
+| `results/submissions/MINDlarge_test_ens_wide_rrf60.zip` | 0.728255 |
+| `results/submissions/MINDlarge_test_ens_wide_borda.zip` | 0.728112 |
+| `results/submissions/MINDlarge_test_ens_wide_wborda.zip` | 0.727685 |
+| `results/submissions/MINDlarge_test_ens_core_zscore.zip` | 0.725686 |
+| `results/submissions/MINDlarge_test_ens_core_wborda.zip` | 0.725577 |
+| `results/submissions/MINDlarge_test_ens_core_rrf60.zip` | 0.725568 |
+| `results/submissions/MINDlarge_test_ens_core_borda.zip` | 0.725466 |
+
+Line format is the official one: `impression_id [r1,r2,...,rn]`, no spaces inside the brackets. `r_i` is the 1-based rank of the i-th candidate in behaviors order. `results/submissions/MINDlarge_test_ens_wide_zscore.zip` was checked with the official `parse_line` (`split` into two fields, then `json.loads` on the rank array) against `data/MIND_large/test/behaviors.tsv` and against the already-scored `results/ranker/submission_v6_test.txt`. All 2,370,727 lines match impression id and candidate count, and every rank list is a permutation of `1..n`.
+
+Submit `MINDlarge_test_ens_wide_zscore.zip` first. Rebuild with:
+
+```bash
+python3 results/ensemble/fuse_candidates.py --write-test
+for f in core_borda core_rrf60 core_wborda core_zscore \
+         wide_borda wide_rrf60 wide_wborda wide_zscore; do
+  bash scripts/build_submission_zip.sh \
+    "results/ensemble/${f}.txt" \
+    "results/submissions/MINDlarge_test_ens_${f}.zip"
+done
+```
+
+`--write-test` always rescores dev first, then writes the eight test files. `plus` is scored on dev and is not written. Behaviors paths are `data/MIND_large/dev/behaviors.tsv` and `data/MIND_large/test/behaviors.tsv`. The run that produced these files finished 2026-11-08 09:11 UTC and printed `test impressions 2,370,727`.
+
+### 0.6 How a line is built
+
+Files are streamed in lockstep with behaviors, one impression at a time. The script exits if an impression id disagrees, if a score row has a different length than the candidate list, if a rank row is not a permutation of that list, or if the L13 array does not cover exactly the dev candidate rows. Nothing is joined by a dictionary that could reorder impressions.
+
+Candidate ids: a dev behaviors item is `newsId-label`; a test item is a bare `newsId`. The id is the part before the last `-`. Duplicate ids in one impression are matched left to right against the ranked-id list.
+
+Rank from a score row: sort by score descending, and by original index ascending on a tie, then assign ranks `1..n`. Rank from a news-id row: the row is best-first; walking it assigns rank 1, 2, 3, … back onto the behaviors order.
+
+The leaderboard line is `impression_id [r1,r2,...,rn]` with no spaces after the commas. `r_i` is the rank of candidate `i` in behaviors order. Sort key for that rank is fused score descending, original index ascending. The written ranks are therefore a permutation of `1..n` even when two fused scores tie: the earlier candidate gets the better rank.
+
+Score-file shape: `impression_id<TAB>score1<TAB>score2...`, scores in behaviors order. Rank-file shape: `impression_id newsId_best newsId_second ...`.
+
+Dev AUC is the mean, over impressions, of
+
+```
+(sum of positive ranks - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
+```
+
+Ranks in that formula are average ranks of tied fused scores, 1-based, from a sort by score ascending then original index. An impression with no positive or no negative is skipped. This dev split has none of those, so every number uses `n = 376,471`. The same pass recomputed the five single-member AUCs and they matched the table in 0.1 to six decimals, which is the alignment check for the inputs.
+
+One difference from the file the scorer will read: dev AUC is computed on the fused scores, where a tie gets the average rank. The text file breaks that tie by original position, so the official `1/rank` score has no ties. On an impression with no fused-score tie the two AUCs are the same, because both are functions of the pairwise order. The reported dev numbers were not recomputed from the written rank files.
+
+### 0.7 What each original submission zip actually is
+
+The seven zips in `results/submissions/` before this fusion, and what was done with each:
+
+| Zip | Dev AUC of the real model | Used in the fusion |
+|---|---|---|
+| `MINDlarge_test_v6ens.zip` | 0.724815 | yes, via `v6ens_*_predictions.txt` |
+| `MINDlarge_test_v6_stack.zip` | 0.723369 | yes, via the causal-pop files |
+| `MINDlarge_test_ck45500_llmonly.zip` | 0.718056 for the score file; the zip itself is all ties | score file only |
+| `MINDlarge_test_lg9b_llmonly.zip` | 0.713363 | yes, it is ep082 |
+| `MINDlarge_test_ranker_l13.zip` | 0.707374 | yes, via the npy and `test_ranker_predictions.txt` |
+| `MINDlarge_test_lg9b_v3.zip` | no held-out number | no |
+| `MINDlarge_test_lg9b_v4.zip` | no held-out number | no |
+
+Identities that were checked, not assumed:
+
+- v6 stack. `logs/convert_v6_test.log` converts `results/ranker/v6_test_predictions.txt` into `results/ranker/submission_v6_test.txt`. `logs/apply_v6_dev_causal.log` scores the same model, `results/ranker/ranker_v6_train_popwit.txt` (33 features, within-impression transforms plus popularity transforms), onto `v6_dev_predictions_causalpop.txt`. That file is the v6 member. The other dev file, `v6_dev_predictions.txt`, scores 0.723394 and is not a member.
+- v6ens. `logs/apply_v6ens_dev.log` applies that same v6 model to the ensemble feature table. `MINDlarge_test_v6ens.zip` stores ranked news ids, not bracket ranks. The fusion reads `v6ens_test_predictions.txt` and emits bracket ranks.
+- llmonly. The zip's first rank vector is `1 [8,15,13,2,11,12,16,14]`, which is the ranking of `results/ranker/lg9b_ep082_test_scores_all.tsv`. ep099 (`results/ranker/lg9b_ep099_dev_scores.tsv`, dev AUC 0.709160) does not match and is not a member.
+- ckpt-45500. `results/submissions/MINDlarge_test_ck45500_llmonly.zip` starts `1 [17,17,17,…]`. Ranking `results/ranker/lg9b_ck45500_test_scores_all.tsv` for impression 1 gives `[8,15,11,2,12,14,16,13]`, so the zip is not that score file. A second copy of the same scores, `results/lg9b_ck45500_test_scores_all.tsv`, was not used. The fusion uses `results/ranker/lg9b_ck45500_test_scores_all.tsv`.
+- L13. `logs/cmp_rankers_dev.log` applies `results/ranker/ranker_l13_large.txt` to `results/ranker/large_dev_features.tsv` and reports per-impression AUC 0.7074 on 376,471 impressions. `dev_ranker_preds.npy` is `float64` with shape `(14085557,)`, equal to the number of dev candidate rows. Walking it in behaviors order reproduces AUC 0.707374. Test ranks come from `results/ranker/test_ranker_predictions.txt` (`logs/apply_ranker_test.log`). The model is a LightGBM binary booster, 14 anonymous columns, 63 leaves.
+- v3 and v4. `logs/train_ranker_v3.log` and `logs/train_ranker_v4.log` each load the full dev feature table, 14,085,557 rows, 376,471 impressions, missing llm 0, then save `ranker_v3_lg9b_joint_wit.txt` and `ranker_v4_lg9b_joint_wit_h24.txt`. Their pipelines (`logs/pipeline_v3.log`, `logs/pipeline_v4.log`) apply those models to test only. An AUC on the training impressions would be a fit statistic, so they were not given one and were not fused.
+
+### 0.8 Files scored on dev and then not fused
+
+Same metric, same 376,471 impressions, from the pass on 2026-11-08. None of these has a finished test prediction that was included.
+
+| File | Dev AUC | Why it is not a member |
+|---|---|---|
+| `results/ranker/mh0v6_dev_predictions.txt` | 0.726416 | test rescore had not finished (`logs/pipeline_mh0_v6.log` still waiting on a test chunk) |
+| `results/ranker/v6ens5c_dev_predictions.txt` | 0.725740 | dev file only; no test prediction in `results/ranker/` |
+| `results/ranker/v6ens4c_dev_predictions.txt` | 0.724739 | same |
+| `results/ranker/v6ens5b_dev_predictions.txt` | 0.724275 | same |
+| `results/ranker/v6ens2_dev_predictions.txt` | 0.724051 | same |
+| `results/ranker/v6ens4_dev_predictions.txt` | 0.723993 | same |
+| `results/ranker/v6ens5_dev_predictions.txt` | 0.723782 | same |
+| `results/ranker/v6_dev_predictions.txt` | 0.723394 | not the file the v6 stack zip was built from |
+| `results/ranker/lg9b_ep099_dev_scores.tsv` | 0.709160 | not the llmonly zip |
+
+v6ens5c is a better dev file than the v6ens member (0.724815), and mh0v6 is better than both. They are absent because the test side was missing, not because the dev number was worse.
+
+### 0.9 Format check
+
+Official parser, from `https://github.com/msnews/MIND/blob/master/evaluate.py`:
+
+```python
+def parse_line(l):
+    impid, ranks = l.strip('\n').split()
+    ranks = json.loads(ranks)
+    return impid, ranks
+```
+
+`split()` with no arguments requires exactly two whitespace-separated fields. A space after a comma makes the unpack fail, which the scorer reports as `Invalid Input Format`. `json.loads` then requires a JSON array. The scorer turns each rank into `1/rank` and requires that value in `(0, 1]`, so every rank must be `>= 1`. `roc_auc_score` then requires the array length to equal the truth-file label length. Impression ids are compared as strings, in file order. The scorer does not require the ranks to be a permutation; this fusion's files are permutations anyway.
+
+`scripts/build_submission_zip.sh` copies the text to a temp file named `prediction.txt`, runs `zip -q -X`, and asserts the archive has exactly one member of that name and the same byte size as the text. All eight archives passed that assert. Each inner file is 291,329,312 bytes. Deflate (`compress_type = 8`).
+
+The full official parse was run on `results/submissions/MINDlarge_test_ens_wide_zscore.zip`, not on the loose text. Every one of the 2,370,727 lines:
+
+- has a single `\n` and no `\r`
+- splits into exactly two fields and `json.loads` succeeds
+- has the same impression id as `data/MIND_large/test/behaviors.tsv` and as `results/ranker/submission_v6_test.txt` (the v6 file that already scored on Codabench)
+- has a rank count equal to that impression's candidate count in both of those files
+- is a permutation of `1..n` of Python `int`s
+
+The other seven zips were not put through that full parse. They come from the same writer, the build script checked member name and byte size for each, and a line count of the eight text files before zipping was 2,370,727 each. First lines, which are impression 1 and 16 candidates:
+
+| File | First line |
+|---|---|
+| `core_borda.txt`, `core_rrf60.txt` | `1 [8,15,11,3,12,14,16,13,2,1,9,5,7,6,10,4]` |
+| `core_wborda.txt`, `core_zscore.txt` | `1 [8,15,12,3,11,14,16,13,2,1,9,5,7,6,10,4]` |
+| `wide_borda.txt` | `1 [8,15,12,3,11,14,16,13,2,1,9,5,6,7,10,4]` |
+| `wide_rrf60.txt`, `wide_wborda.txt` | `1 [8,15,12,3,11,14,16,13,2,1,9,5,7,6,10,4]` |
+| `wide_zscore.txt` | `1 [8,15,11,3,13,14,16,12,2,1,9,5,6,7,10,4]` |
+
+### 0.10 Where the files are
+
+On `sc-vnc12.sambanovasystems.com`, user `chenw`:
+
+- script: `/import/ml-sc-scratch5/chenw/MiniOneRec/results/ensemble/fuse_candidates.py`
+- dev table: `results/ensemble/dev_auc.txt`
+- test text: `results/ensemble/{core,wide}_{borda,rrf60,wborda,zscore}.txt` (exact size 291,329,312 bytes each; `ls -lh` prints that as 278M)
+- zips: `results/submissions/MINDlarge_test_ens_*.zip`
+
+Copy the zip to submit:
+
+```bash
+rsync -avP chenw@sc-vnc12.sambanovasystems.com:/import/ml-sc-scratch5/chenw/MiniOneRec/results/submissions/MINDlarge_test_ens_wide_zscore.zip /Users/chenw/Downloads/
+```
+
+Codabench upload, when wanted, is `scripts/submit_codabench.sh`. Default phase is 23196 (Official Test), task 29311, competition 13967. These eight zips have not been uploaded.
+
+---
+
+## 1. TL;DR — where things stand right now (2026-10-19)
 
 - Team best remains **0.7144** = plain L13/L17 test ensemble (E3A). SOTA gap = +0.0182.
 - A years-long score-space investigation is **CLOSED** (memory `project_minionerec_ensemble_investigation.md`): every existing/diverse model was scored + folded with **honest CV**. Result: **SUBCAT is the ONLY positive new member**.

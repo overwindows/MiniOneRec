@@ -42,22 +42,15 @@ echo "=== dev sub-chunk d00/${PART} ckpt=${CKPT} out=${OUT} ==="
 mkdir -p ${OUTDIR}
 
 # ---- GPU health pre-check ----
-# device_map="auto" silently falls back to CPU when one GPU is unhealthy,
-# which burns hours on a CPU forward pass. Refuse to start instead.
-if ! python3 -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)"; then
-  echo "FATAL: torch.cuda.is_available() is False on this node -- the driver"
-  echo "       is older than the cu130 torch build, so the model would load"
-  echo "       on CPU. Use a B200 node."
-  exit 1
-fi
-for g in 0 1 2 3 4 5 6 7; do
-  used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits -i "$g")
-  if [ "$used" -gt 100 ]; then
-    echo "FATAL: GPU $g has ${used} MiB in use (busy or faulted)"
-    exit 1
-  fi
-done
-nvidia-smi --query-gpu=index,name,memory.total,memory.used --format=csv,noheader
+# Delegates to the shared preflight: it resolves the PHYSICAL device indices
+# Slurm actually allocated (a shared node hands out e.g. 2,3,4,5, not 0..3),
+# refuses to start if one of OUR GPUs is busy, and preloads the CUDA
+# forward-compat lib on nodes whose driver is too old for the cu130 torch
+# build (A100/H100 carry 565.57.01 => torch.cuda.is_available() is False and
+# the 9B would silently load on CPU).
+# shellcheck source=scripts/_gpu_preflight.sh
+source scripts/_gpu_preflight.sh
+mkgpu_preflight "${DE_NGPU:-0}" || exit 1
 
 # The mini split dir (behaviors.tsv symlink + news.tsv symlink) is created
 # once by scripts/prepare_dev_subchunks.sh; create it here too so the job
@@ -97,8 +90,8 @@ HISTORY_SELECTION=${EVAL_HISTORY_SELECTION:-recent} \
 HISTORY_FORMAT=flat \
 PREFIX_CACHE_MODE=${EVAL_PREFIX_CACHE_MODE:-auto} \
 OUTPUT_SCORES_FILE=${OUT} \
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-bash scripts/eval_mind_pointwise.sh ${CKPT} d00/split_${PART} 2>&1 | tee logs/dev_sub_${PART}.log
+CUDA_VISIBLE_DEVICES=${GPUS} \
+bash scripts/eval_mind_pointwise.sh ${CKPT} d00/split_${PART} 2>&1 | tee logs/dev_sub_${PART}${EVAL_LOG_TAG:-}.log
 
 # ---- verify: line count and per-impression candidate count ----
 python3 - "$PART" "$OUT" <<'PY'

@@ -26,21 +26,13 @@ export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4
 # load on CPU (days for a 9B). The CUDA forward-compat package ships a newer
 # libcuda that works against the old kernel driver, so preload it when the
 # installed driver is too old.
-COMPAT_DIR=/import/ml-sc-scratch1/chenw/cuda-compat-13.0
-DRV=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)
-if ! python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
-  if [ -f "${COMPAT_DIR}/libcuda.so.1" ]; then
-    echo "=== driver ${DRV} too old for cu130 torch; preloading CUDA forward-compat ==="
-    export LD_LIBRARY_PATH=${COMPAT_DIR}:${LD_LIBRARY_PATH:-}
-    if ! python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
-      echo "FATAL: CUDA still unavailable after forward-compat preload -- aborting"
-      exit 1
-    fi
-  else
-    echo "FATAL: driver ${DRV} too old and no forward-compat lib available -- aborting"
-    exit 1
-  fi
-fi
+#
+# The shared preflight also resolves the PHYSICAL device indices Slurm
+# actually allocated (a shared node hands out e.g. 2,3,4,5, not 0..3) and
+# refuses to start if one of OUR GPUs is busy.
+# shellcheck source=scripts/_gpu_preflight.sh
+source scripts/_gpu_preflight.sh
+mkgpu_preflight "${TE_NGPU:-0}" || exit 1
 
 CHUNK=$(printf "%02d" ${TE_CHUNK})
 CKPT=${TE_CKPT:-results/ranker/lg_9b_ckpt32500_snapshot}
@@ -48,17 +40,7 @@ CKPT=${TE_CKPT:-results/ranker/lg_9b_ckpt32500_snapshot}
 # ALWAYS part of the name so parallel chunk jobs never overwrite each other.
 OUT=results/ranker/test_scores/${TE_TAG:-chunk}_${CHUNK}.tsv
 
-# Number of GPUs to use. A100 nodes have 4, B200 nodes have 8. The scoring
-# path splits the behaviors file across the visible devices, so the device
-# list must match the allocation or the job will wait forever on a device
-# that was never handed to it.
-NGPU=${TE_NGPU:-8}
-GPUS=$(seq -s, 0 $((NGPU - 1)))
-if [ "$NGPU" -lt 8 ]; then
-  echo "=== using ${NGPU} GPUs: ${GPUS} ==="
-fi
-
-echo "=== test chunk ${CHUNK} ckpt=${CKPT} ngpu=${NGPU} ==="
+echo "=== test chunk ${CHUNK} ckpt=${CKPT} ngpu=${NGPU} gpus=${GPUS} ==="
 mkdir -p results/ranker/test_scores
 
 # Build a mini split dir: news.tsv + chunk as behaviors.tsv

@@ -77,8 +77,21 @@ ln -sf /import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_large/dev/chunks/sub/d0
 # the SAME env var names used by the test-side scripts, so a dev/test pair
 # can never drift apart:
 #   EVAL_HISTORY_SELECTION (default recent) | EVAL_USE_RECENCY (default 1)
+# EVAL_MAX_HISTORY: how many history items the prompt may carry (0 = unlimited).
+#
+# THIS USED TO BE HARDCODED TO 30 -- the same budget TRAINING used -- so eval
+# silently cut the real user history of ~35% of dev impressions down to their
+# last 30 items. That cap is an INFERENCE-TIME choice, not a model property:
+# raising it to unlimited at eval time, with the SAME weights, was measured
+# paired on 40,000 dev impressions and gained
+#   +0.00392 AUC (SE 0.00036, t=+10.77)
+# with the delta bit-identically 0.00000 on the 65% of impressions that carry
+# <=30 items, and growing monotonically with history length
+# (31-50: +0.00551, 51-100: +0.01317, >100: +0.02091).
+# Cost: 1.19x wall-clock. Keep the dev and test caps identical.
+EVAL_MAX_HISTORY=${EVAL_MAX_HISTORY:-0}
 MIND_ROOT=/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_large/dev/chunks/sub \
-USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 MAX_HISTORY=30 \
+USE_ABSTRACT=1 USE_CHAT_TEMPLATE=1 FLASH_ATTN=0 MAX_HISTORY=${EVAL_MAX_HISTORY} \
 USE_RECENCY=${EVAL_USE_RECENCY:-1} \
 HISTORY_SELECTION=${EVAL_HISTORY_SELECTION:-recent} \
 HISTORY_FORMAT=flat \

@@ -39,6 +39,12 @@
 # Usage:
 #   CODEBENCH_KEY=<key> bash scripts/submit_codabench.sh [zip_path]
 #   bash scripts/submit_codabench.sh <key> [zip_path]
+#   bash scripts/submit_codabench.sh [zip_path]      # key from the cached file
+#
+# If no key is given on the command line or in $CODEBENCH_KEY, the script falls
+# back to ~/.codeguru/codabench_key, which src/fetch_codabench_token.py
+# writes (mode 0600). That is the normal path now: the token can be minted on
+# this machine, so no key has to be copied around by hand.
 #
 # Env overrides:
 #   CODEBENCH_PHASE   (default 23196 = Official Test)
@@ -62,10 +68,18 @@ KEY="${CODEBENCH_KEY:-}"
 for a in "$@"; do
   if [ -f "$a" ]; then
     ZIP="$a"
-  elif [ -z "$KEY" ] || [ "$KEY" = "$CODEBENCH_KEY" ]; then
+  elif [ -z "$KEY" ] || [ "$KEY" = "${CODEBENCH_KEY:-}" ]; then
     KEY="$a"
   fi
 done
+# Fall back to the cached token written by src/fetch_codabench_token.py, so the
+# daily path needs no key on the command line at all. A positional key argument
+# OVERRIDES $CODEBENCH_KEY (see the arg loop above); the env var is used only
+# when no positional key was supplied. This cached-file fallback fills the gap
+# only when neither was given.
+if [ -z "$KEY" ] && [ -r "$HOME/.codeguru/codabench_key" ]; then
+  KEY="$(cat "$HOME/.codeguru/codabench_key")"
+fi
 [ -f "$ZIP" ] || { echo "ERROR: missing $ZIP" >&2; exit 1; }
 
 mkdir -p logs

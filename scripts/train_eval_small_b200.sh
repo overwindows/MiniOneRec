@@ -5,7 +5,11 @@
 #SBATCH --job-name=small_te
 #SBATCH --partition=gpuonly
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:b200m180:8
+# Node-agnostic by default: take any single GPU-less-than-8 node. Override at
+# submit time with e.g. --gres=gpu:h200m141:8 --nodelist=sc3-c127 when a
+# specific node type is wanted. (sbatch --gres on the command line replaces
+# this line.)
+#SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=400000
@@ -21,7 +25,22 @@ export TRITON_CACHE_DIR=/dev/shm/triton
 export NCCL_ASYNC_ERROR_HANDLING=1 TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4
-export MINIONEREC_LENGTH_GROUPED=1
+# The length-grouped sampler is the production default. It can be turned off
+# with MINIONEREC_LENGTH_GROUPED=0 -- required by the impression-packed
+# sampler, which replaces it (the packed buckets are already
+# length-homogeneous, so running both would be redundant).
+export MINIONEREC_LENGTH_GROUPED=${MINIONEREC_LENGTH_GROUPED:-1}
+# The A100 nodes' Broadcom RoCE transport SIGSEGVs inside NCCL all_reduce.
+# Socket-only works everywhere, so force it for any non-B200 node.
+export NCCL_IB_DISABLE=${NCCL_IB_DISABLE:-1}
+# H200 (SM90) SDPA backward produces inf/NaN gradients on this model/shape
+# (measured 2026-11-08: 36/40 optimizer steps skipped under sdpa, 0 under
+# eager). B200/A100 are unaffected. Auto-select eager on H200.
+_gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+if [[ "${_gpu_name}" == *"H200"* ]]; then
+  export MINIONEREC_ATTN_IMPL=${MINIONEREC_ATTN_IMPL:-eager}
+  echo "=== H200 detected: using MINIONEREC_ATTN_IMPL=${MINIONEREC_ATTN_IMPL} ==="
+fi
 export MINIONEREC_NUM_WORKERS=8
 export MINIONEREC_EVAL_STEPS=500
 export MINIONEREC_SAVE_STEPS=500
@@ -96,13 +115,18 @@ echo "Eval prompt flags: max_history=${TE_MAX_HISTORY} selection=${TE_HISTORY_SE
 OUT=output_dir/small_runs/${RUN_TAG}
 mkdir -p results
 
+# The DeepSpeed rendezvous port. It only has to be unique among jobs that can
+# reach each other; jobs on different nodes have different host addresses, but
+# pinning it per run keeps concurrent same-node launches from colliding.
+MASTER_PORT=${MASTER_PORT:-29500}
+
 # MIND_ROOT selects the dataset (default small; set to data/MIND_large for
 # large runs — paths are derived, so both splits work unchanged).
 MIND_ROOT="${MIND_ROOT:-/import/ml-sc-scratch5/chenw/MiniOneRec/data/MIND_small}"
 MIND_TAG=$(basename "${MIND_ROOT}")
 
 echo "=== [${RUN_TAG}] TRAIN (${MIND_TAG}) ==="
-deepspeed --num_gpus=${NGPU} --master_port=29500 src/sft_mind_pointwise_ds.py \
+deepspeed --num_gpus=${NGPU} --master_port=${MASTER_PORT} src/sft_mind_pointwise_ds.py \
   --base_model ${MODEL} \
   --train_behaviors_path ${MIND_ROOT}/train/behaviors.tsv \
   --train_news_path ${MIND_ROOT}/train/news.tsv \

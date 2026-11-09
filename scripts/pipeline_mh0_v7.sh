@@ -177,9 +177,27 @@ ls -la ${MODEL} ${MODEL}.feats.json
 # apply v7. llm_rank / llm_z are derived at apply time from that column, so
 # they follow automatically.
 echo "--- swapping llm_score into the dev feature table ---"
+# DEFECT FIX (2026-11-08). This used to swap into
+# ck45500_dev_features_causalpop.tsv, the table whose FOUR CATEGORY COLUMNS
+# are identically zero on the entire dev split (cat_match_frac,
+# subcat_match_frac, hist_uniq_cats, hist_top_cat_frac). The cause was
+# src/patch_dev_cat_feats.py's news loader skipping every line with fewer
+# than 4 columns: the dev table had been built from the 3-column
+# data/MIND_large/news_all.tsv, so the loader returned 0 entries. Measured
+# effect: repairing those 4 columns moved the full-dev AUC 0.7234 -> 0.7299
+# (paired +0.00349, t=+25.01). Swapping llm_score into the DEAD table would
+# silently throw that away and report a v7 number ~0.0065 below the real one.
+# The fixcat table is the same table with the 4 columns repaired.
+#
+# DEFECT FIX 2: --behaviors is REQUIRED here. Without it swap_llm_score.py
+# cannot verify that the score file's per-candidate order matches the
+# feature table's, so a silent misalignment would go undetected (the guard
+# was added in ba4abf9 and scripts/pipeline_mh0_v6.sh passes it; this
+# pipeline did not).
 python src/swap_llm_score.py \
-  --features results/ranker/ck45500_dev_features_causalpop.tsv \
+  --features results/ranker/ck45500_dev_features_causalpop_fixcat.tsv \
   --scores ${DEV_MERGED} \
+  --behaviors data/MIND_large/dev/behaviors.tsv \
   --output results/ranker/mh0_dev_features_causalpop.tsv
 
 echo "--- applying ranker v7 to dev (the single honest eval) ---"
@@ -194,9 +212,13 @@ python src/calc_mind_metrics.py \
 
 # ---- 5. the test submission ----
 echo "--- swapping llm_score into the test feature table ---"
+# DEFECT FIX (2026-11-08): --behaviors was missing here too (see above).
+# The test table never had the dead-category defect -- it was built from the
+# 4-column news file -- so it is used as-is.
 python src/swap_llm_score.py \
   --features results/ranker/ck45500_test_features_devpopcat.tsv \
   --scores ${TEST_MERGED} \
+  --behaviors data/MIND_large/test/behaviors.tsv \
   --output results/ranker/mh0_test_features_devpopcat.tsv
 
 echo "--- applying ranker v7 to test ---"

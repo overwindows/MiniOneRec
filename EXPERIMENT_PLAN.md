@@ -972,16 +972,27 @@ result,or renewed compute allocation.
 
 At `2026-11-10T15:31:58.107+08:00`, the user explicitly instructed:
 `"don't ask me, just do it, you know better than me"`.
-In response to that explicit user authorization, register one separate,
+In response to that explicit user authorization, registered one separate,
 bounded 4-elapsed-hour local CPU allocation
-(`JEV-LOCAL-CPU-ALLOCATION-20261110-01`, 4 CPU threads, unchanged
+(`JEV-LOCAL-CPU-ALLOCATION-20261110-01`,
+`jev-local-cpu-allocation-20261110-01.json`
+SHAfcdc563baf1d076f48ffdaaf9780da00ef8914720f1b818a58e57e0a29c5cab6;
+registered `2026-11-10T07:34:07.904347+00:00`, immutable cutoff
+`2026-11-10T11:34:07.904347+00:00`, 4 CPU threads, unchanged
 `3,758,096,384`-byte peak-RSS limit, zero GPU/cloud spending, zero
 competition-test reads/submissions, all prior allocations and cutoffs
-unchanged) and launch the jointly resource-qualified
+unchanged) and launched the jointly resource-qualified
 `JEV-CONTEXTUAL-RECENT-RESIDUAL-1` trial (`src/mind_contextual_recent.py`,
-SHA281a3a4f9f94c24a121ab94f77a9c85e1ade7ff036ccccc043106a9649e5a832) via
-`run_jev_contextual_recent_01.py --allocation ...` with a reserved 1200-second
-independent verification window (`run_jev_contextual_recent_verification_01.py`).
+SHA281a3a4f9f94c24a121ab94f77a9c85e1ade7ff036ccccc043106a9649e5a832,
+commit `5cef9628344dfe90a197ea00f0d8004ade26cfff`) at
+`2026-11-10T07:34:11.132876+00:00` (`maximum_seconds=14396`,
+`child_seconds=13133`, `verification_reserve_seconds=1200`, attached shell
+`jev-contextual-recent-01`, child PID `56`, output
+`Q:\CodeGuru\scratch\jev-contextual-recent-01-20261104`).
+Training log confirms `pretrained_complete_contract_authenticated`; no
+recency-residual AUC result exists yet. Wait for background completion
+notification before reading output and running
+`run_jev_contextual_recent_verification_01.py`.
 
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 

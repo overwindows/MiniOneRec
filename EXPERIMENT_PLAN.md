@@ -989,10 +989,53 @@ commit `5cef9628344dfe90a197ea00f0d8004ade26cfff`) at
 `child_seconds=13133`, `verification_reserve_seconds=1200`, attached shell
 `jev-contextual-recent-01`, child PID `56`, output
 `Q:\CodeGuru\scratch\jev-contextual-recent-01-20261104`).
-Training log confirms `pretrained_complete_contract_authenticated`; no
-recency-residual AUC result exists yet. Wait for background completion
-notification before reading output and running
-`run_jev_contextual_recent_verification_01.py`.
+
+TERMINAL AND INDEPENDENTLY VERIFIED `2026-11-10T08:31:03.180512+00:00`:
+- Controller (`jev-contextual-recent-01-controller-result.json`,
+  SHAf8c5c0891e92c242e522ab01c853e5f6615e72546367ba6af4453052f94e15d8)
+  exited `0` at `2026-11-10T08:13:10.125143+00:00`, elapsed `2331.974843s`,
+  observed peak RSS `3,598,069,760` < `3,758,096,384` bytes; `result.json`
+  SHA7e963561f06bac512787b77341ee9d31b1e3f9c8a1cb54f0d707c2f7b60c7fd5.
+- Earlier-training selection fit (`internal_selection`): two complete epochs
+  covering `1,801,231` impressions / `66,107,268` exposures / `2,712,612`
+  positives each (`8,111` and `8,112` optimizer steps, mean loss `2.632952` ->
+  `2.631184`, bitmap SHAc2afb72b...).
+- Internal heldout training-day validation (`431,517` impressions /
+  `17,400,106` exposures / `671,044` positives):
+  - **AUC**: `0.6935297726041882` (PASSED fixed `0.69` gate; `+0.0029066578`
+    over `CandidateInterest` base `0.6906231148268541`)
+  - **MRR**: `0.3252522909536231` (`+0.001458` over `0.3237941322`)
+  - **nDCG@5**: `0.3515156886606484` (`+0.002161` over `0.3493542516`)
+  - **nDCG@10**: `0.41312508958094163` (`+0.001905` over `0.4112202660`)
+- Final all-training fit (`all_training_fit`): two complete epochs covering
+  ALL `2,232,748` impressions / `83,507,374` exposures / `3,383,656` positives
+  each (`10,245` and `10,244` optimizer steps, mean loss `2.667726` ->
+  `2.666095`, bitmap SHA04a6c2a4...).
+- Complete official MIND-large dev (`376,471` impressions / `14,085,557`
+  exposures / `574,845` positives):
+  - **AUC**: `0.6974803518291157` (`-0.0015633923` below accepted
+    `CandidateInterest` official-dev `0.6990437441380181`)
+  - **MRR**: `0.3435835214193921` (`+0.001498` over `0.3420855377`)
+  - **nDCG@5**: `0.3813433727916056` (`+0.003052` over `0.3782918489`)
+  - **nDCG@10**: `0.44180606114820103` (`+0.002021` over `0.4397851610`)
+- Independent verification (`jev-contextual-recent-01-independent-verification.json`,
+  SHA9270336e598bb336f4cb426a332488e1280df855be637c00b18adbd45c540633;
+  controller `jev-contextual-recent-01-verification-controller.json`,
+  SHAaa52eac9f7cac73f4a8d10c746aac4d13a2130af1953c11d28d89081980b9fae)
+  completed in `1041.753571s`, peak RSS `2,579,636,224` bytes: every restored
+  score bit-exact, all pooled priors/known bitmaps/recent statistics/cache
+  target hashes/epoch and batch populations independently reconstructed, plus
+  `128` NumPy contextual base and `128` NumPy residual reference cases per
+  phase.
+- Decision: While `RecentResidual` improved official-dev MRR/nDCG@5/nDCG@10
+  and lifted internal heldout AUC to `0.693530`, its official-dev AUC
+  (`0.6974803518`) did not beat `CandidateInterest` (`0.6990437441`) because
+  cutoff-anchored `last_fitting_day_ctr_logit` (`day == maximum`) acts as
+  same-day opposite-fold CTR on `maximum`-day training rows (`2019-11-14` in
+  `all_training_fit`) while becoming a 1-day-lagged statistic on official dev
+  (`2019-11-15`). Therefore, retain `CandidateInterest` (`0.6990437441`) as
+  the best verified official-dev AUC benchmark. Competition-test AUC >= `0.80`
+  remains unmet.
 
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 

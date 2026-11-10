@@ -740,6 +740,49 @@ No local training allocation was renewed,model fitted,benchmark score
 changed or competition-test submission made. This review does not claim
 to establish the latest global SOTA or a validated route to0.80.
 
+### Nov10: additive prior-versus-personalization decomposition of verified contextual scores
+
+A bounded,read-only decomposition of the accepted contextual model's saved
+scores separated `prior` from `semantic_scale * interest + residual` across
+all376471 official-dev impressions(14085557 exposures,574845 positives)
+and all431517 internal heldout training-day impressions(17400106 exposures,
+671044 positives),authenticating all ten inputs before/after without
+running neural forwards or parameter updates:
+
+| Population / Stratum | Impressions | Category Prior AUC | Article Prior AUC | Personalization-Only AUC | Combined AUC | Lift vs Article Prior |
+|---|---:|---:|---:|---:|---:|---:|
+| Official dev (all) |376471|0.5314874546|0.6226381027|0.6463921626|0.6990437441|+0.0764056415|
+| Internal heldout day |431517|0.5147994254|0.6127592930|0.6501781153|0.6906231148|+0.0778638218|
+| Dev raw history 0 |11270|0.5215396827|0.6141902262|0.4916603226|0.6178968909|+0.0037066646|
+| Dev raw history 1-5 |55262|0.5123950977|0.6231271971|0.6064044161|0.6645481131|+0.0414209159|
+| Dev raw history 6-15 |99036|0.5258802977|0.6278898002|0.6466432694|0.7008643708|+0.0729745706|
+| Dev raw history 16-30 |79792|0.5360289461|0.6269557678|0.6670262910|0.7154333684|+0.0884776006|
+| Dev raw history 31-100 |108213|0.5411895333|0.6195373767|0.6664675202|0.7130210292|+0.0934836525|
+| Dev raw history 101+ |22898|0.5450361434|0.6025095256|0.6511921030|0.6911928476|+0.0886833220|
+
+Key findings:
+1. Pooled article/category CTR priors alone reach0.6226381027 on official
+   dev(0.6127592930 on heldout training day),while the learned contextual
+   personalization term alone reaches0.6463921626(0.6501781153 internal)
+   and adds+0.0764056415 AUC(+7.64 points) on top of the article prior.
+2. On101+ raw-history impressions,most of the-0.0242405208 combined AUC
+   drop relative to16-30 histories(-0.0244462422) is already present in
+   the baseline article prior(0.6025095256 vs0.6269557678),indicating
+   heavy-history users click less globally popular articles;standalone
+   personalization also drops by-0.0158341880(0.6511921030 vs0.6670262910)
+   under last-30 history truncation.
+3. On empty histories(0 clicks),the nonprior candidate-only MLP term is
+   near random(0.4916603226 alone),yielding only+0.0037066646 over the
+   article prior(0.6141902262 ->0.6178968909).
+
+Session evidence: `jev-contextual-interest-01-prior-vs-personalization.json`,
+SHAd2f5d680b5d636c6f0ec410cd455f47c9dccfe71d5c5c0ea02fd397b03488b40;
+source `diagnose_jev_contextual_prior_lift_01.py`,
+SHA822d4e22e28bd7fcd45e30f58b5c4ccd129de9911fd5612fd3e7a2342388450e;
+3 unit regressions pass in `test_jev_contextual_prior_lift.py`.
+Descriptive additive decomposition only,not a retrained causal ablation,
+new model quality result,or renewed compute allocation.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

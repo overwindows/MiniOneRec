@@ -783,6 +783,53 @@ SHA822d4e22e28bd7fcd45e30f58b5c4ccd129de9911fd5612fd3e7a2342388450e;
 Descriptive additive decomposition only,not a retrained causal ablation,
 new model quality result,or renewed compute allocation.
 
+### Nov10: heldout training-day signal audit of the 8 RecentResidual features
+
+Evaluated the standalone ranking signal and float16 quantization parity of
+all8 `RecentResidual` features across all431517 heldout training-day
+impressions(17400106 exposures,671044 positives) using only the earlier-
+training fitting population(`c2afb72b5a7a94d64e4a1a09d5f2c08df3c7c4ce8a485192b021d3a7a42838bc`)
+and saved `internal_scores.jsonl`,with zero parameter fitting and zero
+official-dev or test reads:
+
+| Feature / Zero-Parameter Combination | Float32 Heldout AUC | Float16 Heldout AUC | Float16 - Float32 |
+|---|---:|---:|---:|
+| `contextual_nonprior_score` |0.6501781153|0.6501829597|+0.0000048444|
+| `article_prior_logit` (all fitting days) |0.6127592930|0.6127518223|-0.0000074707|
+| `last_fitting_day_ctr_logit` |0.6062703239|0.6062685529|-0.0000017710|
+| `history_subcategory_share` |0.5814850207|0.5814850207|0.0000000000|
+| `history_category_share` |0.5735213815|0.5735213815|0.0000000000|
+| `freshness_neg_first_exposure_age` (`-age/7`) |0.5327998383|0.5327998383|0.0000000000|
+| `last_day_log_exposures_over_10` |0.4897951894|0.4898051882|+0.0000099987|
+| `all_days_log_exposures_over_10` |0.4724490499|0.4724547606|+0.0000057108|
+| `first_exposure_age_at_fitting_cutoff_over_7` |0.4672001617|0.4672001617|0.0000000000|
+| `base_all_days_prior` (accepted internal baseline) |0.6906231148|—|—|
+| `base_plus_negative_age` (`base - age/7`, zero fit) |0.6912810903|—|+0.0006579755 vs base|
+| `base_plus_taxonomy_shares` (`base + cat + subcat`, zero fit) |0.6906812452|—|+0.0000581304 vs base|
+
+Key findings:
+1. Float16 feature quantization in `RecentResidual` alters single-feature
+   heldout-day AUCs by at most`9.999e-6`(<0.001 AUC points).
+2. Older articles and high raw cumulative exposure without high CTR negatively
+   correlate with next-day clicks(`first_exposure_age` AUC0.467200,
+   `all_days_log_exposures` AUC0.472449);even an unweighted subtraction
+   `base - age/7` lifts heldout-day AUC from0.6906231148 to0.6912810903
+   (+0.000658),and unweighted taxonomy shares lift it to0.6906812452.
+3. Because these scalar recency/taxonomy features only reweight freshness,
+   exposure saturation and coarse category overlap,the8-feature residual
+   head is expected to provide a modest incremental gain rather than closing
+   the full+0.100956 gap to0.80 on its own;richer multi-field content
+   representations(abstracts/entities) and stronger user-candidate interactions
+   will be required after evaluating the prepared residual trial.
+
+Session evidence: `jev-contextual-recent-01-heldout-feature-signal.json`,
+SHA4f05549f2d81615e3e77924bae0ab1d030d1311b790bff6e956dd402abad1188;
+source `diagnose_jev_recent_feature_signal_01.py`,
+SHAb2c1457c9539e163180d9acfd344ddfc05f0af040a961dc24edf9215d06da0f0;
+4 unit tests pass in `test_jev_recent_feature_signal.py`.
+Read-only internal-heldout audit only;not a trained model,new official-dev
+result,or renewed compute allocation.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

@@ -875,6 +875,42 @@ SHA7a0e872f39580beeac05173afd337638ec3e2055654bcdbbd9a2ddfa8ce2ac17;
 Read-only internal-heldout audit only;not a trained model,new official-dev
 result,or renewed compute allocation.
 
+### Nov10: MiniLM 64-token window utilization audit on training news
+
+Audited subword token utilization under the pinned
+`sentence-transformers/all-MiniLM-L6-v2` tokenizer across all101527
+training articles(`train/news.tsv` SHA8d16f3e4...),comparing `title_only`
+(`PublicEncoder.encode` in `src/mind_public_contextual.py`,which already
+pads every sequence to `padding="max_length", max_length=64`) against
+`"{category} / {subcategory}: {title}. {abstract}"` within the exact same
+`max_length=64` sequence window(zero neural forward passes,zero click labels
+read,zero official-dev or test reads):
+
+| Input Format (`max_length=64` padded window) | Untruncated Mean / p50 / p95 / Max Tokens | Active Tokens in 64-Window (Mean) | Active Slot Fraction | `[PAD]` Slot Fraction | Articles Truncated at 64 |
+|---|---:|---:|---:|---:|---:|
+| `title_only` (`mind_public_contextual.py`) |15.80 / 15.0 / 24.0 / 61|15.8049|24.6951%|75.3049%|0 (0.00%)|
+| `category / subcategory: title. abstract` |70.06 / 56.0 / 128.0 / 650|51.8159|80.9624%|19.0376%|41157 (40.54%)|
+
+Key findings:
+1. Because `PublicEncoder.encode` uses `padding="max_length", max_length=64`,
+   encoding `title_only` left75.3049% of all transformer sequence slots
+   (48.20 of64 tokens per article) as `[PAD]` tokens while still paying the
+   full `(batch, 64, 384)` 6-layer self-attention tensor cost.
+2. Formatting each article as `"{category} / {subcategory}: {title}. {abstract}"`
+   inside the exact same `max_length=64` window increases active non-pad
+   tokens per article from15.8049 to51.8159(+36.0110 tokens,`3.2785x`
+   active content density,80.9624% slot utilization) at the exact same
+   `(batch, 64)` transformer sequence length and `(101528, 384)` output
+   embedding footprint.
+
+Session evidence: `jev-minilm-64token-window-utilization.json`,
+SHA2afadbc09a5e0b43668a7b47e421db91965b63eee87ecd3c0fc3587c527592df;
+source `diagnose_jev_minilm_token_utilization_01.py`,
+SHAc807473c9ce31387945921ed32f645f26daf58d7a94ed571212f7169b9642cf3;
+2 unit tests pass in `test_jev_minilm_token_utilization.py`.
+Read-only tokenizer audit only;not a trained model,new official-dev result,
+or renewed compute allocation.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

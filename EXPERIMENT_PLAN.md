@@ -911,6 +911,63 @@ SHAc807473c9ce31387945921ed32f645f26daf58d7a94ed571212f7169b9642cf3;
 Read-only tokenizer audit only;not a trained model,new official-dev result,
 or renewed compute allocation.
 
+### Nov10: CandidateInterest parameter inspection and heldout multi-signal interaction audit
+
+Audited the learned parameters of both verified `CandidateInterest`
+checkpoints(`internal_selection/model.pt` SHAb5288183... and
+`all_training_fit/model.pt` SHA8aa22656...) and evaluated zero-fit
+multi-signal residual interactions across all431517 heldout training-day
+impressions(17400106 exposures,671044 positives;zero parameter fitting,
+zero official-dev or test reads):
+
+- **Learned `CandidateInterest` checkpoint parameters**:
+  - `semantic_scale`: grew from initialized `4.0` to `4.801510` on
+    `internal_selection` and `5.137271` on `all_training_fit`.
+  - `recency` attention bias across left-padded history slots `0..29`
+    (slot `0` oldest, slot `29` most recent click):
+    - `internal_selection`: oldest-5 mean `-0.060394`, middle-5 mean `-0.042525`,
+      newest-5 mean `+0.041760` (`slot_29 - slot_0 = +0.142763`).
+    - `all_training_fit`: oldest-5 mean `-0.050530`, middle-5 mean `-0.046025`,
+      newest-5 mean `+0.046218` (`slot_29 - slot_0 = +0.119821`).
+  - Taxonomy embedding L2 norms: `subcategory.weight` (`5.3011` / `5.9826`) is
+    `4.36x` / `4.22x` larger than `category.weight` (`1.2156` / `1.4177`),
+    showing fine-grained subcategory (`285` classes) carries substantially
+    more learned signal than coarse category (`18` classes).
+
+| Heldout-Day Signal / Zero-Fit Combination (431517 impressions) | Heldout Day AUC | Delta vs `base_all_days_prior` |
+|---|---:|---:|
+| `base_all_days_prior` (accepted internal baseline) |0.6906231148|0.0000000000|
+| `zero_empty_history_nonprior_base` (`prior + (hlen > 0) * nonprior`) |0.6907848433|+0.0001617285|
+| `hyperbolic_history_damped_base` (`prior + (hlen / (hlen + 2)) * nonprior`) |0.6887782228|-0.0018448920|
+| `most_recent_click_taxonomy_match_only` (`h_29` cat/subcat match) |0.5282427481|-0.1623803668|
+| `most_recent_click_entity_match_only` (`h_29` Wikidata overlap) |0.5054245152|-0.1851985996|
+| `ctr_momentum_logit_only` (`last_day_ctr - all_days_prior`) |0.4702605654|-0.2203625494|
+| `base_plus_ctr_momentum_and_freshness` |0.6914201870|+0.0007970721|
+| `base_plus_recent_continuity_and_entity` |0.6913925949|+0.0007694800|
+| `combined_zero_fit_multi_signal` |0.6919997673|+0.0013766524|
+
+Key findings:
+1. On the11393 empty-history heldout impressions(`hlen == 0`), where
+   `context = 0`, `CandidateInterest`'s unconditioned residual `head([cand, 0, 0])`
+   lowers empty-history slice AUC from0.6097814865 to0.6036564174
+   (-0.006125);gating `nonprior * (hlen > 0)` lifts full heldout-day AUC
+   to0.6907848433(+0.000162),whereas damping non-empty histories via
+   `hlen / (hlen + 2)` hurts heldout AUC(0.6887782228,-0.001845),proving
+   short non-empty histories(`1-5` clicks) carry strong semantic signal that
+   should not be damped relative to the popularity prior.
+2. Combining empty-history gating,candidate freshness(`-age/7`),CTR momentum
+   (`last_day_ctr_logit - article_prior_logit`),Wikidata entity history share,
+   and most-recent-click(`h_29`) taxonomy/entity continuity lifts heldout-day
+   AUC from0.6906231148 to0.6919997673(+0.001377) with zero learned weights.
+
+Session evidence: `jev-contextual-parameter-and-interaction-audit.json`,
+SHA0181368a63a93f77c4c2cc542baa2e2754ba62c2fbf7a90c699c1092beeeb07d;
+source `diagnose_jev_contextual_parameter_and_interaction_audit_01.py`,
+SHAc405ec6254ae502c6dec5c1a066084d248f42e6cce7b7ae83cfef3bed2e6be05;
+3 unit tests pass in `test_jev_contextual_parameter_and_interaction_audit.py`.
+Read-only internal-heldout audit only;not a trained model,new official-dev
+result,or renewed compute allocation.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

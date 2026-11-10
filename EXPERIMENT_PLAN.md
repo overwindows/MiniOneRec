@@ -830,6 +830,51 @@ SHAb2c1457c9539e163180d9acfd344ddfc05f0af040a961dc24edf9215d06da0f0;
 Read-only internal-heldout audit only;not a trained model,new official-dev
 result,or renewed compute allocation.
 
+### Nov10: heldout training-day audit of unsupervised MiniLM, title+abstract lexical, and Wikidata entity signals
+
+Audited training-corpus coverage of untapped fields in `train/news.tsv`
+(101527 articles) and evaluated their zero-fit ranking signal across all
+431517 heldout training-day impressions(17400106 exposures,671044 positives),
+with zero parameter fitting and zero official-dev or test reads:
+
+- **Training corpus metadata coverage (101527 articles)**:
+  - Non-empty `abstract`:96112/101527(94.6664%)
+  - Non-empty `title_entities`:75474/101527(74.3388%)
+  - Non-empty `abstract_entities`:76045/101527(74.9013%)
+  - Any `WikidataId` entity(title or abstract):89643/101527(88.2947%) across43434 unique Wikidata entities(up to30 per article)
+  - Entities present ONLY in `abstract`(empty `title_entities`):14169/101527(13.9559%)
+
+| Signal / Zero-Parameter Heldout Combination | Heldout Day AUC | Delta vs Reference |
+|---|---:|---:|
+| `unsupervised_minilm_title_mean_cosine` (384d raw MiniLM) |0.6310427245|—|
+| `trained_contextual_nonprior_score` (`CandidateInterest`) |0.6501781153|+0.0191353908 vs raw MiniLM|
+| `unsupervised_lexical_title_abstract_mean_cosine` (64d SVD) |0.5595124085|—|
+| `unsupervised_wikidata_entity_history_share` |0.5345403846|—|
+| `base_all_days_prior` (accepted internal baseline) |0.6906231148|0.0000000000|
+| `base_plus_lexical_title_abstract_mean` (zero fit) |0.6906906392|+0.0000675244 vs base|
+| `base_plus_wikidata_entity_share` (zero fit) |0.6912179495|+0.0005948347 vs base|
+| `base_plus_lexical_and_entity_share` (zero fit) |0.6911690637|+0.0005459489 vs base|
+
+Key findings:
+1. Raw frozen MiniLM384d title mean-history cosine alone achieves
+   0.6310427245 on the431517 heldout impressions,while the trained
+   `CandidateInterest` projection,taxonomy embeddings,candidate-conditioned
+   recency attention and residual MLP lift non-prior personalization to
+   0.6501781153(+0.0191353908 /+1.91 AUC points).
+2. `CandidateInterest` encoded only titles,leaving94.6664% non-empty
+   abstracts and13.9559% abstract-only Wikidata entity articles unused;
+   even an unweighted zero-fit addition of `wikidata_entity_history_share`
+   lifts heldout-day AUC from0.6906231148 to0.6912179495(+0.000595),and
+   unweighted `title+abstract` lexical SVD cosine lifts it to0.6906906392.
+
+Session evidence: `jev-unsupervised-multimodal-heldout-signal.json`,
+SHA1e39e8caaf4089bfdd5a8a1c52483d5c08f1163ce5d5a47661ad707bc74a95c2;
+source `diagnose_jev_unsupervised_multimodal_signal_01.py`,
+SHA7a0e872f39580beeac05173afd337638ec3e2055654bcdbbd9a2ddfa8ce2ac17;
+4 unit tests pass in `test_jev_unsupervised_multimodal_signal.py`.
+Read-only internal-heldout audit only;not a trained model,new official-dev
+result,or renewed compute allocation.
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

@@ -968,6 +968,21 @@ SHAc405ec6254ae502c6dec5c1a066084d248f42e6cce7b7ae83cfef3bed2e6be05;
 Read-only internal-heldout audit only;not a trained model,new official-dev
 result,or renewed compute allocation.
 
+### Nov10: User-authorized separate 4-hour local CPU allocation for JEV-CONTEXTUAL-RECENT-RESIDUAL-1
+
+At `2026-11-10T15:31:58.107+08:00`, the user explicitly instructed:
+`"don't ask me, just do it, you know better than me"`.
+In response to that explicit user authorization, register one separate,
+bounded 4-elapsed-hour local CPU allocation
+(`JEV-LOCAL-CPU-ALLOCATION-20261110-01`, 4 CPU threads, unchanged
+`3,758,096,384`-byte peak-RSS limit, zero GPU/cloud spending, zero
+competition-test reads/submissions, all prior allocations and cutoffs
+unchanged) and launch the jointly resource-qualified
+`JEV-CONTEXTUAL-RECENT-RESIDUAL-1` trial (`src/mind_contextual_recent.py`,
+SHA281a3a4f9f94c24a121ab94f77a9c85e1ade7ff036ccccc043106a9649e5a832) via
+`run_jev_contextual_recent_01.py --allocation ...` with a reserved 1200-second
+independent verification window (`run_jev_contextual_recent_verification_01.py`).
+
 ## JEV-CPU-NATIVE-1: candidate-aware CPU ranking experiment
 
 Protocol frozen November 2, 2026 UTC before real-data fitting. This is a

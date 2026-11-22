@@ -1,0 +1,211 @@
+import torch
+import torch.nn as nn
+
+from models.utils import SelfAttn, LinearAttn, GlobalAttn, Norm
+
+
+class NRMS(nn.Module):
+    def __init__(self, config, word2vec_embedding, num_cat, num_subcat):
+        super(NRMS, self).__init__()
+        self.word_emb = nn.Embedding(word2vec_embedding.shape[0], config['word_emb_dim'])
+        self.word_emb.weight = nn.Parameter(torch.tensor(word2vec_embedding, dtype=torch.float32))
+        self.word_emb.weight.requires_grad = True
+        self.cat_dim = config['cat_emb_dim']
+        self.news_dim = config['head_num'] * config['head_dim']
+        self.user_dim = self.news_dim
+        self.global_dim = self.news_dim
+        self.key_dim = config['attention_hidden_dim']
+        self.aux = config['aux']
+        self.num_cat = num_cat
+        self.num_subcat = num_subcat
+
+        if self.aux:
+            self.news_encoder = AggEncoder(word_emb=self.word_emb,
+                                           drop=config['dropout'],
+                                           word_dim=config['word_emb_dim'],
+                                           news_dim=self.news_dim,
+                                           key_dim=self.key_dim,
+                                           head_num=config['head_num'],
+                                           head_dim=config['head_dim'],
+                                           num_self_attn=config['text_self_attn_layer'],
+                                           num_cat=self.num_cat,
+                                           num_subcat=self.num_subcat,
+                                           cat_dim=self.cat_dim)
+        else:
+            self.news_encoder = TextEncoder(word_emb=self.word_emb,
+                                            drop=config['dropout'],
+                                            word_dim=config['word_emb_dim'],
+                                            news_dim=self.news_dim,
+                                            key_dim=self.key_dim,
+                                            head_num=config['head_num'],
+                                            head_dim=config['head_dim'],
+                                            num_self_attn=config['text_self_attn_layer'])
+        user_encoder = PGTEncoder if config['global'] else NewsSetEncoder
+        self.user_encoder = user_encoder(news_encoder=self.news_encoder,
+                                         drop=config['dropout'],
+                                         news_dim=self.news_dim,
+                                         user_dim=self.user_dim,
+                                         global_dim=self.global_dim,
+                                         key_dim=self.key_dim,
+                                         head_num=config['head_num'],
+                                         head_dim=config['head_dim'],
+                                         num_self_attn=config['history_self_attn_layer'])
+
+    def forward(self, x, source):
+        if source == 'history':
+            his_out = self.user_encoder(x)
+            return his_out
+        elif source == 'pgt':
+            user_out = self.user_encoder(x[0], x[1])
+            return user_out
+        elif source == 'candidate':
+            cand_out = self.news_encoder(x)
+            return cand_out
+
+
+class DenseLayer(nn.Module):
+    def __init__(self, emb_dim, output_dim, num_emb):
+        super(DenseLayer, self).__init__()
+        self.emb = nn.Embedding(num_embeddings=num_emb, embedding_dim=emb_dim)
+        self.W = nn.Linear(emb_dim, output_dim)
+        self.activation = nn.ReLU()
+
+    def forward(self, x):
+        x = self.emb(x)
+        out = self.activation(self.W(x))
+        return out
+
+
+class Encoder(nn.Module):
+    def __init__(self, drop, input_dim, output_dim, key_dim, head_num, head_dim):
+        super(Encoder, self).__init__()
+        self.dropout = nn.Dropout(p=drop)
+        self.self_attn = SelfAttn(head_num=head_num,
+                                  head_dim=head_dim,
+                                  input_dim=input_dim)
+        self.linear_attn = LinearAttn(output_dim=output_dim, key_dim=key_dim)
+
+    def forward(self, **kwargs):
+        pass
+
+
+class AggEncoder(Encoder):
+    def __init__(self, word_emb, drop, word_dim, news_dim, key_dim, head_num, head_dim, num_self_attn,
+                 num_cat, num_subcat, cat_dim):
+        super(AggEncoder, self).__init__(drop=drop, input_dim=word_dim,
+                                         output_dim=news_dim, key_dim=key_dim,
+                                         head_num=head_num, head_dim=head_dim)
+        self.word_emb = word_emb
+        self.title_encoder = TextEncoder(word_emb=word_emb,
+                                         drop=drop,
+                                         word_dim=word_dim,
+                                         news_dim=news_dim,
+                                         key_dim=key_dim,
+                                         head_num=head_num,
+                                         head_dim=head_dim,
+                                         num_self_attn=num_self_attn)
+        self.abs_encoder = TextEncoder(word_emb=word_emb,
+                                       drop=drop,
+                                       word_dim=word_dim,
+                                       news_dim=news_dim,
+                                       key_dim=key_dim,
+                                       head_num=head_num,
+                                       head_dim=head_dim,
+                                       num_self_attn=num_self_attn)
+        self.cat_encoder = DenseLayer(emb_dim=cat_dim,
+                                      output_dim=news_dim,
+                                      num_emb=num_cat)
+        self.subcat_encoder = DenseLayer(emb_dim=cat_dim,
+                                         output_dim=news_dim,
+                                         num_emb=num_subcat)
+
+    def forward(self, x):
+        title = self.title_encoder(x[0])
+        abs = self.abs_encoder(x[1])
+        cat = self.cat_encoder(x[2])
+        subcat = self.subcat_encoder(x[3])
+        out = torch.stack((title, abs, cat, subcat), dim=2)
+        out = self.linear_attn(out)
+        return out
+
+
+class TextEncoder(Encoder):
+    def __init__(self, word_emb, drop, word_dim, news_dim, key_dim, head_num, head_dim, num_self_attn):
+        super(TextEncoder, self).__init__(drop=drop, input_dim=word_dim,
+                                          output_dim=news_dim, key_dim=key_dim,
+                                          head_num=head_num, head_dim=head_dim)
+        self.num_self_attn = num_self_attn
+        self.word_emb = word_emb
+
+        self.fnn2 = nn.Linear(news_dim, news_dim)
+        self.self_attn2 = SelfAttn(head_num=head_num,
+                                   head_dim=head_dim,
+                                   input_dim=news_dim)
+        self.acti = nn.ReLU()
+
+    def forward(self, x):
+        x = self.word_emb(x)
+        ###
+        out = self.dropout(x)
+        out = self.self_attn(QKV=(out, out, out))
+        out = self.dropout(out)
+        ###
+
+        if self.num_self_attn == 2:
+            out = self.acti(self.fnn2(out))
+            out = self.self_attn2(QKV=(out, out, out))
+            out = self.dropout(out)
+
+        out = self.linear_attn(out)
+        return out
+
+
+class NewsSetEncoder(Encoder):
+    def __init__(self, news_encoder, drop, news_dim, user_dim, global_dim, key_dim, head_num, head_dim, num_self_attn):
+        super(NewsSetEncoder, self).__init__(drop=drop, input_dim=news_dim,
+                                             output_dim=user_dim, key_dim=key_dim,
+                                             head_num=head_num, head_dim=head_dim)
+        self.num_self_attn = num_self_attn
+        self.news_encoder = news_encoder
+
+        self.fnn2 = nn.Linear(user_dim, user_dim)
+        self.self_attn2 = SelfAttn(head_num=head_num,
+                                   head_dim=head_dim,
+                                   input_dim=user_dim)
+        self.acti = nn.ReLU()
+
+    def forward(self, x):
+        x = self.news_encoder(x)
+        ###
+        out = self.dropout(x)
+        out = self.self_attn(QKV=(out, out, out))
+        out = self.dropout(out)
+        ###
+
+        if self.num_self_attn == 2:
+            out = self.acti(self.fnn2(out))
+            out = self.self_attn2(QKV=(out, out, out))
+            out = self.dropout(out)
+
+        out = self.linear_attn(out)
+        return out
+
+
+class PGTEncoder(Encoder):
+    def __init__(self, news_encoder, drop, news_dim, user_dim, global_dim, key_dim, head_num, head_dim, num_self_attn):
+        super(PGTEncoder, self).__init__(drop=drop, input_dim=news_dim,
+                                         output_dim=user_dim, key_dim=key_dim,
+                                         head_num=head_num, head_dim=head_dim)
+        self.news_encoder = news_encoder
+        self.global_encoder = NewsSetEncoder(news_encoder, drop, news_dim, user_dim, global_dim, key_dim, head_num, head_dim)
+        self.global_attn = GlobalAttn(user_dim, global_dim)
+
+    def forward(self, his, global_pref):
+        global_pref = self.global_encoder(global_pref)
+        global_pref = self.dropout(global_pref)
+        his = self.news_encoder(his)
+        his = self.dropout(his)
+        his = self.self_attn(QKV=(his, his, his))
+        his = self.dropout(his)
+        out = self.global_attn(his, global_pref)
+        return out

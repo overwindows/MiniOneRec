@@ -1,0 +1,6 @@
+click
+numpy
+pandas
+sklearn
+pyyaml
+torch==1.15.0
